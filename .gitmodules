@@ -1,0 +1,33 @@
+[submodule "build-infra"]
+	path = build-infra
+	url = git@github.com:Metaswitch/clearwater-build-infra.git
+[submodule "modules/freeDiameter"]
+	path = modules/freeDiameter
+	url = git@github.com:Metaswitch/freeDiameter.git
+[submodule "modules/cassandra"]
+	path = modules/cassandra
+	url = git@github.com:apache/cassandra.git
+[submodule "modules/gmock"]
+	path = modules/gmock
+	url = git@github.com:Metaswitch/gmock-upstream.git
+[submodule "modules/libevhtp"]
+	path = modules/libevhtp
+	url = git@github.com:Metaswitch/libevhtp.git
+[submodule "modules/rapidjson"]
+	path = modules/rapidjson
+	url = git@github.com:miloyip/rapidjson.git
+[submodule "modules/sas-client"]
+	path = modules/sas-client
+	url = git@github.com:Metaswitch/sas-client.git
+[submodule "modules/thrift"]
+	path = modules/thrift
+	url = git@github.com:Metaswitch/thrift.git
+[submodule "modules/cpp-common"]
+	path = modules/cpp-common
+	url = git@github.com:Metaswitch/cpp-common.git
+[submodule "modules/libmemcached"]
+	path = modules/libmemcached
+	url = git@github.com:Metaswitch/libmemcached-upstream.git
+[submodule "modules/gcovr"]
+	path = modules/gcovr
+	url = git@github.com:gcovr/gcovr.git

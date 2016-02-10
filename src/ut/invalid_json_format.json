@@ -1,0 +1,20 @@
+{
+    "alarms": [
+        {
+            "index": 1000,
+            "levels": [
+                {
+                    "severity": "CLEARED",
+                    "description": "Description",
+                    "details": "Details"
+                },
+                {
+                    "severity": "CRITICAL",
+                    "description": "Description",
+                    "details": "Details"
+                }
+            ]
+        }
+    ]
+}
+
