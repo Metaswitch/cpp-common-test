@@ -55,7 +55,6 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 fakehttpconnection.cpp \
                                 fakelogger.cpp \
                                 fakezmq.cpp \
-                                fakesnmp.cpp \
                                 mock_sas.cpp \
                                 mockfreediameter.cpp \
                                 basetest.cpp \
@@ -66,12 +65,9 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 communicationmonitor_test.cpp \
                                 diameterresolver_test.cpp \
                                 diameterstack_test.cpp \
-                                httpconnection_test.cpp \
-                                httpstack_test.cpp \
                                 httpstack_utils_test.cpp \
                                 json_alarms_test.cpp \
                                 logger_test.cpp \
-                                load_monitor_test.cpp \
                                 memcached_config_test.cpp \
                                 memcachedstorereview_test.cpp \
                                 realmmanager_test.cpp
@@ -99,7 +95,7 @@ cpp_common_test_test_LDFLAGS := -L../usr/lib \
                                 -lmemcached \
                                 `net-snmp-config --netsnmp-agent-libs`
 
-COMMON_COVERAGE_ROOT := ../modules/cpp-common/src
+COVERAGE_ROOT := ../modules/cpp-common/src
 
 VPATH += ../modules/cpp-common/src ../modules/cpp-common/test_utils ut
 include ../build-infra/cpp.mk
