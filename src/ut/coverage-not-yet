@@ -1,0 +1,47 @@
+# Test code
+localstore.cpp
+
+# TODO - covered in clearwater-fv-test. We should have something that checks
+# coverage there before we make it OK to not cover here
+snmp_agent.cpp
+snmp_continuous_accumulator_table.cpp
+snmp_cx_counter_table.cpp
+snmp_event_accumulator_table.cpp
+snmp_infinite_base_table.cpp
+snmp_infinite_scalar_table.cpp
+snmp_infinite_timer_count_table.cpp
+snmp_row.cpp
+snmp_single_count_by_node_type_table.cpp
+snmp_success_fail_count_table.cpp
+timer_counter.cpp
+memcachedstore.cpp
+dnsparser.cpp
+
+# TODO - Incomplete coverage
+logger.cpp
+httpstack.cpp
+diameterstack.cpp
+baseresolver.cpp
+dnscachedresolver.cpp
+httpresolver.cpp
+memcachedstoreview.cpp
+
+# TODO - Coverage in the wrong place
+
+# Memento/Homestead
+cassandra_store.cpp
+
+# Sprout
+health_checker.cpp
+accumulator.cpp
+statistic.cpp
+counter.cpp
+zmq_lvc.cpp
+
+# TODO - No coverage
+accesslogger.cpp
+exception_handler.cpp
+namespace_hop.cpp
+base64.cpp
+ipv6utils.cpp
+unique.cpp

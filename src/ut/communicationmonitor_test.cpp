@@ -133,6 +133,42 @@ TEST_F(CommunicationMonitorTest, OnlyErrorsToNoErrorsUpdate)
   _cm.inform_success();
 }
 
+// Test when going from the same state to the same state there's no action taken
+TEST_F(CommunicationMonitorTest, StableStates)
+{
+  // Send in two NO_ERROR states
+  cwtest_advance_time_ms(16000);
+  EXPECT_CALL(*_ma, set()).Times(0);
+  EXPECT_CALL(*_ma, clear()).Times(0);
+  _cm.inform_success();
+  cwtest_advance_time_ms(16000);
+  EXPECT_CALL(*_ma, set()).Times(0);
+  EXPECT_CALL(*_ma, clear()).Times(0);
+  _cm.inform_success();
+
+  // Send in two SOME_ERROR states
+  _cm.inform_success();
+  cwtest_advance_time_ms(16000);
+  EXPECT_CALL(*_ma, set()).Times(0);
+  EXPECT_CALL(*_ma, clear()).Times(0);
+  _cm.inform_failure();
+  _cm.inform_success();
+  cwtest_advance_time_ms(16000);
+  EXPECT_CALL(*_ma, set()).Times(0);
+  EXPECT_CALL(*_ma, clear()).Times(0);
+  _cm.inform_failure();
+
+  // Send in two ONLY_ERROR states
+  cwtest_advance_time_ms(16000);
+  EXPECT_CALL(*_ma, set()).Times(1);
+  EXPECT_CALL(*_ma, clear()).Times(0);
+  _cm.inform_failure();
+  cwtest_advance_time_ms(31000);
+  EXPECT_CALL(*_ma, set()).Times(0);
+  EXPECT_CALL(*_ma, clear()).Times(0);
+  _cm.inform_failure();
+}
+
 // Tests that the set_confirm_ms check is working.
 // The communication monitor should only update to set an alarm if the
 // time has advanced by the set_confirm_ms interval at the time of update.
