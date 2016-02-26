@@ -48,6 +48,11 @@
                   "severity": "CRITICAL",
                   "details": "Monit has detected that the process has failed.",
                   "description": "Process failure"
+                },
+                {
+                  "severity": "INDETERMINATE",
+                  "details": "Monit has detected that the process has failed.",
+                  "description": "Process failure"
                 }
             ]
         }

@@ -34,10 +34,8 @@
  * as those licenses appear in the file LICENSE-OPENSSL.
  */
 
-///
-///----------------------------------------------------------------------------
-// TODO change to noraml defs
-#pragma once
+#ifndef BASETEST_H__
+#define BASETEST_H__
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -48,3 +46,4 @@ class BaseTest : public ::testing::Test
   virtual ~BaseTest();
 };
 
+#endif
