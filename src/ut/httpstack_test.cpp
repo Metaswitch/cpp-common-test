@@ -56,6 +56,7 @@ class HttpStackTest : public testing::Test
 public:
   HttpStackTest()
   {
+    cwtest_release_curl();
     _stack = NULL;
     _host = "127.0.0.1";
     _port = 16384 + (getpid() % 16384);
@@ -70,6 +71,8 @@ public:
     {
       stop_stack();
     }
+
+    cwtest_control_curl();
   }
 
   void start_stack()
@@ -163,6 +166,8 @@ class HttpStackStatsTest : public HttpStackTest
 public:
   HttpStackStatsTest()
   {
+    cwtest_release_curl();
+
     // Store the HttpStack in a local variable first, so _stack is
     // either NULL or fully initialised.
     HttpStack* lstack = HttpStack::get_instance();
@@ -177,6 +182,7 @@ public:
   {
     cwtest_reset_time();
     stop_stack();
+    cwtest_control_curl();
   }
 
   void start_stack()
@@ -233,6 +239,7 @@ TEST_F(HttpStackTest, SimpleMainline)
 
 TEST_F(HttpStackTest, NoHandler)
 {
+  cwtest_release_curl();
   start_stack();
 
   int status;
@@ -242,6 +249,7 @@ TEST_F(HttpStackTest, NoHandler)
   ASSERT_EQ(404, status);
 
   stop_stack();
+  cwtest_control_curl();
 }
 
 TEST_F(HttpStackTest, SimpleHandler)

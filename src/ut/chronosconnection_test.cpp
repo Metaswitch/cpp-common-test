@@ -62,7 +62,6 @@ class ChronosConnectionTest : public BaseTest
     _resolver("10.42.42.42"),
     _cm(new Alarm("sprout", AlarmDef::CPP_COMMON_FAKE_ALARM, AlarmDef::MAJOR), "sprout", "chronos")
   {
-    cwtest_control_curl();
     _chronos = new ChronosConnection("narcissus", "localhost:9888", &_resolver, &_cm);
     fakecurl_responses.clear();
   }
@@ -71,7 +70,6 @@ class ChronosConnectionTest : public BaseTest
   {
     fakecurl_responses.clear();
     delete _chronos; _chronos = NULL;
-    cwtest_release_curl();
   }
 };
 

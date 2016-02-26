@@ -69,7 +69,6 @@ class HttpConnectionTest : public BaseTest
     _lm(100000, 20, 10, 10),
     _resolver("10.42.42.42")
   {
-    cwtest_control_curl();
     _http = new HttpConnection("cyrus",
                                true,
                                &_resolver,
@@ -100,7 +99,6 @@ class HttpConnectionTest : public BaseTest
     fakecurl_responses.clear();
     fakecurl_requests.clear();
     delete _http; _http = NULL;
-    cwtest_release_curl();
   }
 };
 
