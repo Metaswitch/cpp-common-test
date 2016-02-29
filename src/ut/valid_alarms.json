@@ -62,7 +62,15 @@
                 {
                     "severity": "CRITICAL",
                     "details": "Monit has detected that the process has failed.",
-                    "description": "Process failure",
+                    "description": "Process failure"
+                    "cause": "Cause",
+                    "effect": "Effect",
+                    "action": "Action"
+                },
+                {
+                    "severity": "INDETERMINATE",
+                    "details": "Monit has detected that the process has failed.",
+                    "description": "Process failure"
                     "cause": "Cause",
                     "effect": "Effect",
                     "action": "Action"

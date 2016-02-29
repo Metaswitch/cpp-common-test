@@ -137,6 +137,26 @@ TEST_F(MemcachedConfigTest, CorruptConfig)
 }
 
 
+TEST_F(MemcachedConfigTest, CorruptConfigIncorrectTokens)
+{
+  write_config("qw=er=ty");
+
+  MemcachedConfig config;
+  EXPECT_FALSE(_reader->read_config(config));
+}
+
+
+TEST_F(MemcachedConfigTest, MissingConfig)
+{
+  // For this test, destroy the reader and recreate it with a missing config
+  // file
+  delete _reader;
+  _reader = new MemcachedConfigFileReader(std::string("NotARealFile"));
+  MemcachedConfig config;
+  EXPECT_FALSE(_reader->read_config(config));
+}
+
+
 TEST_F(MemcachedConfigTest, ServerListEmpty)
 {
   // A blank server list should be valid and parseable - this is so that an empty

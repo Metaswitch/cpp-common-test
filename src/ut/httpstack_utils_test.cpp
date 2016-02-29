@@ -46,6 +46,8 @@
 #include "mockhttpstack.hpp"
 #include "mock_sas.h"
 
+using ::testing::_;
+
 SAS::TrailId FAKE_TRAIL_ID = 0x1234567890abcdef;
 
 class HandlerUtilsTest : public testing::Test
@@ -449,4 +451,14 @@ TEST_F(HandlerUtilsTest, DISABLED_ChronosLogging)
   EXPECT_TRUE(event != NULL);
 
   mock_sas_collect_messages(false);
+}
+
+// Test the Ping handler
+TEST_F(HandlerUtilsTest, PingHandler)
+{
+  MockHttpStack::Request req(_httpstack, "/", "ping");
+  EXPECT_CALL(*_httpstack, send_reply(_, 200, _));
+  HttpStackUtils::PingHandler handler;
+  handler.process_request(req, 0);
+  EXPECT_EQ("OK", req.content());
 }

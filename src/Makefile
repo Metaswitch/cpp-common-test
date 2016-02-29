@@ -54,10 +54,12 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 fakecurl.cpp \
                                 fakehttpconnection.cpp \
                                 fakelogger.cpp \
+                                fakesnmp.cpp \
                                 fakezmq.cpp \
                                 mock_sas.cpp \
                                 mockfreediameter.cpp \
                                 basetest.cpp \
+                                curl_interposer.cpp \
                                 test_main.cpp \
                                 test_interposer.cpp \
                                 alarm_test.cpp \
@@ -65,8 +67,11 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 communicationmonitor_test.cpp \
                                 diameterresolver_test.cpp \
                                 diameterstack_test.cpp \
+                                httpconnection_test.cpp \
+                                httpstack_test.cpp \
                                 httpstack_utils_test.cpp \
                                 json_alarms_test.cpp \
+                                load_monitor_test.cpp \
                                 logger_test.cpp \
                                 memcached_config_test.cpp \
                                 memcachedstorereview_test.cpp \
@@ -93,17 +98,25 @@ cpp_common_test_test_LDFLAGS := -L../usr/lib \
                                 -levent \
                                 -levent_pthreads \
                                 -lmemcached \
+                                -lcurl \
                                 `net-snmp-config --netsnmp-agent-libs`
 
 COVERAGE_ROOT := ../modules/cpp-common/src
+
+cpp_common_test_test_VALGRIND_ARGS := --suppressions=ut/cpp_common_test.supp
 
 VPATH += ../modules/cpp-common/src ../modules/cpp-common/test_utils ut
 include ../build-infra/cpp.mk
 
 # Special extra objects for cpp_common_test
-${BUILD_DIR}/bin/cpp_common_test_test : ${cpp_common_test_test_OBJECT_DIR}/test_interposer.so
+${BUILD_DIR}/bin/cpp_common_test_test : ${cpp_common_test_test_OBJECT_DIR}/test_interposer.so ${cpp_common_test_test_OBJECT_DIR}/curl_interposer.so
 
 # Build rule for our interposer.
 ${cpp_common_test_test_OBJECT_DIR}/test_interposer.so : ../modules/cpp-common/test_utils/test_interposer.cpp ../modules/cpp-common/test_utils/test_interposer.hpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(cpp_common_test_test_CPPFLAGS) -shared -fPIC -ldl $< -o $@
 CLEANS += ${cpp_common_test_test_OBJECT_DIR}/test_interposer.so
+
+# Build rule for the CURL interposer.
+${cpp_common_test_test_OBJECT_DIR}/curl_interposer.so : ../modules/cpp-common/test_utils/curl_interposer.cpp ../modules/cpp-common/test_utils/curl_interposer.hpp
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(cpp_common_test_test_CPPFLAGS) -shared -fPIC -ldl $< -o $@
+CLEANS += ${cpp_common_test_test_OBJECT_DIR}/curl_interposer.so

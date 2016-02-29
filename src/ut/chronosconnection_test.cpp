@@ -42,6 +42,7 @@
 #include "fakehttpresolver.hpp"
 #include "chronosconnection.h"
 #include "basetest.hpp"
+#include "curl_interposer.hpp"
 #include "fakecurl.hpp"
 
 namespace AlarmDef {
@@ -55,31 +56,33 @@ class ChronosConnectionTest : public BaseTest
 {
   FakeHttpResolver _resolver;
   CommunicationMonitor _cm;
-  ChronosConnection _chronos;
+  ChronosConnection* _chronos;
 
   ChronosConnectionTest() :
     _resolver("10.42.42.42"),
-    _cm(new Alarm("sprout", AlarmDef::CPP_COMMON_FAKE_ALARM, AlarmDef::MAJOR), "sprout", "chronos"),
-    _chronos("narcissus", "localhost:9888", &_resolver, &_cm)
+    _cm(new Alarm("sprout", AlarmDef::CPP_COMMON_FAKE_ALARM, AlarmDef::MAJOR), "sprout", "chronos")
   {
+    _chronos = new ChronosConnection("narcissus", "localhost:9888", &_resolver, &_cm);
     fakecurl_responses.clear();
   }
 
   virtual ~ChronosConnectionTest()
   {
+    fakecurl_responses.clear();
+    delete _chronos; _chronos = NULL;
   }
 };
 
 TEST_F(ChronosConnectionTest, SendDelete)
 {
   fakecurl_responses["http://10.42.42.42:80/timers/delete_id"] = CURLE_OK;
-  HTTPCode status = _chronos.send_delete("delete_id",  0);
+  HTTPCode status = _chronos->send_delete("delete_id",  0);
   EXPECT_EQ(status, 200);
 }
 
 TEST_F(ChronosConnectionTest, SendInvalidDelete)
 {
-  HTTPCode status = _chronos.send_delete("",  0);
+  HTTPCode status = _chronos->send_delete("",  0);
   EXPECT_EQ(status, 405);
 }
 
@@ -90,7 +93,7 @@ TEST_F(ChronosConnectionTest, SendPost)
 
   std::string opaque = "{\"aor_id\": \"aor_id\", \"binding_id\": \"binding_id\"}";
   std::string post_identity = "";
-  HTTPCode status = _chronos.send_post(post_identity, 300, "/timers", opaque,  0);
+  HTTPCode status = _chronos->send_post(post_identity, 300, "/timers", opaque,  0);
   EXPECT_EQ(status, 200);
   EXPECT_EQ(post_identity, "abcd");
 }
@@ -103,7 +106,7 @@ TEST_F(ChronosConnectionTest, SendPostWithTags)
   std::string opaque = "{\"aor_id\": \"aor_id\", \"binding_id\": \"binding_id\"}";
   std::map<std::string, uint32_t> tags = { {"TAG1", 1}, {"TAG2", 1} };
   std::string post_identity = "";
-  HTTPCode status = _chronos.send_post(post_identity, 300, "/timers", opaque,  0, tags);
+  HTTPCode status = _chronos->send_post(post_identity, 300, "/timers", opaque,  0, tags);
   EXPECT_EQ(status, 200);
   EXPECT_EQ(post_identity, "abcd");
 }
@@ -115,7 +118,7 @@ TEST_F(ChronosConnectionTest, SendPostWithNoLocationHeader)
 
   std::string opaque = "{\"aor_id\": \"aor_id\", \"binding_id\": \"binding_id\"}";
   std::string post_identity = "";
-  HTTPCode status = _chronos.send_post(post_identity, 300, "/timers", opaque,  0);
+  HTTPCode status = _chronos->send_post(post_identity, 300, "/timers", opaque,  0);
   EXPECT_EQ(status, 400);
   EXPECT_EQ(post_identity, "");
 }
@@ -127,7 +130,7 @@ TEST_F(ChronosConnectionTest, SendPostWithNoHeaders)
 
   std::string opaque = "{\"aor_id\": \"aor_id\", \"binding_id\": \"binding_id\"}";
   std::string post_identity = "";
-  HTTPCode status = _chronos.send_post(post_identity, 300, "/timers", opaque,  0);
+  HTTPCode status = _chronos->send_post(post_identity, 300, "/timers", opaque,  0);
   EXPECT_EQ(status, 400);
   EXPECT_EQ(post_identity, "");
 }
@@ -141,7 +144,7 @@ TEST_F(ChronosConnectionTest, SendPut)
   // header.
   std::string opaque = "{\"aor_id\": \"aor_id\", \"binding_id\": \"binding_id\"}";
   std::string put_identity = "abcd";
-  HTTPCode status = _chronos.send_put(put_identity, 300, "/timers", opaque,  0);
+  HTTPCode status = _chronos->send_put(put_identity, 300, "/timers", opaque,  0);
   EXPECT_EQ(status, 200);
   EXPECT_EQ(put_identity, "efgh");
 }
@@ -156,7 +159,7 @@ TEST_F(ChronosConnectionTest, SendPutWithTags)
   std::string opaque = "{\"aor_id\": \"aor_id\", \"binding_id\": \"binding_id\"}";
   std::map<std::string, uint32_t> tags = { {"TAG1", 1}, {"TAG2", 1} };
   std::string put_identity = "abcd";
-  HTTPCode status = _chronos.send_put(put_identity, 300, "/timers", opaque,  0, tags);
+  HTTPCode status = _chronos->send_put(put_identity, 300, "/timers", opaque,  0, tags);
   EXPECT_EQ(status, 200);
   EXPECT_EQ(put_identity, "efgh");
 }
@@ -168,7 +171,7 @@ TEST_F(ChronosConnectionTest, SendPutWithNoLocationHeader)
 
   std::string opaque = "{\"aor_id\": \"aor_id\", \"binding_id\": \"binding_id\"}";
   std::string put_identity = "abcd";
-  HTTPCode status = _chronos.send_put(put_identity, 300, "/timers", opaque,  0);
+  HTTPCode status = _chronos->send_put(put_identity, 300, "/timers", opaque,  0);
   EXPECT_EQ(status, 400);
   EXPECT_EQ(put_identity, "abcd");
 }
