@@ -8,7 +8,10 @@
                 {
                     "severity": "MAJOR",
                     "description": "Description",
-                    "details": "Details"
+                    "details": "Details",
+                    "cause": "Cause",
+                    "effect": "Effect",
+                    "action": "Action"
                 }
             ]
         }

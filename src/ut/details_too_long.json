@@ -8,12 +8,18 @@
                 {
                     "severity": "CLEARED",
                     "description": "Description",
-                    "details": "Details"
+                    "details": "Details",
+                    "cause": "Cause",
+                    "effect": "Effect",
+                    "action": "Action"
                 },
                 {
                     "severity": "WARNING",
                     "details": "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890",
-                    "description": "Description"
+                    "description": "Description",
+                    "cause": "Cause",
+                    "effect": "Effect",
+                    "action": "Action"
                 }
             ]
         }
