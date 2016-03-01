@@ -64,13 +64,6 @@ namespace AlarmDef {
 static const int CPP_COMMON_FAKE_ALARM1 = 9999;
 static const int CPP_COMMON_FAKE_ALARM2 = 9998;
 static const int CPP_COMMON_FAKE_ALARM3 = 9997;
-static const int CPP_COMMON_FAKE_ALARM4 = 9996;
-static const int CPP_COMMON_FAKE_ALARM5 = 9995;
-static const int CPP_COMMON_FAKE_ALARM6 = 9994;
-static const int CPP_COMMON_FAKE_ALARM7 = 9993;
-static const int CPP_COMMON_FAKE_ALARM8 = 9992;
-static const int CPP_COMMON_FAKE_ALARM9 = 9991;
-static const int CPP_COMMON_FAKE_ALARM10 = 9990;
 }
 
 class AlarmTest : public ::testing::Test
@@ -114,7 +107,7 @@ public:
       .Times(1)
       .WillOnce(Return(0));
     
-    AlarmManager::get_instance()._alarm_list.clear();
+    AlarmManager::get_instance().alarm_list_clear();
     AlarmReqAgent::get_instance().stop();
     cwtest_restore_zmq();
   }
@@ -128,74 +121,6 @@ private:
   int _s;
 };
 
-class MultipleAlarmsTest : public ::testing::Test
-{
-public:
-  MultipleAlarmsTest() :
-    _alarm_state(issuer, AlarmDef::CPP_COMMON_FAKE_ALARM1, AlarmDef::CRITICAL),
-    _alarm(issuer, AlarmDef::CPP_COMMON_FAKE_ALARM2, AlarmDef::MAJOR),
-    _multi_state_alarm(issuer, AlarmDef::CPP_COMMON_FAKE_ALARM3),
-    _alarm4(issuer, AlarmDef::CPP_COMMON_FAKE_ALARM4, AlarmDef::INDETERMINATE),
-    _alarm5(issuer, AlarmDef::CPP_COMMON_FAKE_ALARM5, AlarmDef::WARNING),
-    _alarm6(issuer, AlarmDef::CPP_COMMON_FAKE_ALARM6, AlarmDef::MINOR),
-    _multi_state_alarm7(issuer, AlarmDef::CPP_COMMON_FAKE_ALARM7),
-    _multi_state_alarm8(issuer, AlarmDef::CPP_COMMON_FAKE_ALARM8),
-    _multi_state_alarm9(issuer, AlarmDef::CPP_COMMON_FAKE_ALARM9),
-    _multi_state_alarm10(issuer, AlarmDef::CPP_COMMON_FAKE_ALARM10),
-    _c(1),
-    _s(2)
-  {
-    cwtest_intercept_zmq(&_mz);
-
-    EXPECT_CALL(_mz, zmq_ctx_new())
-      .Times(1)
-      .WillOnce(Return(&_c));
-
-    EXPECT_CALL(_mz, zmq_socket(VoidPointeeEqualsInt(_c),ZMQ_REQ))
-      .Times(1)
-      .WillOnce(Return(&_s));
-
-    EXPECT_CALL(_mz, zmq_setsockopt(VoidPointeeEqualsInt(_s),ZMQ_LINGER,_,_))
-      .Times(1)
-      .WillOnce(Return(0));
-
-    EXPECT_CALL(_mz, zmq_connect(VoidPointeeEqualsInt(_s),StrEq("ipc:///var/run/clearwater/alarms"))) 
-      .Times(1)
-      .WillOnce(Return(0));
-
-    AlarmReqAgent::get_instance().start();
-  }
-
-  virtual ~MultipleAlarmsTest()
-  {
-    EXPECT_CALL(_mz, zmq_close(VoidPointeeEqualsInt(_s)))
-      .Times(1)
-      .WillOnce(Return(0));
-
-    EXPECT_CALL(_mz, zmq_ctx_destroy(VoidPointeeEqualsInt(_c)))
-      .Times(1)
-      .WillOnce(Return(0));
-    
-    AlarmManager::get_instance()._alarm_list.clear();
-    AlarmReqAgent::get_instance().stop();
-    cwtest_restore_zmq();
-  }
-
-private:
-  MockZmqInterface _mz;
-  AlarmState _alarm_state;
-  Alarm _alarm;
-  MultiStateAlarm _multi_state_alarm;
-  Alarm _alarm4;
-  Alarm _alarm5;
-  Alarm _alarm6;
-  MultiStateAlarm _multi_state_alarm7;
-  MultiStateAlarm _multi_state_alarm8;
-  MultiStateAlarm _multi_state_alarm9;
-  MultiStateAlarm _multi_state_alarm10;
-  int _c;
-  int _s;
-};
 class AlarmQueueErrorTest : public ::testing::Test
 {
 public:
@@ -242,10 +167,13 @@ MATCHER_P(VoidPointeeEqualsStr, value, "")
   return (strcmp((char*)arg, value) == 0);
 }
 
+// Raise a MultiStateAlarm in two of its possible states and expects two ZMQ
+// messages alerting the Alarm Agent of each state change.
 TEST_F(AlarmTest, MultiStateAlarmRaising)
 {
   {
     InSequence s;
+    
     EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
     EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
     EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.3"),_,_)).Times(1).WillOnce(Return(0));
@@ -258,8 +186,8 @@ TEST_F(AlarmTest, MultiStateAlarmRaising)
   }
   // Raises an alarm twice using different states each time. We check above for
   // two ZMQ messages, the second containing the updated raised state.
-  _multi_state_alarm.multi_set_critical();
-  _multi_state_alarm.multi_set_major();
+  _multi_state_alarm.set_critical();
+  _multi_state_alarm.set_major();
   // Causes the test thread to wait to ensure the zmq messages get sent before
   // the test terminates.
   for (unsigned int i = 0; i < 2; i++)
@@ -268,44 +196,9 @@ TEST_F(AlarmTest, MultiStateAlarmRaising)
   }
 }
 
-TEST_F(AlarmTest, AlarmAndMultiStateAlarmRaising)
-{
-  {
-    InSequence s;
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9998.4"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-    
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.2"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-    
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.5"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-  }
-  // Raises an alarm with only one possible raised state and a MultiStateAlarm
-  // raised with two of its possible raised states.
-  _alarm.set();
-  _multi_state_alarm.multi_set_indeterminate();
-  _multi_state_alarm.multi_set_minor();
-  
-  //No further ZMQ messages should be sent for these alarms as they are
-  //attempting to raise a state they are already in.
-  _alarm.set();
-  _multi_state_alarm.multi_set_minor();
-
-  // Causes the test thread to wait to ensure the zmq messages get sent before
-  // the test terminates.
-  for (unsigned int i = 0; i < 3; i++)
-  {
-    _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
-  }
-}
-
+// Raises a MultiStateAlarm at two of its possible states and then clears it. We
+// expect three ZMQ messages to be sent to the Alarm Agent notifying it of each
+// state change.
 TEST_F(AlarmTest, MultiStateAlarmClearing)
 {
   {
@@ -327,8 +220,8 @@ TEST_F(AlarmTest, MultiStateAlarmClearing)
   }
   // Raises a MultiStateAlarm with two of its possible states and then clears
   // it.
-  _multi_state_alarm.multi_set_warning();
-  _multi_state_alarm.multi_set_minor();
+  _multi_state_alarm.set_warning();
+  _multi_state_alarm.set_minor();
   _multi_state_alarm.clear();
   
   // Causes the test thread to wait to ensure the zmq messages get sent before
@@ -339,6 +232,10 @@ TEST_F(AlarmTest, MultiStateAlarmClearing)
   }
 }
 
+// Raises an Alarm (single state) and then simulates time moving forward by
+// thirty seconds. We should expect three ZMQ messages: the first caused by the
+// alarm being raised, the second and third caused by the function to re-send
+// alarms every 30 seconds.
 TEST_F(AlarmTest, ResendingAlarm)
 {
   {
@@ -372,13 +269,14 @@ TEST_F(AlarmTest, ResendingAlarm)
   }
 }
 
-TEST_F(MultipleAlarmsTest, ResendingAlarmsAndMultiStateAlarms)
+// Raises an Alarm (single state), clears it and then simulates time moving forward by
+// thirty seconds. We should expect four ZMQ messages: the first two caused by the
+// alarm being raised and cleared respectively, the third and fourth caused by the 
+// function to re-send alarms every 30 seconds.
+TEST_F(AlarmTest, ResendingClearedAlarm)
 {
   {
     InSequence s;
-
-    // These are the ZMQ messages we expect to be sent for the alarms we raise
-    // and clear manually below.
     EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
     EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
     EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9998.4"),_,_)).Times(1).WillOnce(Return(0));
@@ -389,49 +287,8 @@ TEST_F(MultipleAlarmsTest, ResendingAlarmsAndMultiStateAlarms)
     EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9998.1"),_,_)).Times(1).WillOnce(Return(0));
     EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
 
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.2"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9996.2"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-    
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9995.6"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-    
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9993.6"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9993.1"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-    
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9992.5"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-    
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9991.4"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-    
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9991.3"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-
-    // These are the ZMQ messages we expect to be sent automatically by the
-    // function to reraise alarms every thirty seconds.
-    
+    // We should expect the alarm we cleared above to be recleared and also the
+    // MultiStateAlarm alarm (which was never raised) should be cleared.
     EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
     EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
     EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9998.1"),_,_)).Times(1).WillOnce(Return(0));
@@ -439,70 +296,171 @@ TEST_F(MultipleAlarmsTest, ResendingAlarmsAndMultiStateAlarms)
 
     EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
     EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.2"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.1"),_,_)).Times(1).WillOnce(Return(0));
     EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-    
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9996.2"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-    
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9995.6"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9994.1"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9993.1"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9992.5"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-    
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9991.3"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-    
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9990.1"),_,_)).Times(1).WillOnce(Return(0));
-    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
-
   }
-  // This test cover a wide range of raising alarm cases to test how they are
-  // reraised every thiry seconds with both single state Alarms and
-  // MultiStateAlarms. These tests include: purposely reraising an alarm with 
-  // the same state (which should only cause one ZMQ message to be sent),
-  // reraising an alarm with a different state (which should cause two ZMQ
-  // messages to be sent, but every thirty seconds only the most recent state
-  // is reraised), not raising the alarm and clearing a raised alarm (which
-  // should both result in the CLEARED status being resent every thiry seconds).
+  // Raises an alarm with only one possible raised state.
   _alarm.set();
   _alarm.clear();
-  _multi_state_alarm.multi_set_indeterminate();
-  _alarm4.set();
-  _alarm5.set();
-  _alarm5.set();
-  _multi_state_alarm7.multi_set_warning();
-  _multi_state_alarm7.clear();
-  _multi_state_alarm8.multi_set_minor();
-  _multi_state_alarm8.multi_set_minor();
-  _multi_state_alarm9.multi_set_major();
-  _multi_state_alarm9.multi_set_critical();
   // Simulates 30 seconds of time passing to trigger the alarms being re-raised.
   cwtest_advance_time_ms(30000);
   // Causes the test thread to wait to ensure the zmq messages get sent before
   // the test terminates.
-  for (unsigned int i = 0; i < 19; i++)
+  for (unsigned int i = 0; i < 4; i++)
+  {
+    _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
+  }
+}
+
+// Raises a MultiStateAlarm at two of its possible states and then simulates
+// time moving forward 30 seconds. We should expect four ZMQ messages: the first
+// two caused by the MultiSecerityAlarm changing states, the second two caused
+// by the function to resend alarms every 30 seconds.
+TEST_F(AlarmTest, MultiStateAlarmResending)
+{
+  {
+    InSequence s;
+    
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.3"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
+    
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.4"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
+    
+    // After we simulate time moving forward 30 seconds we should expect the
+    // single state Alarm with index 9998 to be cleared (as it was never raised)
+    // and the MultiStateAlarm to be re-raised at its latest severity (9997.4).
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9998.1"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
+    
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.4"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
+
+  }
+  // Raises an alarm twice using different states each time. We check above for
+  // two ZMQ messages, the second containing the updated raised state.
+  _multi_state_alarm.set_critical();
+  _multi_state_alarm.set_major();
+  
+  // Simulates 30 seconds of time passing to trigger the alarms being re-raised.
+  cwtest_advance_time_ms(30000);
+
+  // Causes the test thread to wait to ensure the zmq messages get sent before
+  // the test terminates.
+  for (unsigned int i = 0; i < 4; i++)
+  {
+    _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
+  }
+}
+
+// Raises a MultiStateAlarm at two of its possible states, clears it and then simulates
+// time moving forward 30 seconds. We should expect five ZMQ messages: the first
+// three caused by the MultiSecerityAlarm changing states, the second two caused
+// by the function to resend alarms every 30 seconds.
+TEST_F(AlarmTest, MultiStateAlarmClearedResending)
+{
+  {
+    InSequence s;
+    
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.3"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
+    
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.4"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
+    
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.1"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
+
+    // After we simulate time moving forward 30 seconds we should expect the
+    // single state Alarm with index 9998 to be cleared (as it was never raised)
+    // and the MultiStateAlarm to be re-cleared.
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9998.1"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
+    
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.1"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
+
+  }
+  // Raises an alarm twice using different states each time. We check above for
+  // two ZMQ messages, the second containing the updated raised state.
+  _multi_state_alarm.set_critical();
+  _multi_state_alarm.set_major();
+  _multi_state_alarm.clear();
+  
+  // Simulates 30 seconds of time passing to trigger the alarms being re-raised.
+  cwtest_advance_time_ms(30000);
+
+  // Causes the test thread to wait to ensure the zmq messages get sent before
+  // the test terminates.
+  for (unsigned int i = 0; i < 5; i++)
+  {
+    _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
+  }
+}
+
+// Raises a single state Alarm and then raises it again, we should only expect
+// one ZMQ message as the second would be a repeat.
+TEST_F(AlarmTest, ResendingAlarmRepeatedSeverity)
+{
+  {
+    InSequence s;
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9998.4"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
+    
+  }
+  // Raises an alarm twice with only one possible raised state.
+  _alarm.set();
+  _alarm.set();
+  // Causes the test thread to wait to ensure the zmq messages get sent before
+  // the test terminates.
+  _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
+}
+
+// Raise a MultiStateAlarm in two of its possible states and then repeats the
+// second. We should only expect two ZMQ messages.
+TEST_F(AlarmTest, MultiStateAlarmRepeatedSeverity)
+{
+  {
+    InSequence s;
+    
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.3"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
+    
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr(issuer),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.4"),_,_)).Times(1).WillOnce(Return(0));
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
+  }
+  // Raises an alarm twice using different states each time. We check above for
+  // two ZMQ messages, the second containing the updated raised state.
+  _multi_state_alarm.set_critical();
+  _multi_state_alarm.set_major();
+  _multi_state_alarm.set_major();
+  // Causes the test thread to wait to ensure the zmq messages get sent before
+  // the test terminates.
+  for (unsigned int i = 0; i < 2; i++)
   {
     _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
   }
@@ -769,7 +727,6 @@ TEST_F(AlarmZmqErrorTest, CloseSocket)
 
   EXPECT_TRUE(AlarmReqAgent::get_instance().start());
   AlarmReqAgent::get_instance().stop();
-
   EXPECT_TRUE(log.contains("zmq_close failed"));
 }
 
