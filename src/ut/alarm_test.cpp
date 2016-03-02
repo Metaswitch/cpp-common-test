@@ -733,7 +733,7 @@ TEST_F(AlarmZmqErrorTest, CloseSocket)
 
   EXPECT_TRUE(AlarmReqAgent::get_instance().start());
   AlarmReqAgent::get_instance().stop();
-  
+
   EXPECT_TRUE(log.contains("zmq_close failed"));
 }
 
