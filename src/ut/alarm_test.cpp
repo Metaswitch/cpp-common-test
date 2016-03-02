@@ -167,7 +167,7 @@ MATCHER_P(VoidPointeeEqualsStr, value, "")
   return (strcmp((char*)arg, value) == 0);
 }
 
-// Raise a MultiStateAlarm in two of its possible states and expects two ZMQ
+// Raise a MultiStateAlarm in two of its possible states and expect two ZMQ
 // messages alerting the Alarm Agent of each state change.
 TEST_F(AlarmTest, MultiStateAlarmRaising)
 {
@@ -190,10 +190,7 @@ TEST_F(AlarmTest, MultiStateAlarmRaising)
   _multi_state_alarm.set_major();
   // Causes the test thread to wait to ensure the zmq messages get sent before
   // the test terminates.
-  for (unsigned int i = 0; i < 2; i++)
-  {
-    _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
-  }
+  _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
 }
 
 // Raises a MultiStateAlarm at two of its possible states and then clears it. We
@@ -235,7 +232,9 @@ TEST_F(AlarmTest, MultiStateAlarmClearing)
 // Raises an Alarm (single state) and then simulates time moving forward by
 // thirty seconds. We should expect three ZMQ messages: the first caused by the
 // alarm being raised, the second and third caused by the function to re-send
-// alarms every 30 seconds.
+// alarms every 30 seconds. This function reraises the alarm which was raised
+// but also clears the only other defined alarm (as this alarm was not raised,
+// we assume it to be in a CLEARED state).
 TEST_F(AlarmTest, ResendingAlarm)
 {
   {
@@ -272,7 +271,9 @@ TEST_F(AlarmTest, ResendingAlarm)
 // Raises an Alarm (single state), clears it and then simulates time moving forward by
 // thirty seconds. We should expect four ZMQ messages: the first two caused by the
 // alarm being raised and cleared respectively, the third and fourth caused by the 
-// function to re-send alarms every 30 seconds.
+// function to re-send alarms every 30 seconds. This function reclears the alarm which
+// was cleared but also clears the only other defined alarm (as this alarm was not raised,
+// we assume it to be in a CLEARED state).
 TEST_F(AlarmTest, ResendingClearedAlarm)
 {
   {
@@ -314,8 +315,11 @@ TEST_F(AlarmTest, ResendingClearedAlarm)
 
 // Raises a MultiStateAlarm at two of its possible states and then simulates
 // time moving forward 30 seconds. We should expect four ZMQ messages: the first
-// two caused by the MultiSecerityAlarm changing states, the second two caused
-// by the function to resend alarms every 30 seconds.
+// two caused by the MultiSecerityAlarm changing states, the last two caused
+// by the function to resend alarms every 30 seconds. This function reraises the 
+// alarm which was raised (at the most recent severity at which it was raised)
+// but also clears the only other defined alarm (as this alarm was not raised,
+// we assume it to be in a CLEARED state).
 TEST_F(AlarmTest, MultiStateAlarmResending)
 {
   {
@@ -363,8 +367,10 @@ TEST_F(AlarmTest, MultiStateAlarmResending)
 
 // Raises a MultiStateAlarm at two of its possible states, clears it and then simulates
 // time moving forward 30 seconds. We should expect five ZMQ messages: the first
-// three caused by the MultiSecerityAlarm changing states, the second two caused
-// by the function to resend alarms every 30 seconds.
+// three caused by the MultiSecerityAlarm changing states, the last two caused
+// by the function to resend alarms every 30 seconds. This function reclears the alarm which
+// was cleared but also clears the only other defined alarm (as this alarm was not raised,
+// we assume it to be in a CLEARED state).
 TEST_F(AlarmTest, MultiStateAlarmClearedResending)
 {
   {
