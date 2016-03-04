@@ -107,7 +107,7 @@ public:
       .Times(1)
       .WillOnce(Return(0));
     
-    AlarmManager::get_instance().alarm_list_clear();
+    AlarmManager::get_instance().forget_alarm_list();
     AlarmReqAgent::get_instance().stop();
     cwtest_restore_zmq();
   }
