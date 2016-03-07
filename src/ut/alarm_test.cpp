@@ -188,8 +188,10 @@ TEST_F(AlarmTest, MultiStateAlarmRaising)
   // two ZMQ messages, the second containing the updated raised state.
   _multi_state_alarm.set_critical();
   _multi_state_alarm.set_major();
-  // Causes the test thread to wait to ensure the zmq messages get sent before
-  // the test terminates.
+
+  // Causes the test thread to wait until we receive two zmq_recv messages (to
+  // satisfy the expect_call above). We wait for a maximum of five seconds for
+  // each message.
   _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
   _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
 
@@ -223,8 +225,9 @@ TEST_F(AlarmTest, MultiStateAlarmClearing)
   _multi_state_alarm.set_minor();
   _multi_state_alarm.clear();
   
-  // Causes the test thread to wait to ensure the zmq messages get sent before
-  // the test terminates.
+  // Causes the test thread to wait until we receive three zmq_recv messages (to
+  // satisfy the expect_call above). We wait for a maximum of five seconds for
+  // each message.
   for (unsigned int i = 0; i < 3; i++)
   {
     _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
@@ -264,8 +267,10 @@ TEST_F(AlarmTest, ResendingAlarm)
   _alarm.set();
   // Simulates 30 seconds of time passing to trigger the alarms being re-raised.
   cwtest_advance_time_ms(30000);
-  // Causes the test thread to wait to ensure the zmq messages get sent before
-  // the test terminates.
+
+  // Causes the test thread to wait until we receive three zmq_recv messages (to
+  // satisfy the expect_call above). We wait for a maximum of five seconds for
+  // each message.
   for (unsigned int i = 0; i < 3; i++)
   {
     _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
@@ -311,8 +316,10 @@ TEST_F(AlarmTest, ResendingClearedAlarm)
   _alarm.clear();
   // Simulates 30 seconds of time passing to trigger the alarms being re-raised.
   cwtest_advance_time_ms(30000);
-  // Causes the test thread to wait to ensure the zmq messages get sent before
-  // the test terminates.
+
+  // Causes the test thread to wait until we receive four zmq_recv messages (to
+  // satisfy the expect_call above). We wait for a maximum of five seconds for
+  // each message.
   for (unsigned int i = 0; i < 4; i++)
   {
     _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
@@ -364,8 +371,9 @@ TEST_F(AlarmTest, MultiStateAlarmResending)
   // Simulates 30 seconds of time passing to trigger the alarms being re-raised.
   cwtest_advance_time_ms(30000);
 
-  // Causes the test thread to wait to ensure the zmq messages get sent before
-  // the test terminates.
+  // Causes the test thread to wait until we receive four zmq_recv messages (to
+  // satisfy the expect_call above). We wait for a maximum of five seconds for
+  // each message.
   for (unsigned int i = 0; i < 4; i++)
   {
     _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
@@ -421,8 +429,9 @@ TEST_F(AlarmTest, MultiStateAlarmClearedResending)
   // Simulates 30 seconds of time passing to trigger the alarms being re-raised.
   cwtest_advance_time_ms(30000);
 
-  // Causes the test thread to wait to ensure the zmq messages get sent before
-  // the test terminates.
+  // Causes the test thread to wait until we receive five zmq_recv messages (to
+  // satisfy the expect_call above). We wait for a maximum of five seconds for
+  // each message.
   for (unsigned int i = 0; i < 5; i++)
   {
     _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
@@ -444,8 +453,10 @@ TEST_F(AlarmTest, ResendingAlarmRepeatedSeverity)
   // Raises an alarm twice with only one possible raised state.
   _alarm.set();
   _alarm.set();
-  // Causes the test thread to wait to ensure the zmq messages get sent before
-  // the test terminates.
+  
+  // Causes the test thread to wait until we receive a zmq_recv message (to
+  // satisfy the expect_call above). We wait for a maximum of five seconds for
+  // the message.
   _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
 }
 
@@ -471,8 +482,10 @@ TEST_F(AlarmTest, MultiStateAlarmRepeatedSeverity)
   _multi_state_alarm.set_critical();
   _multi_state_alarm.set_major();
   _multi_state_alarm.set_major();
-  // Causes the test thread to wait to ensure the zmq messages get sent before
-  // the test terminates.
+  
+  // Causes the test thread to wait until we receive two zmq_recv messages (to
+  // satisfy the expect_call above). We wait for a maximum of five seconds for
+  // each message.
   for (unsigned int i = 0; i < 2; i++)
   {
     _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
