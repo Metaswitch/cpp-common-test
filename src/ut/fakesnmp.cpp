@@ -1,8 +1,8 @@
 /**
- * @file basetest.cpp Base class for UTs.
+ * @file fakesnmp.cpp Fake SNMP infrastructure (for testing).
  *
  * Project Clearwater - IMS in the Cloud
- * Copyright (C) 2016  Metaswitch Networks Ltd
+ * Copyright (C) 2015 Metaswitch Networks Ltd
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -34,16 +34,48 @@
  * as those licenses appear in the file LICENSE-OPENSSL.
  */
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-#include "basetest.hpp"
-#include "test_interposer.hpp"
+#include "snmp_internal/snmp_includes.h"
+#include "fakesnmp.hpp"
+#include "snmp_success_fail_count_table.h"
+#include "snmp_success_fail_count_by_request_type_table.h"
 
-using namespace std;
-
-BaseTest::~BaseTest()
+namespace SNMP
 {
-  // This ensures the UTs don't carry over any time they've advanced.
-  cwtest_reset_time();
+struct in_addr dummy_addr;
+
+// Alternative implementations is some functions, so we aren't calling real SNMP code in UT
+CounterTable* CounterTable::create(std::string name, std::string oid) { return new FakeCounterTable(); };
+
+IPCountTable* IPCountTable::create(std::string name, std::string oid) { return new FakeIPCountTable(); };
+IPCountRow::IPCountRow(struct in_addr addr) {};
+IPCountRow::IPCountRow(struct in6_addr addr) {};
+
+ColumnData IPCountRow::get_columns()
+{
+  ColumnData ret;
+  return ret;
+}
+
+SuccessFailCountByRequestTypeTable* SuccessFailCountByRequestTypeTable::create(std::string name, std::string oid)
+{
+  return new FakeSuccessFailCountByRequestTypeTable();
 };
 
+FakeIPCountRow FAKE_IP_COUNT_ROW;
+FakeIPCountTable FAKE_IP_COUNT_TABLE;
+FakeCounterTable FAKE_COUNTER_TABLE;
+FakeEventAccumulatorTable FAKE_EVENT_ACCUMULATOR_TABLE;
+FakeContinuousAccumulatorTable FAKE_CONTINUOUS_ACCUMULATOR_TABLE;
+
+} // Namespace SNMP ends
+
+// Fake implementation of scalar registration function, so SNMP::U32Scalar doesn't call real SNMP
+// code
+int netsnmp_register_read_only_ulong_instance(const char *name,
+                                              oid *reg_oid,
+                                              size_t reg_oid_len,
+                                              u_long *it,
+                                              Netsnmp_Node_Handler *subhandler)
+{
+  return 0;
+}

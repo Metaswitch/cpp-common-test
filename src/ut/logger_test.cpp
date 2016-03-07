@@ -34,9 +34,6 @@
  * as those licenses appear in the file LICENSE-OPENSSL.
  */
 
-///
-///----------------------------------------------------------------------------
-
 #include <string>
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"

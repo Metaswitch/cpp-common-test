@@ -1,5 +1,5 @@
 /**
- * @file sipresolver_test.cpp UT for SIPResolver class.
+ * @file httpresolver_test.cpp UT for HTTPResolver class.
  *
  * Project Clearwater - IMS in the Cloud
  * Copyright (C) 2014  Metaswitch Networks Ltd
@@ -46,7 +46,7 @@
 
 using namespace std;
 
-/// Fixture for SIPResolverTest.
+/// Fixture for HTTPResolverTest.
 class HTTPResolverTest : public ::testing::Test
 {
   DnsCachedResolver _dnsresolver;
