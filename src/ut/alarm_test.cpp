@@ -108,6 +108,7 @@ public:
       .WillOnce(Return(0));
     
     AlarmManager::get_instance().forget_alarm_list();
+    AlarmManager::get_instance().stop_resending_alarms();
     AlarmReqAgent::get_instance().stop();
     cwtest_restore_zmq();
   }
