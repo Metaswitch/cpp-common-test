@@ -266,7 +266,7 @@ TEST_F(AlarmTest, ResendingAlarm)
   // Raises an alarm with only one possible raised state.
   _alarm.set();
   // Simulates 30 seconds of time passing to trigger the alarms being re-raised.
-  cwtest_advance_time_ms(30000);
+  cwtest_advance_time_ms(1000000);
 
   // Causes the test thread to wait until we receive three zmq_recv messages (to
   // satisfy the expect_call above). We wait for a maximum of five seconds for
@@ -315,7 +315,7 @@ TEST_F(AlarmTest, ResendingClearedAlarm)
   _alarm.set();
   _alarm.clear();
   // Simulates 30 seconds of time passing to trigger the alarms being re-raised.
-  cwtest_advance_time_ms(30000);
+  cwtest_advance_time_ms(1000000);
 
   // Causes the test thread to wait until we receive four zmq_recv messages (to
   // satisfy the expect_call above). We wait for a maximum of five seconds for
@@ -369,7 +369,7 @@ TEST_F(AlarmTest, MultiStateAlarmResending)
   _multi_state_alarm.set_major();
   
   // Simulates 30 seconds of time passing to trigger the alarms being re-raised.
-  cwtest_advance_time_ms(30000);
+  cwtest_advance_time_ms(1000000);
 
   // Causes the test thread to wait until we receive four zmq_recv messages (to
   // satisfy the expect_call above). We wait for a maximum of five seconds for
@@ -427,7 +427,7 @@ TEST_F(AlarmTest, MultiStateAlarmClearedResending)
   _multi_state_alarm.clear();
   
   // Simulates 30 seconds of time passing to trigger the alarms being re-raised.
-  cwtest_advance_time_ms(30000);
+  cwtest_advance_time_ms(1000000);
 
   // Causes the test thread to wait until we receive five zmq_recv messages (to
   // satisfy the expect_call above). We wait for a maximum of five seconds for
