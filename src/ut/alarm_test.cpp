@@ -265,7 +265,7 @@ TEST_F(AlarmTest, ResendingAlarm)
   }
   // Raises an alarm with only one possible raised state.
   _alarm.set();
-  // Simulates 30 seconds of time passing to trigger the alarms being re-raised.
+  // Simulates 1000 seconds of time passing to trigger the alarms being re-raised.
   cwtest_advance_time_ms(1000000);
 
   // Causes the test thread to wait until we receive three zmq_recv messages (to
@@ -314,7 +314,7 @@ TEST_F(AlarmTest, ResendingClearedAlarm)
   // Raises an alarm with only one possible raised state.
   _alarm.set();
   _alarm.clear();
-  // Simulates 30 seconds of time passing to trigger the alarms being re-raised.
+  // Simulates 1000 seconds of time passing to trigger the alarms being re-raised.
   cwtest_advance_time_ms(1000000);
 
   // Causes the test thread to wait until we receive four zmq_recv messages (to
@@ -327,7 +327,7 @@ TEST_F(AlarmTest, ResendingClearedAlarm)
 }
 
 // Raises a MultiStateAlarm at two of its possible states and then simulates
-// time moving forward 30 seconds. We should expect four ZMQ messages: the first
+// time moving forward 1000 seconds. We should expect four ZMQ messages: the first
 // two caused by the MultiSeverityAlarm changing states, the last two caused
 // by the function to resend alarms every 30 seconds. This function reraises the 
 // alarm which was raised (at the most recent severity at which it was raised)
@@ -349,7 +349,7 @@ TEST_F(AlarmTest, MultiStateAlarmResending)
     EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.4"),_,_)).Times(1).WillOnce(Return(0));
     EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
     
-    // After we simulate time moving forward 30 seconds we should expect the
+    // After we simulate time moving forward 1000 seconds we should expect the
     // single state Alarm with index 9998 to be cleared (as it was never raised)
     // and the MultiStateAlarm to be re-raised at its latest severity (9997.4).
     EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
@@ -368,7 +368,7 @@ TEST_F(AlarmTest, MultiStateAlarmResending)
   _multi_state_alarm.set_critical();
   _multi_state_alarm.set_major();
   
-  // Simulates 30 seconds of time passing to trigger the alarms being re-raised.
+  // Simulates 1000 seconds of time passing to trigger the alarms being re-raised.
   cwtest_advance_time_ms(1000000);
 
   // Causes the test thread to wait until we receive four zmq_recv messages (to
@@ -381,7 +381,7 @@ TEST_F(AlarmTest, MultiStateAlarmResending)
 }
 
 // Raises a MultiStateAlarm at two of its possible states, clears it and then simulates
-// time moving forward 30 seconds. We should expect five ZMQ messages: the first
+// time moving forward 1000 seconds. We should expect five ZMQ messages: the first
 // three caused by the MultiSecerityAlarm changing states, the last two caused
 // by the function to resend alarms every 30 seconds. This function reclears the alarm which
 // was cleared but also clears the only other defined alarm (as this alarm was not raised,
@@ -406,7 +406,7 @@ TEST_F(AlarmTest, MultiStateAlarmClearedResending)
     EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("9997.1"),_,_)).Times(1).WillOnce(Return(0));
     EXPECT_CALL(_mz, zmq_recv(_,_,_,_)).Times(1).WillOnce(Return(0));
 
-    // After we simulate time moving forward 30 seconds we should expect the
+    // After we simulate time moving forward 1000 seconds we should expect the
     // single state Alarm with index 9998 to be cleared (as it was never raised)
     // and the MultiStateAlarm to be re-cleared.
     EXPECT_CALL(_mz, zmq_send(_,VoidPointeeEqualsStr("issue-alarm"),_,_)).Times(1).WillOnce(Return(0));
@@ -426,7 +426,7 @@ TEST_F(AlarmTest, MultiStateAlarmClearedResending)
   _multi_state_alarm.set_major();
   _multi_state_alarm.clear();
   
-  // Simulates 30 seconds of time passing to trigger the alarms being re-raised.
+  // Simulates 1000 seconds of time passing to trigger the alarms being re-raised.
   cwtest_advance_time_ms(1000000);
 
   // Causes the test thread to wait until we receive five zmq_recv messages (to
