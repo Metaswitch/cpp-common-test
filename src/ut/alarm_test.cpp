@@ -270,7 +270,7 @@ TEST_F(AlarmTest, ResendingAlarm)
 
 // Raises an Alarm (single state), clears it and then simulates time moving forward by
 // thirty seconds. We should expect three ZMQ messages: the first two caused by the
-// alarm being raised and cleared respectively, the third caused by the 
+// alarm being raised and cleared respectively, the third caused by the
 // function to re-send alarms every 30 seconds.
 TEST_F(AlarmTest, ResendingClearedAlarm)
 {
@@ -532,7 +532,7 @@ TEST_F(AlarmTest, PairSetAlarmed)
 }
 
 // Tests that the first time an alarm is cleared the right zmq messages are sent,
-// but that subsequent clearings send no zmq messages. 
+// but that subsequent clearings send no zmq messages.
 TEST_F(AlarmTest, PairClearNotAlarmed)
 {
   {

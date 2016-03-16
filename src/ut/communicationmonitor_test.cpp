@@ -133,7 +133,7 @@ TEST_F(CommunicationMonitorTest, OnlyErrorsToNoErrorsUpdate)
   _cm.inform_success();
 }
 
-// Test when going from the same state to the same state the alarm state is re-raised 
+// Test when going from the same state to the same state the alarm state is re-raised.
 TEST_F(CommunicationMonitorTest, StableStates)
 {
   // Send in two NO_ERROR states
