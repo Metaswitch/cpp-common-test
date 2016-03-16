@@ -202,7 +202,7 @@ TEST_F(AlarmTest, MultiStateAlarmRaising)
 TEST_F(AlarmTest, GetAlarmStateSimpleTest)
 {
   // The single state alarm should start in UNKNOWN state
-  ASSERT_EQ(UNKNOWN, _alarm.get_alarm_state());
+  ASSERT_EQ(AlarmState::UNKNOWN, _alarm.get_alarm_state());
 
   // Set alarm, and assert it is now ALARMED
   {
@@ -219,7 +219,7 @@ TEST_F(AlarmTest, GetAlarmStateSimpleTest)
     _alarm.set();
     _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
   }
-  ASSERT_EQ(ALARMED, _alarm.get_alarm_state());
+  ASSERT_EQ(AlarmState::ALARMED, _alarm.get_alarm_state());
 
   // Clear alarm, and assert it is now CLEARED
   {
@@ -236,14 +236,14 @@ TEST_F(AlarmTest, GetAlarmStateSimpleTest)
     _alarm.clear();
     _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
   }
-  ASSERT_EQ(CLEARED, _alarm.get_alarm_state());
+  ASSERT_EQ(AlarmState::CLEARED, _alarm.get_alarm_state());
 }
 
 // Tests that get_alarm_state returns the correct states for a multi-state alarm.
 TEST_F(AlarmTest, GetAlarmStateMultiStateTest)
 {
   // The multi state alarm should start in UNKNOWN state
-  ASSERT_EQ(UNKNOWN, _multi_state_alarm.get_alarm_state());
+  ASSERT_EQ(AlarmState::UNKNOWN, _multi_state_alarm.get_alarm_state());
 
   // Raise alarm at one severity, and assert it is now ALARMED
   {
@@ -260,7 +260,7 @@ TEST_F(AlarmTest, GetAlarmStateMultiStateTest)
     _multi_state_alarm.set_major();
     _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
   }
-  ASSERT_EQ(ALARMED, _multi_state_alarm.get_alarm_state());
+  ASSERT_EQ(AlarmState::ALARMED, _multi_state_alarm.get_alarm_state());
 
   // Raise alarm at another severity, and assert is is still ALARMED
   {
@@ -277,7 +277,7 @@ TEST_F(AlarmTest, GetAlarmStateMultiStateTest)
     _multi_state_alarm.set_critical();
     _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
   }
-  ASSERT_EQ(ALARMED, _multi_state_alarm.get_alarm_state());
+  ASSERT_EQ(AlarmState::ALARMED, _multi_state_alarm.get_alarm_state());
 
   // Clear alarm, and assert it is not CLEARED
   {
@@ -294,7 +294,7 @@ TEST_F(AlarmTest, GetAlarmStateMultiStateTest)
     _multi_state_alarm.clear();
     _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
   }
-  ASSERT_EQ(CLEARED, _multi_state_alarm.get_alarm_state());
+  ASSERT_EQ(AlarmState::CLEARED, _multi_state_alarm.get_alarm_state());
 }
 
 // Raises a MultiStateAlarm at two of its possible states and then clears it. We
