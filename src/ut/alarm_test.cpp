@@ -198,6 +198,105 @@ TEST_F(AlarmTest, MultiStateAlarmRaising)
 
 }
 
+// Tests that get_alarm_state returns the correct states for a simple alarm.
+TEST_F(AlarmTest, GetAlarmStateSimpleTest)
+{
+  // The single state alarm should start in UNKNOWN state
+  ASSERT_EQ(UNKNOWN, _alarm.get_alarm_state());
+
+  // Set alarm, and assert it is now ALARMED
+  {
+    InSequence s;
+
+    EXPECT_CALL(_mz, zmq_send(_,_,_,_))
+      .Times(3)
+      .WillRepeatedly(Return(0));
+
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_))
+      .Times(1)
+      .WillOnce(Return(0));
+
+    _alarm.set();
+    _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
+  }
+  ASSERT_EQ(ALARMED, _alarm.get_alarm_state());
+
+  // Clear alarm, and assert it is now CLEARED
+  {
+    InSequence s;
+
+    EXPECT_CALL(_mz, zmq_send(_,_,_,_))
+      .Times(3)
+      .WillRepeatedly(Return(0));
+
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_))
+      .Times(1)
+      .WillOnce(Return(0));
+
+    _alarm.clear();
+    _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
+  }
+  ASSERT_EQ(CLEARED, _alarm.get_alarm_state());
+}
+
+// Tests that get_alarm_state returns the correct states for a multi-state alarm.
+TEST_F(AlarmTest, GetAlarmStateMultiStateTest)
+{
+  // The multi state alarm should start in UNKNOWN state
+  ASSERT_EQ(UNKNOWN, _multi_state_alarm.get_alarm_state());
+
+  // Raise alarm at one severity, and assert it is now ALARMED
+  {
+    InSequence s;
+
+    EXPECT_CALL(_mz, zmq_send(_,_,_,_))
+      .Times(3)
+      .WillRepeatedly(Return(0));
+
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_))
+      .Times(1)
+      .WillOnce(Return(0));
+
+    _multi_state_alarm.set_major();
+    _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
+  }
+  ASSERT_EQ(ALARMED, _multi_state_alarm.get_alarm_state());
+
+  // Raise alarm at another severity, and assert is is still ALARMED
+  {
+    InSequence s;
+
+    EXPECT_CALL(_mz, zmq_send(_,_,_,_))
+      .Times(3)
+      .WillRepeatedly(Return(0));
+
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_))
+      .Times(1)
+      .WillOnce(Return(0));
+
+    _multi_state_alarm.set_critical();
+    _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
+  }
+  ASSERT_EQ(ALARMED, _multi_state_alarm.get_alarm_state());
+
+  // Clear alarm, and assert it is not CLEARED
+  {
+    InSequence s;
+
+    EXPECT_CALL(_mz, zmq_send(_,_,_,_))
+      .Times(3)
+      .WillRepeatedly(Return(0));
+
+    EXPECT_CALL(_mz, zmq_recv(_,_,_,_))
+      .Times(1)
+      .WillOnce(Return(0));
+
+    _multi_state_alarm.clear();
+    _mz.call_complete(ZmqInterface::ZMQ_RECV, 5);
+  }
+  ASSERT_EQ(CLEARED, _multi_state_alarm.get_alarm_state());
+}
+
 // Raises a MultiStateAlarm at two of its possible states and then clears it. We
 // expect three ZMQ messages to be sent to the Alarm Agent notifying it of each
 // state change.
