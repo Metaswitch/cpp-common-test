@@ -41,6 +41,7 @@
 #include "httpstack.h"
 
 #include "mockloadmonitor.hpp"
+#include "fakesimplestatsmanager.hpp"
 #include "mock_sas.h"
 
 using ::testing::Return;
@@ -75,13 +76,13 @@ public:
     cwtest_control_curl();
   }
 
-  void start_stack()
+  void start_stack(std::string host = "")
   {
     // Store the HttpStack in a local variable first, so _stack is
     // either NULL or fully initialised.
     HttpStack* lstack = HttpStack::get_instance();
     lstack->initialize();
-    lstack->configure(_host.c_str(), _port, 1, NULL);
+    lstack->configure((host == "" ? _host.c_str() : host.c_str()), _port, 1, NULL);
     lstack->start();
     _stack = lstack;
   }
@@ -168,11 +169,13 @@ public:
   {
     cwtest_release_curl();
 
+    _stats_manager = new FakeSimpleStatsManager();
+
     // Store the HttpStack in a local variable first, so _stack is
     // either NULL or fully initialised.
     HttpStack* lstack = HttpStack::get_instance();
     lstack->initialize();
-    lstack->configure(_host.c_str(), _port, 1, NULL, NULL, &_load_monitor, NULL);
+    lstack->configure(_host.c_str(), _port, 1, NULL, NULL, &_load_monitor, _stats_manager);
     lstack->start();
     _stack = lstack;
 
@@ -183,6 +186,7 @@ public:
     cwtest_reset_time();
     stop_stack();
     cwtest_control_curl();
+    delete _stats_manager;
   }
 
   void start_stack()
@@ -192,6 +196,7 @@ public:
 private:
   // Strict mocks - we only allow method calls that the test explicitly expects.
   StrictMock<MockLoadMonitor> _load_monitor;
+  FakeSimpleStatsManager* _stats_manager;
 };
 
 // Basic handler.
@@ -233,7 +238,15 @@ public:
 
 TEST_F(HttpStackTest, SimpleMainline)
 {
-  start_stack();
+  start_stack("127.0.0.10");
+  sleep(1);
+  stop_stack();
+}
+
+TEST_F(HttpStackTest, SimpleMainlinIPv6)
+{
+  start_stack("::1");
+  sleep(1);
   stop_stack();
 }
 
@@ -300,4 +313,55 @@ TEST_F(HttpStackTest, SASCorrelationHeader)
 
   stop_stack();
   mock_sas_collect_messages(false);
+}
+
+TEST_F(HttpStackStatsTest, SuccessfulRequest)
+{
+  SlowHandler handler;
+  _stack->register_handler("^/BasicHandler$", &handler);
+
+  EXPECT_CALL(_load_monitor, admit_request()).WillOnce(Return(true));
+  EXPECT_CALL(_load_monitor, request_complete(DELAY_US)).Times(1);
+
+  int status;
+  std::string response;
+  int rc = get("/BasicHandler", status, response);
+  EXPECT_EQ(1, _stats_manager->_incoming_requests->_count);
+  EXPECT_EQ(1, _stats_manager->_latency_us->_count);
+  ASSERT_EQ(CURLE_OK, rc);
+  ASSERT_EQ(200, status);
+}
+
+TEST_F(HttpStackStatsTest, RejectOverload)
+{
+  BasicHandler handler;
+  _stack->register_handler("^/BasicHandler$", &handler);
+
+  EXPECT_CALL(_load_monitor, admit_request()).WillOnce(Return(false));
+
+  int status;
+  std::string response;
+  int rc = get("/BasicHandler", status, response);
+  EXPECT_EQ(1, _stats_manager->_incoming_requests->_count);
+  EXPECT_EQ(1, _stats_manager->_rejected_overload->_count);
+  ASSERT_EQ(CURLE_OK, rc);
+  ASSERT_EQ(503, status);  // Request is rejected with a 503.
+}
+
+TEST_F(HttpStackStatsTest, LatencyPenalties)
+{
+  PenaltyHandler handler;
+  _stack->register_handler("^/BasicHandler$", &handler);
+
+  EXPECT_CALL(_load_monitor, admit_request()).WillOnce(Return(true));
+  EXPECT_CALL(_load_monitor, incr_penalties()).Times(1);
+  EXPECT_CALL(_load_monitor, request_complete(_)).Times(1);
+
+  int status;
+  std::string response;
+  int rc = get("/BasicHandler", status, response);
+  EXPECT_EQ(1, _stats_manager->_incoming_requests->_count);
+  EXPECT_EQ(1, _stats_manager->_latency_us->_count);
+  ASSERT_EQ(CURLE_OK, rc);
+  ASSERT_EQ(200, status);
 }

@@ -63,11 +63,13 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 test_main.cpp \
                                 test_interposer.cpp \
                                 alarm_test.cpp \
+                                baseresolver_test.cpp \
                                 chronosconnection_test.cpp \
                                 communicationmonitor_test.cpp \
                                 diameterresolver_test.cpp \
                                 diameterstack_test.cpp \
                                 httpconnection_test.cpp \
+                                httpresolver_test.cpp \
                                 httpstack_test.cpp \
                                 httpstack_utils_test.cpp \
                                 json_alarms_test.cpp \

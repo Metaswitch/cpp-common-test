@@ -1,5 +1,5 @@
 /**
- * @file httpresolver_test.cpp UT for HTTPResolver class.
+ * @file httpresolver_test.cpp
  *
  * Project Clearwater - IMS in the Cloud
  * Copyright (C) 2014  Metaswitch Networks Ltd
@@ -42,81 +42,45 @@
 #include "dnscachedresolver.h"
 #include "httpresolver.h"
 #include "test_utils.hpp"
-#include "test_interposer.hpp"
+#include "resolver_utils.h"
 
 using namespace std;
 
-/// Fixture for HTTPResolverTest.
-class HTTPResolverTest : public ::testing::Test
+/// Fixture for HttpResolverTest.
+class HttpResolverTest : public ::testing::Test
 {
   DnsCachedResolver _dnsresolver;
   HttpResolver _httpresolver;
 
   // DNS Resolver is created with server address 0.0.0.0 to disable server
   // queries.
-  HTTPResolverTest() :
+  HttpResolverTest() :
     _dnsresolver("0.0.0.0"),
     _httpresolver(&_dnsresolver, AF_INET)
   {
   }
 
-  virtual ~HTTPResolverTest()
+  virtual ~HttpResolverTest()
   {
-  }
-
-  DnsRRecord* a(const std::string& name,
-                int ttl,
-                const std::string& address)
-  {
-    struct in_addr addr;
-    inet_pton(AF_INET, address.c_str(), &addr);
-    return (DnsRRecord*)new DnsARecord(name, ttl, addr);
-  }
-
-  DnsRRecord* aaaa(const std::string& name,
-                   int ttl,
-                   const std::string& address)
-  {
-    struct in6_addr addr;
-    inet_pton(AF_INET6, address.c_str(), &addr);
-    return (DnsRRecord*)new DnsAAAARecord(name, ttl, addr);
-  }
-
-  DnsRRecord* srv(const std::string& name,
-                  int ttl,
-                  int priority,
-                  int weight,
-                  int port,
-                  const std::string& target)
-  {
-    return (DnsRRecord*)new DnsSrvRecord(name, ttl, priority, weight, port, target);
-  }
-
-  DnsRRecord* naptr(const std::string& name,
-                    int ttl,
-                    int order,
-                    int preference,
-                    const std::string& flags,
-                    const std::string& service,
-                    const std::string& regex,
-                    const std::string& replacement)
-  {
-    return (DnsRRecord*)new DnsNaptrRecord(name, ttl, order, preference, flags,
-                                           service, regex, replacement);
   }
 };
 
-/// A single resolver operation.
+/// A single resolver operation
 class HttpRT
 {
 public:
-  HttpRT(HttpResolver& resolver, const std::string& name) :
+  HttpRT(HttpResolver& resolver) :
     _resolver(resolver),
-    _name(name),
+    _host(""),
     _port(0),
-    _transport(-1),
-    _af(AF_INET)
+    _max_targets(2)
   {
+  }
+
+  HttpRT& set_host(std::string host)
+  {
+    _host = host;
+    return *this;
   }
 
   HttpRT& set_port(int port)
@@ -125,78 +89,74 @@ public:
     return *this;
   }
 
-  HttpRT& set_transport(int transport)
+  HttpRT& set_max_targets(int max_targets)
   {
-    _transport = transport;
+    _max_targets = max_targets;
     return *this;
   }
 
-  HttpRT& set_af(int af)
+  std::string resolve()
   {
-    _af = af;
-    return *this;
-  }
-
-  std::string resolve(int port)
-  {
-    SCOPED_TRACE(_name);
     std::vector<AddrInfo> targets;
     std::string output;
 
-    _resolver.resolve(_name, port, 1, targets, 0);
+    _resolver.resolve(_host, _port, _max_targets, targets, 0);
+
     if (!targets.empty())
     {
       // Successful, so render AddrInfo as a string.
-      output = addrinfo_to_string(targets[0]);
+      output = ResolverUtils::addrinfo_to_string(targets[0]);
     }
     return output;
   }
 
 private:
-  std::string addrinfo_to_string(const AddrInfo& ai) const
-  {
-    ostringstream oss;
-    char buf[100];
-    if (ai.address.af == AF_INET6)
-    {
-      oss << "[";
-    }
-    oss << inet_ntop(ai.address.af, &ai.address.addr, buf, sizeof(buf));
-    if (ai.address.af == AF_INET6)
-    {
-      oss << "]";
-    }
-    oss << ":" << ai.port;
-    assert(ai.transport == IPPROTO_TCP);
-    return oss.str();
-  }
-
-  /// Reference to the SIPResolver.
+  /// Reference to the HttpResolver.
   HttpResolver& _resolver;
 
   /// Input parameters to request.
-  std::string _name;
+  std::string _host;
   int _port;
-  int _transport;
-  int _af;
+  int _max_targets;
 };
 
-TEST_F(HTTPResolverTest, IPv4AddressResolution)
+TEST_F(HttpResolverTest, IPv4AddressResolution)
 {
-  // Test defaulting of port and transport when target is IP address
-  EXPECT_EQ("3.0.0.1:80",
-            HttpRT(_httpresolver, "3.0.0.1").resolve(0));
+  // Test defaulting of port and transport when target is just an IPv4 address
+  EXPECT_EQ("3.0.0.1:80;transport=TCP",
+            HttpRT(_httpresolver).set_host("3.0.0.1").resolve());
 }
 
-TEST_F(HTTPResolverTest, DNSResolution)
+TEST_F(HttpResolverTest, IPv6AddressResolution)
 {
-  // Test selection of TCP transport and port using NAPTR and SRV records.
+  // Test defaulting of port and transport when target is just an IPv6 address
+  EXPECT_EQ("[3::1]:80;transport=TCP",
+            HttpRT(_httpresolver).set_host("3::1").resolve());
+}
+
+TEST_F(HttpResolverTest, ARecordResolution)
+{
+  // Resolve an A record. Set the port (the transport is always the default)
   std::vector<DnsRRecord*> records;
-  records.push_back(a("sprout.cw-ngv.com", 3600, "1.2.3.4"));
-  _dnsresolver.add_to_cache("sprout.cw-ngv.com", ns_t_a, records);
+  records.push_back(ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.1"));
+  _dnsresolver.add_to_cache("cpp-common-test.cw-ngv.com", ns_t_a, records);
+  EXPECT_EQ("3.0.0.1:80;transport=TCP",
+            HttpRT(_httpresolver).set_host("cpp-common-test.cw-ngv.com").resolve());
+}
 
-  EXPECT_EQ("1.2.3.4:7888",
-            HttpRT(_httpresolver, "sprout.cw-ngv.com").resolve(7888));
+TEST_F(HttpResolverTest, AAAARecordResolution)
+{
+  // Resolve an AAAA record. Set the port (the transport is always the default)
+  std::vector<DnsRRecord*> records;
+  records.push_back(ResolverUtils::aaaa("cpp-common-test.cw-ngv.com", 3600, "3::1"));
+  _dnsresolver.add_to_cache("cpp-common-test.cw-ngv.com", ns_t_a, records);
+  EXPECT_EQ("[3::1]:8888;transport=TCP",
+            HttpRT(_httpresolver).set_host("cpp-common-test.cw-ngv.com").set_port(8888).resolve());
+}
 
-
+TEST_F(HttpResolverTest, ResolutionFailure)
+{
+  // Fail to resolve
+  EXPECT_EQ("",
+            HttpRT(_httpresolver).set_host("cpp-common-test.cw-ngv.com").resolve());
 }
