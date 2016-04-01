@@ -51,8 +51,9 @@ namespace SNMP
 class FakeEventAccumulatorTable: public EventAccumulatorTable
 {
 public:
-    FakeEventAccumulatorTable() {};
-    void accumulate(uint32_t sample) {};
+    uint32_t _count;
+    FakeEventAccumulatorTable() { _count = 0; }
+    void accumulate(uint32_t sample) { _count++; }
 };
 
 class FakeContinuousAccumulatorTable: public ContinuousAccumulatorTable
@@ -66,8 +67,8 @@ class FakeCounterTable: public CounterTable
 {
 public:
   int _count;
-  FakeCounterTable() { _count = 0; };
-  void increment() { _count++; };
+  FakeCounterTable() { _count = 0; }
+  void increment() { _count++; }
   void reset_count() { _count = 0; }
 };
 

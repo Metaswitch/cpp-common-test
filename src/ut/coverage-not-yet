@@ -18,13 +18,8 @@ memcachedstore.cpp
 dnsparser.cpp
 
 # TODO - Incomplete coverage
-logger.cpp
-httpstack.cpp
 diameterstack.cpp
-baseresolver.cpp
 dnscachedresolver.cpp
-httpresolver.cpp
-memcachedstoreview.cpp
 
 # TODO - Coverage in the wrong place
 

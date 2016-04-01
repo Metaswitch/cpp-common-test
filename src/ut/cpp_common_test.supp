@@ -31,6 +31,18 @@
 }
 
 {
+   evhtp_bind_socket can leak memory. We only call this once on startup though, so this is benign
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:calloc
+   fun:evconnlistener_new
+   fun:evconnlistener_new_bind
+   fun:evhtp_bind_sockaddr
+   fun:evhtp_bind_socket
+   ...
+}
+
+{
    gnutls_global_init allocates memory that is not reliably released by gnutls_global_deinit.  However, since freeDiameter initialisation is done once at homestead (DiameterStack) startup, this is benign.
    Memcheck:Leak
    match-leak-kinds: definite

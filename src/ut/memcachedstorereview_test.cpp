@@ -122,6 +122,29 @@ TEST_F(SingleServerTest, MovesEmpty)
 }
 
 //
+// Fixture that sets up a single server. This mimics the state where all the
+// nodes are new
+//
+class SingleNewServerTest : public MemcachedStoreViewTest
+{
+  void SetUp()
+  {
+    MemcachedConfig cfg;
+    cfg.new_servers.push_back("localhost:40001");
+    _view.update(cfg);
+  }
+};
+
+TEST_F(SingleNewServerTest, OneCurrentReplica)
+{
+  std::map<int, MemcachedStoreView::ReplicaList> replicas = _view.current_replicas();
+  for (int i = 0; i < NUM_VBUCKETS; ++i)
+  {
+    EXPECT_REPLICA_LIST(replicas[i], 1u, "localhost:40001");
+  }
+}
+
+//
 // Fixture that sets up several current servers, but no new ones.
 //
 class MultiServerTest : public MemcachedStoreViewTest
@@ -157,6 +180,31 @@ TEST_F(MultiServerTest, MovesEmpty)
   EXPECT_TRUE(_view.calculate_vbucket_moves().empty());
 }
 
+//
+// Fixture that sets up several current servers, and one new one.
+//
+class MultiNewServerTest : public MemcachedStoreViewTest
+{
+  void SetUp()
+  {
+    MemcachedConfig cfg;
+    cfg.servers.push_back("localhost:40001");
+    cfg.servers.push_back("localhost:40002");
+    cfg.new_servers.push_back("localhost:40003");
+    _view.update(cfg);
+  }
+};
+
+TEST_F(MultiNewServerTest, TwoCurrentReplicas)
+{
+  std::map<int, MemcachedStoreView::ReplicaList> replicas = _view.current_replicas();
+  for (int i = 0; i < NUM_VBUCKETS; ++i)
+  {
+    EXPECT_REPLICA_LIST(replicas[i], 2u, AnyOf("localhost:40001",
+                                               "localhost:40002",
+                                               "localhost:40003"));
+  }
+}
 
 //
 // Fixture that sets up several current servers and several new ones.

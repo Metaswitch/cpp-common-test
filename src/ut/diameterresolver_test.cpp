@@ -42,6 +42,7 @@
 #include "dnscachedresolver.h"
 #include "diameterresolver.h"
 #include "test_utils.hpp"
+#include "resolver_utils.h"
 
 using namespace std;
 
@@ -61,47 +62,6 @@ class DiameterResolverTest : public ::testing::Test
 
   virtual ~DiameterResolverTest()
   {
-  }
-
-  DnsRRecord* a(const std::string& name,
-                int ttl,
-                const std::string& address)
-  {
-    struct in_addr addr;
-    inet_pton(AF_INET, address.c_str(), &addr);
-    return (DnsRRecord*)new DnsARecord(name, ttl, addr);
-  }
-
-  DnsRRecord* aaaa(const std::string& name,
-                   int ttl,
-                   const std::string& address)
-  {
-    struct in6_addr addr;
-    inet_pton(AF_INET6, address.c_str(), &addr);
-    return (DnsRRecord*)new DnsAAAARecord(name, ttl, addr);
-  }
-
-  DnsRRecord* srv(const std::string& name,
-                  int ttl,
-                  int priority,
-                  int weight,
-                  int port,
-                  const std::string& target)
-  {
-    return (DnsRRecord*)new DnsSrvRecord(name, ttl, priority, weight, port, target);
-  }
-
-  DnsRRecord* naptr(const std::string& name,
-                    int ttl,
-                    int order,
-                    int preference,
-                    const std::string& flags,
-                    const std::string& service,
-                    const std::string& regex,
-                    const std::string& replacement)
-  {
-    return (DnsRRecord*)new DnsNaptrRecord(name, ttl, order, preference, flags,
-                                           service, regex, replacement);
   }
 };
 
@@ -140,42 +100,12 @@ public:
     if (!targets.empty())
     {
       // Successful, so render AddrInfo as a string.
-      output = addrinfo_to_string(targets[0]);
+      output = ResolverUtils::addrinfo_to_string(targets[0]);
     }
     return output;
   }
 
 private:
-  std::string addrinfo_to_string(const AddrInfo& ai) const
-  {
-    ostringstream oss;
-    char buf[100];
-    if (ai.address.af == AF_INET6)
-    {
-      oss << "[";
-    }
-    oss << inet_ntop(ai.address.af, &ai.address.addr, buf, sizeof(buf));
-    if (ai.address.af == AF_INET6)
-    {
-      oss << "]";
-    }
-    oss << ":" << ai.port;
-    oss << ";transport=";
-    if (ai.transport == IPPROTO_SCTP)
-    {
-      oss << "SCTP";
-    }
-    else if (ai.transport == IPPROTO_TCP)
-    {
-      oss << "TCP";
-    }
-    else
-    {
-      oss << "Unknown (" << ai.transport << ")";
-    }
-    return oss.str();
-  }
-
   /// Reference to the DiameterResolver.
   DiameterResolver& _resolver;
 
@@ -196,13 +126,13 @@ TEST_F(DiameterResolverTest, SimpleNAPTRSRVTCPResolution)
 {
   // Test selection of TCP transport and port using NAPTR and SRV records.
   std::vector<DnsRRecord*> records;
-  records.push_back(naptr("sprout.cw-ngv.com", 3600, 0, 0, "S", "AAA+D2T", "", "_diameter._tcp.sprout.cw-ngv.com"));
+  records.push_back(ResolverUtils::naptr("sprout.cw-ngv.com", 3600, 0, 0, "S", "AAA+D2T", "", "_diameter._tcp.sprout.cw-ngv.com"));
   _dnsresolver.add_to_cache("sprout.cw-ngv.com", ns_t_naptr, records);
 
-  records.push_back(srv("_diameter._tcp.sprout.cw-ngv.com", 3600, 0, 0, 3868, "sprout-1.cw-ngv.com"));
+  records.push_back(ResolverUtils::srv("_diameter._tcp.sprout.cw-ngv.com", 3600, 0, 0, 3868, "sprout-1.cw-ngv.com"));
   _dnsresolver.add_to_cache("_diameter._tcp.sprout.cw-ngv.com", ns_t_srv, records);
 
-  records.push_back(a("sprout-1.cw-ngv.com", 3600, "3.0.0.1"));
+  records.push_back(ResolverUtils::a("sprout-1.cw-ngv.com", 3600, "3.0.0.1"));
   _dnsresolver.add_to_cache("sprout-1.cw-ngv.com", ns_t_a, records);
 
   TRC_DEBUG("Cache status\n%s", _dnsresolver.display_cache().c_str());
@@ -211,17 +141,39 @@ TEST_F(DiameterResolverTest, SimpleNAPTRSRVTCPResolution)
             RT(_diameterresolver, "sprout.cw-ngv.com").resolve());
 }
 
+TEST_F(DiameterResolverTest, NAPTRSRVResolutionWithRegex)
+{
+  // Set up NAPTR records with regexes
+  std::vector<DnsRRecord*> records;
+  records.push_back(ResolverUtils::naptr("sprout.cw-ngv.com", 3600, 0, 0, "", "AAA+D2S", "/", ""));
+  records.push_back(ResolverUtils::naptr("sprout.cw-ngv.com", 3600, 0, 0, "", "AAA+D2S", "/(.*)/a$1/", ""));
+  _dnsresolver.add_to_cache("sprout.cw-ngv.com", ns_t_naptr, records);
+  records.push_back(ResolverUtils::naptr("asprout.cw-ngv.com", 3600, 0, 0, "s", "AAA+D2S", "", "_diameter._sctp.sprout-1.cw-ngv.com"));
+  _dnsresolver.add_to_cache("asprout.cw-ngv.com", ns_t_naptr, records);
+
+  records.push_back(ResolverUtils::srv("_diameter._sctp.sprout-1.cw-ngv.com", 3600, 0, 0, 3868, "sprout-1.cw-ngv.com"));
+  _dnsresolver.add_to_cache("_diameter._sctp.sprout-1.cw-ngv.com", ns_t_srv, records);
+
+  records.push_back(ResolverUtils::a("sprout-1.cw-ngv.com", 3600, "3.0.0.1"));
+  _dnsresolver.add_to_cache("sprout-1.cw-ngv.com", ns_t_a, records);
+
+  TRC_DEBUG("Cache status\n%s", _dnsresolver.display_cache().c_str());
+
+  EXPECT_EQ("3.0.0.1:3868;transport=SCTP",
+            RT(_diameterresolver, "sprout.cw-ngv.com").resolve());
+}
+
 TEST_F(DiameterResolverTest, SimpleNAPTRSRVSCTPResolution)
 {
   // Test selection of SCTP transport and port using NAPTR and SRV records (and lowercase S).
   std::vector<DnsRRecord*> records;
-  records.push_back(naptr("sprout.cw-ngv.com", 3600, 0, 0, "s", "AAA+D2S", "", "_diameter._sctp.sprout.cw-ngv.com"));
+  records.push_back(ResolverUtils::naptr("sprout.cw-ngv.com", 3600, 0, 0, "s", "AAA+D2S", "", "_diameter._sctp.sprout.cw-ngv.com"));
   _dnsresolver.add_to_cache("sprout.cw-ngv.com", ns_t_naptr, records);
 
-  records.push_back(srv("_diameter._sctp.sprout.cw-ngv.com", 3600, 0, 0, 3868, "sprout-1.cw-ngv.com"));
+  records.push_back(ResolverUtils::srv("_diameter._sctp.sprout.cw-ngv.com", 3600, 0, 0, 3868, "sprout-1.cw-ngv.com"));
   _dnsresolver.add_to_cache("_diameter._sctp.sprout.cw-ngv.com", ns_t_srv, records);
 
-  records.push_back(a("sprout-1.cw-ngv.com", 3600, "3.0.0.1"));
+  records.push_back(ResolverUtils::a("sprout-1.cw-ngv.com", 3600, "3.0.0.1"));
   _dnsresolver.add_to_cache("sprout-1.cw-ngv.com", ns_t_a, records);
 
   TRC_DEBUG("Cache status\n%s", _dnsresolver.display_cache().c_str());
@@ -234,10 +186,10 @@ TEST_F(DiameterResolverTest, SimpleNAPTRATCPResolution)
 {
   // Test selection of TCP transport and port using NAPTR and SRV records.
   std::vector<DnsRRecord*> records;
-  records.push_back(naptr("sprout.cw-ngv.com", 3600, 0, 0, "A", "AAA+D2T", "", "sprout-1.cw-ngv.com"));
+  records.push_back(ResolverUtils::naptr("sprout.cw-ngv.com", 3600, 0, 0, "A", "AAA+D2T", "", "sprout-1.cw-ngv.com"));
   _dnsresolver.add_to_cache("sprout.cw-ngv.com", ns_t_naptr, records);
 
-  records.push_back(a("sprout-1.cw-ngv.com", 3600, "3.0.0.1"));
+  records.push_back(ResolverUtils::a("sprout-1.cw-ngv.com", 3600, "3.0.0.1"));
   _dnsresolver.add_to_cache("sprout-1.cw-ngv.com", ns_t_a, records);
 
   TRC_DEBUG("Cache status\n%s", _dnsresolver.display_cache().c_str());
@@ -250,10 +202,10 @@ TEST_F(DiameterResolverTest, SimpleNAPTRASCTPResolution)
 {
   // Test selection of TCP transport and port using NAPTR and SRV records.
   std::vector<DnsRRecord*> records;
-  records.push_back(naptr("sprout.cw-ngv.com", 3600, 0, 0, "A", "AAA+D2S", "", "sprout-1.cw-ngv.com"));
+  records.push_back(ResolverUtils::naptr("sprout.cw-ngv.com", 3600, 0, 0, "A", "AAA+D2S", "", "sprout-1.cw-ngv.com"));
   _dnsresolver.add_to_cache("sprout.cw-ngv.com", ns_t_naptr, records);
 
-  records.push_back(a("sprout-1.cw-ngv.com", 3600, "3.0.0.1"));
+  records.push_back(ResolverUtils::a("sprout-1.cw-ngv.com", 3600, "3.0.0.1"));
   _dnsresolver.add_to_cache("sprout-1.cw-ngv.com", ns_t_a, records);
 
   TRC_DEBUG("Cache status\n%s", _dnsresolver.display_cache().c_str());
@@ -266,10 +218,10 @@ TEST_F(DiameterResolverTest, SimpleSRVTCPResolution)
 {
   // Test selection of TCP transport and port using SRV records only
   std::vector<DnsRRecord*> records;
-  records.push_back(srv("_diameter._tcp.sprout.cw-ngv.com", 3600, 0, 0, 3868, "sprout-1.cw-ngv.com"));
+  records.push_back(ResolverUtils::srv("_diameter._tcp.sprout.cw-ngv.com", 3600, 0, 0, 3868, "sprout-1.cw-ngv.com"));
   _dnsresolver.add_to_cache("_diameter._tcp.sprout.cw-ngv.com", ns_t_srv, records);
 
-  records.push_back(a("sprout-1.cw-ngv.com", 3600, "3.0.0.1"));
+  records.push_back(ResolverUtils::a("sprout-1.cw-ngv.com", 3600, "3.0.0.1"));
   _dnsresolver.add_to_cache("sprout-1.cw-ngv.com", ns_t_a, records);
 
   TRC_DEBUG("Cache status\n%s", _dnsresolver.display_cache().c_str());
@@ -282,10 +234,10 @@ TEST_F(DiameterResolverTest, SimpleSRVSCTPResolution)
 {
   // Test selection of SCTP transport and port using SRV records only
   std::vector<DnsRRecord*> records;
-  records.push_back(srv("_diameter._sctp.sprout.cw-ngv.com", 3600, 0, 0, 3868, "sprout-1.cw-ngv.com"));
+  records.push_back(ResolverUtils::srv("_diameter._sctp.sprout.cw-ngv.com", 3600, 0, 0, 3868, "sprout-1.cw-ngv.com"));
   _dnsresolver.add_to_cache("_diameter._sctp.sprout.cw-ngv.com", ns_t_srv, records);
 
-  records.push_back(a("sprout-1.cw-ngv.com", 3600, "3.0.0.1"));
+  records.push_back(ResolverUtils::a("sprout-1.cw-ngv.com", 3600, "3.0.0.1"));
   _dnsresolver.add_to_cache("sprout-1.cw-ngv.com", ns_t_a, records);
 
   TRC_DEBUG("Cache status\n%s", _dnsresolver.display_cache().c_str());
@@ -298,13 +250,13 @@ TEST_F(DiameterResolverTest, SimpleSRVTCPPreference)
 {
   // Test preference for SCTP transport over TCP transport if both configure in SRV.
   std::vector<DnsRRecord*> records;
-  records.push_back(srv("_diameter._tcp.sprout.cw-ngv.com", 3600, 0, 0, 3868, "sprout-1.cw-ngv.com"));
+  records.push_back(ResolverUtils::srv("_diameter._tcp.sprout.cw-ngv.com", 3600, 0, 0, 3868, "sprout-1.cw-ngv.com"));
   _dnsresolver.add_to_cache("_diameter._tcp.sprout.cw-ngv.com", ns_t_srv, records);
 
-  records.push_back(srv("_diameter._sctp.sprout.cw-ngv.com", 3600, 0, 0, 3868, "sprout-1.cw-ngv.com"));
+  records.push_back(ResolverUtils::srv("_diameter._sctp.sprout.cw-ngv.com", 3600, 0, 0, 3868, "sprout-1.cw-ngv.com"));
   _dnsresolver.add_to_cache("_diameter._sctp.sprout.cw-ngv.com", ns_t_srv, records);
 
-  records.push_back(a("sprout-1.cw-ngv.com", 3600, "3.0.0.1"));
+  records.push_back(ResolverUtils::a("sprout-1.cw-ngv.com", 3600, "3.0.0.1"));
   _dnsresolver.add_to_cache("sprout-1.cw-ngv.com", ns_t_a, records);
 
   TRC_DEBUG("Cache status\n%s", _dnsresolver.display_cache().c_str());
@@ -317,7 +269,7 @@ TEST_F(DiameterResolverTest, SimpleAResolution)
 {
   // Test resolution using A records only.
   std::vector<DnsRRecord*> records;
-  records.push_back(a("sprout.cw-ngv.com", 3600, "3.0.0.1"));
+  records.push_back(ResolverUtils::a("sprout.cw-ngv.com", 3600, "3.0.0.1"));
   _dnsresolver.add_to_cache("sprout.cw-ngv.com", ns_t_a, records);
 
   TRC_DEBUG("Cache status\n%s", _dnsresolver.display_cache().c_str());
@@ -326,4 +278,3 @@ TEST_F(DiameterResolverTest, SimpleAResolution)
   EXPECT_EQ("3.0.0.1:3868;transport=SCTP",
             RT(_diameterresolver, "").set_host("sprout.cw-ngv.com").resolve());
 }
-
