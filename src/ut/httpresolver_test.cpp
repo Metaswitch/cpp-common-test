@@ -1,5 +1,5 @@
 /**
- * @file httpresolver_test.cpp
+ * @file httpresolver_test.cpp UT for HTTPResolver class.
  *
  * Project Clearwater - IMS in the Cloud
  * Copyright (C) 2014  Metaswitch Networks Ltd

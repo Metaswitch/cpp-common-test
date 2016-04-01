@@ -1,5 +1,5 @@
 /**
- * @file baseresolver_test.cpp UT for BaseResolver class.
+ * @file resolver_utils.h.
  *
  * Project Clearwater - IMS in the Cloud
  * Copyright (C) 2016  Metaswitch Networks Ltd
@@ -76,8 +76,8 @@ inline std::string addrinfo_to_string(const AddrInfo& ai)
 }
 
 inline DnsRRecord* a(const std::string& name,
-              int ttl,
-              const std::string& address)
+                     int ttl,
+                     const std::string& address)
 {
   struct in_addr addr;
   inet_pton(AF_INET, address.c_str(), &addr);
@@ -85,8 +85,8 @@ inline DnsRRecord* a(const std::string& name,
 }
 
 inline DnsRRecord* aaaa(const std::string& name,
-                 int ttl,
-                 const std::string& address)
+                        int ttl,
+                        const std::string& address)
 {
   struct in6_addr addr;
   inet_pton(AF_INET6, address.c_str(), &addr);
@@ -94,23 +94,23 @@ inline DnsRRecord* aaaa(const std::string& name,
 }
 
 inline DnsRRecord* srv(const std::string& name,
-                int ttl,
-                int priority,
-                int weight,
-                int port,
-                const std::string& target)
+                       int ttl,
+                       int priority,
+                       int weight,
+                       int port,
+                       const std::string& target)
 {
   return (DnsRRecord*)new DnsSrvRecord(name, ttl, priority, weight, port, target);
 }
 
 inline DnsRRecord* naptr(const std::string& name,
-                  int ttl,
-                  int order,
-                  int preference,
-                  const std::string& flags,
-                  const std::string& service,
-                  const std::string& regex,
-                  const std::string& replacement)
+                         int ttl,
+                         int order,
+                         int preference,
+                         const std::string& flags,
+                         const std::string& service,
+                         const std::string& regex,
+                         const std::string& replacement)
 {
   return (DnsRRecord*)new DnsNaptrRecord(name, ttl, order, preference, flags,
                                          service, regex, replacement);

@@ -203,7 +203,6 @@ TEST_F(BaseResolverTest, SRVRecordResolutionWithBlacklist)
   // Clear the blacklist to start
   _baseresolver.clear_blacklist();
 
-  // Resolve an A record. Set the port (the transport is always the default)
   std::vector<DnsRRecord*> records;
   records.push_back(ResolverUtils::srv("_diameter._sctp.cpp-common-test.cw-ngv.com", 3600, 0, 0, 3868, "cpp-common-test-1.cw-ngv.com"));
   records.push_back(ResolverUtils::srv("_diameter._sctp.cpp-common-test.cw-ngv.com", 3600, 0, 1, 3868, "cpp-common-test-1.cw-ngv.com"));
@@ -222,7 +221,6 @@ TEST_F(BaseResolverTest, SRVRecordResolutionWithBlacklist)
   ai.address = _baseresolver.to_ip46(bl);
   _baseresolver.blacklist((const AddrInfo)ai);
 
-  //printf("Cache status\n%s", _dnsresolver.display_cache().c_str());
   EXPECT_EQ("3.0.0.2:3868;transport=SCTP",
             RT(_baseresolver, "_diameter._sctp.cpp-common-test.cw-ngv.com").srv_resolve());
 
@@ -259,7 +257,6 @@ TEST_F(BaseResolverTest, ARecordResolutionWithOutOfDateBlacklist)
   // Clear the blacklist to start
   _baseresolver.clear_blacklist();
 
-  // Resolve an A record. Set the port (the transport is always the default)
   std::vector<DnsRRecord*> records;
   records.push_back(ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.1"));
   records.push_back(ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.2"));
