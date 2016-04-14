@@ -43,6 +43,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 snmp_infinite_scalar_table.cpp \
                                 snmp_infinite_timer_count_table.cpp \
                                 snmp_row.cpp \
+                                snmp_ip_row.cpp \
                                 snmp_scalar.cpp \
                                 snmp_single_count_by_node_type_table.cpp \
                                 snmp_success_fail_count_table.cpp \
