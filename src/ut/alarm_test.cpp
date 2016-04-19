@@ -90,7 +90,7 @@ public:
       .Times(1)
       .WillOnce(Return(0));
 
-    EXPECT_CALL(_mz, zmq_connect(VoidPointeeEqualsInt(_s),StrEq("ipc:///var/run/clearwater/alarms"))) 
+    EXPECT_CALL(_mz, zmq_connect(VoidPointeeEqualsInt(_s),_))
       .Times(1)
       .WillOnce(Return(0));
 
