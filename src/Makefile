@@ -78,7 +78,8 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 logger_test.cpp \
                                 memcached_config_test.cpp \
                                 memcachedstorereview_test.cpp \
-                                realmmanager_test.cpp
+                                realmmanager_test.cpp \
+                                astaire_resolver.cpp
 
 cpp_common_test_test_CPPFLAGS := -Wno-write-strings \
                                  -I../usr/include \

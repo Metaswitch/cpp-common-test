@@ -21,6 +21,7 @@ dnsparser.cpp
 # TODO - Incomplete coverage
 diameterstack.cpp
 dnscachedresolver.cpp
+astaire_resolver.cpp
 
 # TODO - Coverage in the wrong place
 
