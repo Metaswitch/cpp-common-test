@@ -105,7 +105,8 @@ cpp_common_test_test_LDFLAGS := -L../usr/lib \
                                 -lcurl \
                                 `net-snmp-config --netsnmp-agent-libs`
 
-COVERAGE_ROOT := ../modules/cpp-common/src
+COVERAGE_ROOT := ../modules/cpp-common
+cpp_common_test_test_COVERAGE_EXCLUSIONS := ^include|^test_utils
 
 cpp_common_test_test_VALGRIND_ARGS := --suppressions=ut/cpp_common_test.supp
 
