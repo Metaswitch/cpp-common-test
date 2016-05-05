@@ -34,6 +34,7 @@ accumulator.cpp
 statistic.cpp
 counter.cpp
 zmq_lvc.cpp
+utils.cpp
 
 # TODO - No coverage
 accesslogger.cpp
