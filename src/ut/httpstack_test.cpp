@@ -320,7 +320,7 @@ TEST_F(HttpStackStatsTest, SuccessfulRequest)
   SlowHandler handler;
   _stack->register_handler("^/BasicHandler$", &handler);
 
-  EXPECT_CALL(_load_monitor, admit_request()).WillOnce(Return(true));
+  EXPECT_CALL(_load_monitor, admit_request(_)).WillOnce(Return(true));
   EXPECT_CALL(_load_monitor, request_complete(DELAY_US)).Times(1);
 
   int status;
@@ -337,7 +337,7 @@ TEST_F(HttpStackStatsTest, RejectOverload)
   BasicHandler handler;
   _stack->register_handler("^/BasicHandler$", &handler);
 
-  EXPECT_CALL(_load_monitor, admit_request()).WillOnce(Return(false));
+  EXPECT_CALL(_load_monitor, admit_request(_)).WillOnce(Return(false));
 
   int status;
   std::string response;
@@ -353,7 +353,7 @@ TEST_F(HttpStackStatsTest, LatencyPenalties)
   PenaltyHandler handler;
   _stack->register_handler("^/BasicHandler$", &handler);
 
-  EXPECT_CALL(_load_monitor, admit_request()).WillOnce(Return(true));
+  EXPECT_CALL(_load_monitor, admit_request(_)).WillOnce(Return(true));
   EXPECT_CALL(_load_monitor, incr_penalties()).Times(1);
   EXPECT_CALL(_load_monitor, request_complete(_)).Times(1);
 
