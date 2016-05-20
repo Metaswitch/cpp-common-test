@@ -77,7 +77,7 @@ class LoadMonitorTest : public BaseTest
 
   void request_with_latency(int latency)
   {
-    _load_monitor->admit_request();
+    _load_monitor->admit_request(0);
     _load_monitor->request_complete(latency);
   }
 };
@@ -195,14 +195,14 @@ TEST_F(LoadMonitorTest, AdmitRequest)
 {
   // Test that initially the load monitor admits requests, but after a large number
   // of attempts in quick succession it has run out.
-  EXPECT_EQ(_load_monitor->admit_request(), true);
+  EXPECT_EQ(_load_monitor->admit_request(0), true);
 
   for (int ii = 0; ii <= 50; ii++)
   {
-    _load_monitor->admit_request();
+    _load_monitor->admit_request(0);
   }
 
-  EXPECT_EQ(_load_monitor->admit_request(), false);
+  EXPECT_EQ(_load_monitor->admit_request(0), false);
 }
 
 TEST_F(TokenBucketTest, GetToken)
