@@ -60,7 +60,7 @@ TEST_F(TimerHeapTest, Insert)
   SimpleTimer t(1000);
 
   th.insert(&t);
-  TimerHeap::Timer* next = th.get_next_timer();
+  HeapableTimer* next = th.get_next_timer();
 
   ASSERT_EQ(&t, next);
 }
@@ -74,7 +74,7 @@ TEST_F(TimerHeapTest, Remove)
   th.insert(&t);
   bool success = th.remove(&t);
   EXPECT_TRUE(success);
-  TimerHeap::Timer* next = th.get_next_timer();
+  HeapableTimer* next = th.get_next_timer();
 
   ASSERT_EQ(nullptr, next);
 }
@@ -92,7 +92,7 @@ TEST_F(TimerHeapTest, RemoveNonexistentTimer)
 // If I don't have any timers in the heap, get_next_timer shouldn't return one.
 TEST_F(TimerHeapTest, EmptyHeapGivesNull)
 {
-  TimerHeap::Timer* next = th.get_next_timer();
+  HeapableTimer* next = th.get_next_timer();
 
   ASSERT_EQ(nullptr, next);
 }
@@ -109,7 +109,7 @@ TEST_F(TimerHeapTest, MultipleInsert)
   th.insert(&t1);
   th.insert(&t3);
 
-  TimerHeap::Timer* next = th.get_next_timer();
+  HeapableTimer* next = th.get_next_timer();
   th.remove(next);
   ASSERT_EQ(&t1, next);
 
@@ -137,7 +137,7 @@ TEST_F(TimerHeapTest, UpdatePopTime)
 
   t2.update_pop_time(6);
 
-  TimerHeap::Timer* next = th.get_next_timer();
+  HeapableTimer* next = th.get_next_timer();
   th.remove(next);
   ASSERT_EQ(&t2, next);
 
@@ -165,7 +165,7 @@ TEST_F(TimerHeapTest, UpdatePopTime)
 TEST_F(TimerHeapTest, ManyTimers)
 {
   std::vector<SimpleTimer*> inserted_timers;
-  std::vector<TimerHeap::Timer*> popped_timers;
+  std::vector<HeapableTimer*> popped_timers;
   
   for (int i = 0; i < 10000; i++)
   {
@@ -188,7 +188,7 @@ TEST_F(TimerHeapTest, ManyTimers)
     delete t;
   }
 
-  TimerHeap::Timer* next;
+  HeapableTimer* next;
   while ((next = th.get_next_timer()) != nullptr)
   {
     th.remove(next);
@@ -198,8 +198,7 @@ TEST_F(TimerHeapTest, ManyTimers)
   ASSERT_EQ(9000u, popped_timers.size());
   ASSERT_TRUE(std::is_sorted(popped_timers.begin(),
                              popped_timers.end(),
-                             [](TimerHeap::Timer* a, TimerHeap::Timer* b) { return a->pops_before(b); }));
-
+                             [](HeapableTimer* a, HeapableTimer* b) { return a->get_pop_time() < b->get_pop_time(); }));
   for (SimpleTimer* t: inserted_timers)
   {
     delete t;
