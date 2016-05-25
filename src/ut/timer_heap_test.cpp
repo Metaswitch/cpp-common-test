@@ -150,6 +150,27 @@ TEST_F(TimerHeapTest, UpdatePopTime)
   ASSERT_EQ(&t3, next);
 }
 
+// Checks that pop times all the way up to UINT_MAX are handled correctly
+TEST_F(TimerHeapTest, UintMaxPopTime)
+{
+  SimpleTimer t1(120171267);
+  SimpleTimer t2(120171269);
+  SimpleTimer t3(120171268);
+
+  th.insert(&t2);
+  th.insert(&t1);
+  th.insert(&t3);
+
+  HeapableTimer* next = th.get_next_timer();
+  ASSERT_EQ(&t1, next);
+  t1.update_pop_time(UINT_MAX);
+
+  // We've increased t1's pop time, so t3 should now be first to pop
+  next = th.get_next_timer();
+  ASSERT_EQ(&t3, next);
+}
+
+
 // This is a quite thorough test to make sure that all possible operations on
 // the heap preserve the heap property. It:
 //
