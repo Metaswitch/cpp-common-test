@@ -52,7 +52,8 @@ class CommunicationMonitorTest : public ::testing::Test
 {
 public:
   CommunicationMonitorTest() :
-    _ma(new MockAlarm()),
+    _am(new AlarmManager()),
+    _ma(new MockAlarm(_am)),
     _cm(_ma, "sprout", "chronos")
   {
     cwtest_completely_control_time();
@@ -61,9 +62,11 @@ public:
   virtual ~CommunicationMonitorTest()
   {
     cwtest_reset_time();
+    delete _am; _am = NULL;
   }
 
 private:
+  AlarmManager* _am;
   MockAlarm* _ma;
   CommunicationMonitor _cm;
 };
