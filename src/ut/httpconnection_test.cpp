@@ -63,7 +63,8 @@ class HttpConnectionTest : public BaseTest
 {
   LoadMonitor _lm;
   FakeHttpResolver _resolver;
-  NiceMock<MockCommunicationMonitor> _cm;
+  AlarmManager* _am = new AlarmManager();
+  NiceMock<MockCommunicationMonitor>* _cm = new NiceMock<MockCommunicationMonitor>(_am);
   HttpConnection* _http;
   HttpConnectionTest() :
     _lm(100000, 20, 10, 10),
@@ -75,7 +76,7 @@ class HttpConnectionTest : public BaseTest
                                &SNMP::FAKE_IP_COUNT_TABLE,
                                &_lm,
                                SASEvent::HttpLogLevel::PROTOCOL,
-                               &_cm);
+                               _cm);
 
     fakecurl_responses.clear();
     fakecurl_responses["http://10.42.42.42:80/blah/blah/blah"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>";
@@ -99,6 +100,8 @@ class HttpConnectionTest : public BaseTest
     fakecurl_responses.clear();
     fakecurl_requests.clear();
     delete _http; _http = NULL;
+    delete _cm; _cm = NULL;
+    delete _am; _am = NULL;
   }
 };
 
@@ -126,7 +129,7 @@ TEST_F(HttpConnectionTest, SimpleIPv6Get)
                        &SNMP::FAKE_IP_COUNT_TABLE,
                        &_lm,
                        SASEvent::HttpLogLevel::PROTOCOL,
-                       &_cm);
+                       _cm);
 
   fakecurl_responses["http://[1::1]:80/ipv6get"] = CURLE_OK;
   long ret = http2.send_get("/ipv6get", output, "gandalf", 0);
@@ -135,7 +138,7 @@ TEST_F(HttpConnectionTest, SimpleIPv6Get)
 
 TEST_F(HttpConnectionTest, SimpleGetFailure)
 {
-  EXPECT_CALL(_cm, inform_failure(_)).Times(2);
+  EXPECT_CALL(*_cm, inform_failure(_)).Times(2);
   string output;
   long ret = _http->send_get("/blah/blah/wot", output, "gandalf", 0);
   EXPECT_EQ(404, ret);
@@ -178,7 +181,7 @@ TEST_F(HttpConnectionTest, GetWithUsername)
 
 TEST_F(HttpConnectionTest, ReceiveError)
 {
-  EXPECT_CALL(_cm, inform_failure(_));
+  EXPECT_CALL(*_cm, inform_failure(_));
   string output;
   long ret = _http->send_get("/blah/blah/recv_error", output, "gandalf", 0);
   EXPECT_EQ(500, ret);
@@ -227,14 +230,14 @@ TEST_F(HttpConnectionTest, SimplePost)
 
 TEST_F(HttpConnectionTest, SimplePut)
 {
-  EXPECT_CALL(_cm, inform_success(_));
+  EXPECT_CALL(*_cm, inform_success(_));
   long ret = _http->send_put("/put_id", "", 0);
   EXPECT_EQ(200, ret);
 }
 
 TEST_F(HttpConnectionTest, SimplePutWithResponse)
 {
-  EXPECT_CALL(_cm, inform_success(_));
+  EXPECT_CALL(*_cm, inform_success(_));
   std::string response;
   long ret = _http->send_put("/put_id_response", response, "", 0);
   EXPECT_EQ(200, ret);
@@ -318,7 +321,7 @@ TEST_F(HttpConnectionTest, ParseHostPort)
                        &SNMP::FAKE_IP_COUNT_TABLE,
                        &_lm,
                        SASEvent::HttpLogLevel::PROTOCOL,
-                       &_cm);
+                       _cm);
   fakecurl_responses["http://10.42.42.42:1234/port-1234"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>";
 
   string output;
@@ -336,7 +339,7 @@ TEST_F(HttpConnectionTest, ParseHostPortIPv6)
                        &SNMP::FAKE_IP_COUNT_TABLE,
                        &_lm,
                        SASEvent::HttpLogLevel::PROTOCOL,
-                       &_cm);
+                       _cm);
 
   string output;
   long ret = http2.send_get("/blah/blah/blah", output, "gandalf", 0);

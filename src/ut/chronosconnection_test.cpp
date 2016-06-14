@@ -55,12 +55,14 @@ using namespace std;
 class ChronosConnectionTest : public BaseTest
 {
   FakeHttpResolver _resolver;
+  AlarmManager* _alarm_manager;
   CommunicationMonitor _cm;
   ChronosConnection* _chronos;
 
   ChronosConnectionTest() :
     _resolver("10.42.42.42"),
-    _cm(new Alarm("sprout", AlarmDef::CPP_COMMON_FAKE_ALARM, AlarmDef::MAJOR), "sprout", "chronos")
+    _alarm_manager(new AlarmManager()),
+    _cm(new Alarm(_alarm_manager, "sprout", AlarmDef::CPP_COMMON_FAKE_ALARM, AlarmDef::MAJOR), "sprout", "chronos")
   {
     _chronos = new ChronosConnection("narcissus", "localhost:9888", &_resolver, &_cm);
     fakecurl_responses.clear();
@@ -70,6 +72,7 @@ class ChronosConnectionTest : public BaseTest
   {
     fakecurl_responses.clear();
     delete _chronos; _chronos = NULL;
+    delete _alarm_manager; _alarm_manager = NULL;
   }
 };
 

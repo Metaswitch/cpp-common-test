@@ -251,9 +251,11 @@ class DiameterRequestCommMonMockTest : public ::testing::Test
 public:
   DiameterRequestCommMonMockTest()
   {
+    _am = new AlarmManager();
+    _cm = new MockCommunicationMonitor(_am);
     _stack = Diameter::Stack::get_instance();
     _stack->initialize();
-    _stack->configure(UT_DIR + "/diameterstack.conf", NULL, &_cm);
+    _stack->configure(UT_DIR + "/diameterstack.conf", NULL, _cm);
 
     _dict = new UTDictionary();
   }
@@ -264,6 +266,9 @@ public:
 
     _stack->stop();
     _stack->wait_stopped();
+
+    delete _cm; _cm = NULL;
+    delete _am; _am = NULL;
   }
 
   DiameterTestTransaction* make_trx()
@@ -274,7 +279,8 @@ public:
 private:
   Diameter::Stack* _stack;
   UTDictionary* _dict;
-  MockCommunicationMonitor _cm;
+  AlarmManager* _am;
+  MockCommunicationMonitor* _cm;
 };
 
 
@@ -348,7 +354,7 @@ TEST_F(DiameterRequestCommMonMockTest, ResponseOk)
   struct msg* fd_rsp = rsp.fd_msg();
 
   EXPECT_CALL(*trx, on_response(_));
-  EXPECT_CALL(_cm, inform_success(_));
+  EXPECT_CALL(*_cm, inform_success(_));
   Diameter::Transaction::on_response(trx, &fd_rsp); trx = NULL;
 }
 
@@ -364,6 +370,6 @@ TEST_F(DiameterRequestCommMonMockTest, ResponseError)
   struct msg* fd_rsp = rsp.fd_msg();
 
   EXPECT_CALL(*trx, on_response(_));
-  EXPECT_CALL(_cm, inform_failure(_));
+  EXPECT_CALL(*_cm, inform_failure(_));
   Diameter::Transaction::on_response(trx, &fd_rsp); trx = NULL;
 }

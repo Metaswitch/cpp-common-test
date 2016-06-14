@@ -60,11 +60,13 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 fakezmq.cpp \
                                 mock_sas.cpp \
                                 mockfreediameter.cpp \
+                                pthread_cond_var_helper.cpp \
                                 basetest.cpp \
                                 curl_interposer.cpp \
                                 test_main.cpp \
                                 test_interposer.cpp \
                                 alarm_test.cpp \
+                                astaire_resolver.cpp \
                                 baseresolver_test.cpp \
                                 chronosconnection_test.cpp \
                                 communicationmonitor_test.cpp \
@@ -80,8 +82,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 memcached_config_test.cpp \
                                 memcachedstorereview_test.cpp \
                                 realmmanager_test.cpp \
-                                timer_heap_test.cpp \
-                                astaire_resolver.cpp
+                                timer_heap_test.cpp
 
 cpp_common_test_test_CPPFLAGS := -Wno-write-strings \
                                  -I../usr/include \
