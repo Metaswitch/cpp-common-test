@@ -50,6 +50,5 @@
    obj:/usr/lib/x86_64-linux-gnu/libgnutls.so.26.22.6
    fun:gnutls_pkcs11_init
    fun:gnutls_global_init
-   fun:fd_core_initialize
    ...
 }
