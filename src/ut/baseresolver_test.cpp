@@ -35,6 +35,7 @@
  */
 
 #include <string>
+#include <sstream>
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -47,6 +48,8 @@
 
 using namespace std;
 using ::testing::MatchesRegex;
+
+const std::string TEST_HOST = "cpp-common-test.cw-ngv.com";
 
 /// Fixture for BaseResolverTest.
 class BaseResolverTest : public ::testing::Test
@@ -74,7 +77,7 @@ class BaseResolverTest : public ::testing::Test
     _baseresolver.create_srv_cache();
 
     // Create the blacklist.
-    _baseresolver.create_blacklist(30); 
+    _baseresolver.create_blacklist(15,15);
   }
 
   virtual ~BaseResolverTest()
@@ -85,6 +88,101 @@ class BaseResolverTest : public ::testing::Test
     cwtest_reset_time();
   }
 
+  /// Modified a_resolve method more suited for testing
+  std::vector<AddrInfo> a_resolve(int max_targets, std::string host = TEST_HOST)
+  {
+    std::vector<AddrInfo> targets;
+    int ttl;
+    _baseresolver.a_resolve(host, AF_INET, 80, IPPROTO_TCP, max_targets, targets, ttl, 1);
+    return targets;
+  }
+
+  /// Adds new white records to the resolver's cache, beginning at 3.0.0.1 and
+  /// incrementing by one each time.
+  void add_white_records(int white_records, std::string host = TEST_HOST)
+  {
+    std::vector<DnsRRecord*> records;
+    std::stringstream os;
+    for (int i = 1; i <= white_records - 1; ++i)
+    {
+      os << "3.0.0." << i;
+      records.push_back(ResolverUtils::a(host, 3600, os.str()));
+      os.str(std::string());
+    }
+    _dnsresolver.add_to_cache(host, ns_t_a, records);
+  }
+
+  /// Calls a_resolve with the given parameters, and returns true if the result
+  /// contains test_record_str, and false otherwise.
+  bool a_resolve_contains(AddrInfo record, int max_targets,
+                          std::string host = TEST_HOST)
+  {
+    std::vector<AddrInfo> targets = a_resolve(max_targets, host);
+    std::vector<AddrInfo>::iterator found_record_it;
+    found_record_it = find(targets.begin(), targets.end(), record);
+    return (found_record_it != targets.end());
+  }
+
+  // The following three methods assume that the resolver's cache contains a
+  // single record, with IP 3.0.0.0 and string representation test_record_str. The methods
+  // modify the resolver, so should be called at most once per test.
+
+  /// Returns true if the record is blacklisted. Has a chance of giving a false
+  /// positive, which can be decreased by increasing n or m.
+  bool is_black(AddrInfo record, int white_records, int repetitions)
+  {
+    add_white_records(white_records);
+    for (int i = 0; i < repetitions; ++i)
+    {
+      if (a_resolve_contains(record, white_records - 1))
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Returns true if the record is graylisted. Has a chance of giving a false
+  /// positive, which can be decreased by increasing n or m.
+  bool is_gray(AddrInfo record, int white_records, int repetitions)
+  {
+    add_white_records(white_records);
+    // The gray record should be returned on the first call to a_resolve
+    if (!a_resolve_contains(record, 1))
+    {
+      return false;
+    }
+    // The gray record should not be returned on any further call
+    for (int i = 0; i < repetitions - 1; ++i)
+    {
+      if (a_resolve_contains(record, white_records - 1))
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Returns true if the record is whitelisted. Has a chance of giving a false
+  /// negative, which can be decreased by increasing n or m.
+  bool is_white(AddrInfo record, int white_records, int repetitions)
+  {
+    add_white_records(white_records);
+
+    // If the record is gray, it will be removed from the pool of valid records
+    // here.
+    a_resolve(1);
+
+    // If the record is white, it is highly likely it is returned here.
+    for (int i = 0; i < repetitions; ++i)
+    {
+      if (a_resolve_contains(record, white_records - 1))
+      {
+        return true;
+      }
+    }
+    return false;
+  }
 };
 
 /// A single resolver operation.
