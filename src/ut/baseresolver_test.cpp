@@ -80,7 +80,7 @@ class BaseResolverTest : public ::testing::Test
     _baseresolver.create_srv_cache();
 
     // Create the blacklist.
-    _baseresolver.create_blacklist(30,30);
+    _baseresolver.create_blacklist(30, 30);
   }
 
   virtual ~BaseResolverTest()
@@ -100,43 +100,24 @@ class BaseResolverTest : public ::testing::Test
     return targets;
   }
 
-  /// Modified blacklist method more suited for testing.
-  void blacklist(std::string address_str)
+  /// Creates and returns an AddrInfo object with the given data.
+  AddrInfo ip_to_addr_info(std::string address_str, int port = TEST_PORT,
+                           int transport = TEST_TRANSPORT)
   {
     AddrInfo ai;
     _baseresolver.parse_ip_target(address_str, ai.address);
     ai.port = TEST_PORT;
     ai.transport = TEST_TRANSPORT;
-    _baseresolver.blacklist(ai);
+    return ai;
   }
 
-  /// Modified untested method more suited for testing.
-  void untested(std::string address_str)
-  {
-    AddrInfo ai;
-    _baseresolver.parse_ip_target(address_str, ai.address);
-    ai.port = TEST_PORT;
-    ai.transport = TEST_TRANSPORT;
-    _baseresolver.untested(ai);
-  }
-
-  /// Modified success method more suited for testing.
-  void success(std::string address_str)
-  {
-    AddrInfo ai;
-    _baseresolver.parse_ip_target(address_str, ai.address);
-    ai.port = TEST_PORT;
-    ai.transport = TEST_TRANSPORT;
-    _baseresolver.success(ai);
-  }
-
-  /// Adds white_number + 1 new white records to the resolver's cache, beginning
+  /// Adds 'count' new white records to the resolver's cache, beginning
   /// at 3.0.0.0 and incrementing by one each time.
-  void setup_records(int white_number, std::string host = TEST_HOST)
+  void add_white_records(int count, std::string host = TEST_HOST)
   {
     std::vector<DnsRRecord*> records;
     std::stringstream os;
-    for (int i = 0; i <= white_number; ++i)
+    for (int i = 0; i < count; ++i)
     {
       os << "3.0.0." << i;
       records.push_back(ResolverUtils::a(host, 3600, os.str()));
@@ -147,16 +128,9 @@ class BaseResolverTest : public ::testing::Test
 
   /// Calls a_resolve with the given parameters, and returns true if the result
   /// contains addresss_str, and false otherwise.
-  bool a_resolve_contains(std::string address_str, int max_targets,
+  bool a_resolve_contains(AddrInfo ai, int max_targets,
                           std::string host = TEST_HOST)
   {
-    AddrInfo ai;
-    ai.port = TEST_PORT;
-    ai.transport = TEST_TRANSPORT;
-    if (!_baseresolver.parse_ip_target(address_str, ai.address))
-    {
-      return false;
-    }
     std::vector<AddrInfo> targets = a_resolve(max_targets, host);
     std::vector<AddrInfo>::const_iterator found_record_it;
     found_record_it = find(targets.begin(), targets.end(), ai);
@@ -164,19 +138,20 @@ class BaseResolverTest : public ::testing::Test
   }
 
   // The following three methods assume that the resolver's cache contains
-  // white_number + 1 records, one of which, given by address_str, is under
+  // count records, one of which, given by address_str, is under
   // consideration, and the rest are untouched white records. The methods may
   // modify the state of the resolver's records, so should be called at most
   // once per test.
 
   /// Returns true if the record is blacklisted. Has a chance of giving a false
-  /// positive, which can be decreased by increasing white_number or repetitions
-  bool is_black(std::string address_str, int white_number, int repetitions)
+  /// positive, which can be decreased by increasing count or repetitions
+  bool is_black(std::string address_str, int count, int repetitions)
   {
+    AddrInfo ai = ip_to_addr_info(address_str);
     // The black record should not be returned on any call.
     for (int i = 0; i < repetitions; ++i)
     {
-      if (a_resolve_contains(address_str, white_number))
+      if (a_resolve_contains(ai, count))
       {
         return false;
       }
@@ -185,23 +160,25 @@ class BaseResolverTest : public ::testing::Test
   }
 
   /// Returns true if the record is graylisted. Has a chance of giving a false
-  /// positive, which can be decreased by increasing white_number or repetitions
-  bool is_gray(std::string address_str, int white_number, int repetitions)
+  /// positive, which can be decreased by increasing count or repetitions
+  bool is_gray(std::string address_str, int count, int repetitions)
   {
+    AddrInfo ai = ip_to_addr_info(address_str);
     // The gray record should be returned on the first call to a_resolve
-    if (!a_resolve_contains(address_str, 1))
+    if (!a_resolve_contains(ai, 1))
     {
       return false;
     }
     // The gray record should not be returned on any further call, so is
     // effectively black
-    return is_black(address_str, white_number, repetitions - 1);
+    return is_black(address_str, count, repetitions - 1);
   }
 
   /// Returns true if the record is whitelisted. Has a chance of giving a false
-  /// negative, which can be decreased by increasing white_number or repetitions
-  bool is_white(std::string address_str, int white_number, int repetitions)
+  /// negative, which can be decreased by increasing count or repetitions
+  bool is_white(std::string address_str, int count, int repetitions)
   {
+    AddrInfo ai = ip_to_addr_info(address_str);
     // If the record is gray, it will be removed from the pool of valid records
     // here.
     a_resolve(1);
@@ -209,7 +186,7 @@ class BaseResolverTest : public ::testing::Test
     // If the record is white, it is highly likely it is returned here.
     for (int i = 0; i < repetitions; ++i)
     {
-      if (a_resolve_contains(address_str, white_number))
+      if (a_resolve_contains(ai, count))
       {
         return true;
       }
@@ -267,7 +244,7 @@ private:
 // Test that basic IPv4 resolution works
 TEST_F(BaseResolverTest, IPv4AddressResolution)
 {
-  setup_records(0);
+  add_white_records(1);
   std::string resolve = ResolverUtils::addrinfo_to_string(a_resolve(1)[0]);
   EXPECT_EQ(resolve, "3.0.0.0:80;transport=TCP");
 }
@@ -275,7 +252,7 @@ TEST_F(BaseResolverTest, IPv4AddressResolution)
 // Test that IPv4 resolution works when there's multiple correct answers
 TEST_F(BaseResolverTest, IPv4AddressResolutionManyTargets)
 {
-  setup_records(6);
+  add_white_records(7);
   std::string resolve = ResolverUtils::addrinfo_to_string(a_resolve(1)[0]);
   EXPECT_THAT(resolve, MatchesRegex("3.0.0.[0-6]:80;transport=TCP"));
 }
@@ -283,62 +260,62 @@ TEST_F(BaseResolverTest, IPv4AddressResolutionManyTargets)
 // Test that whitelisted records are moved to the blackist on calling blacklist.
 TEST_F(BaseResolverTest, ARecordWhiteToBlackBlacklist)
 {
-  setup_records(10);
-  blacklist("3.0.0.0");
-  EXPECT_TRUE(is_black("3.0.0.0",10,15));
+  add_white_records(11);
+  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+  EXPECT_TRUE(is_black("3.0.0.0", 10, 15));
 }
 
 // Test that blacklisted records are moved to the graylist after the specified
 // time.
 TEST_F(BaseResolverTest, ARecordBlackToGrayTime)
 {
-  setup_records(10);
-  blacklist("3.0.0.0");
+  add_white_records(11);
+  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
   cwtest_advance_time_ms(31000);
-  EXPECT_TRUE(is_gray("3.0.0.0",10,15));
+  EXPECT_TRUE(is_gray("3.0.0.0", 10, 15));
 }
 
 // Test that graylisted records are moved to the blacklist on calling blacklist.
 TEST_F(BaseResolverTest, ARecordGrayToBlackBlacklist)
 {
-  setup_records(10);
-  blacklist("3.0.0.0");
+  add_white_records(11);
+  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
   cwtest_advance_time_ms(61000);
-  blacklist("3.0.0.0");
-  EXPECT_TRUE(is_black("3.0.0.0",10,15));
+  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+  EXPECT_TRUE(is_black("3.0.0.0", 10, 15));
 }
 
 // Test that the untested method correctly makes graylisted records available
 // for testing once more.
 TEST_F(BaseResolverTest, ARecordGrayToGrayUntested)
 {
-  setup_records(10);
-  blacklist("3.0.0.0");
+  add_white_records(11);
+  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
   cwtest_advance_time_ms(31000);
   a_resolve(1);
-  untested("3.0.0.0");
-  EXPECT_TRUE(is_gray("3.0.0.0",10,15));
+  _baseresolver.untested(ip_to_addr_info("3.0.0.0"));
+  EXPECT_TRUE(is_gray("3.0.0.0", 10, 15));
 }
 
 // Test that graylisted records are moved to the whitelist after the specified
 // time.
 TEST_F(BaseResolverTest, ARecordGrayToWhiteTime)
 {
-  setup_records(10);
-  blacklist("3.0.0.0");
+  add_white_records(11);
+  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
   cwtest_advance_time_ms(61000);
-  EXPECT_TRUE(is_white("3.0.0.0",10,15));
+  EXPECT_TRUE(is_white("3.0.0.0", 10, 15));
 }
 
 // Test that graylisted records are moved to the whitelist after calling
 // success.
 TEST_F(BaseResolverTest, ARecordGrayToWhiteSuccess)
 {
-  setup_records(10);
-  blacklist("3.0.0.0");
+  add_white_records(11);
+  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
   cwtest_advance_time_ms(31000);
-  success("3.0.0.0");
-  EXPECT_TRUE(is_white("3.0.0.0",10,15));
+  _baseresolver.success(ip_to_addr_info("3.0.0.0"));
+  EXPECT_TRUE(is_white("3.0.0.0", 10, 15));
 }
 
 // Test that blacklisted SRV records aren't chosen
