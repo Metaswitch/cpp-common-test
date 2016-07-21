@@ -54,7 +54,7 @@ class HttpResolverTest : public ResolverTest
   HttpResolver _httpresolver;
 
   HttpResolverTest() :
-    _httpresolver(&_dnsresolver, AF_INET)
+    _httpresolver(&_dnsresolver, AF_INET, 30, 30)
   {
   }
 

@@ -34,8 +34,6 @@
  * as those licenses appear in the file LICENSE-OPENSSL.
  */
 
-#include<sstream>
-
 #include<resolver_test.h>
 #include "resolver_utils.h"
 #include "test_interposer.hpp"
@@ -53,7 +51,6 @@ ResolverTest::~ResolverTest()
   cwtest_reset_time();
 }
 
-/// Creates and returns an AddrInfo object with the given data.
 AddrInfo ResolverTest::ip_to_addr_info(std::string address_str, int port, int transport)
 {
   AddrInfo ai;
@@ -63,8 +60,6 @@ AddrInfo ResolverTest::ip_to_addr_info(std::string address_str, int port, int tr
   return ai;
 }
 
-/// Adds 'count' new white records to the resolver's cache, beginning
-/// at 3.0.0.0 and incrementing by one each time.
 void ResolverTest::add_white_records(int count, std::string host)
 {
   std::vector<DnsRRecord*> records;
@@ -78,8 +73,6 @@ void ResolverTest::add_white_records(int count, std::string host)
   _dnsresolver.add_to_cache(host, ns_t_a, records);
 }
 
-/// Calls a_resolve with the given parameters, and returns true if the result
-/// contains ai, and false otherwise.
 bool ResolverTest::resolution_contains(AddrInfo ai, int max_targets)
 {
   std::vector<AddrInfo> targets = resolve(max_targets);
@@ -88,14 +81,6 @@ bool ResolverTest::resolution_contains(AddrInfo ai, int max_targets)
   return (record_iterator != targets.end());
 }
 
-// The following three methods assume that the resolver's cache contains
-// count records, one of which, given by address_str, is under
-// consideration, and the rest are untouched white records. The methods may
-// modify the state of the resolver's records, so should be called at most
-// once per test.
-
-/// Returns true if the record is blacklisted. Has a chance of giving a false
-/// positive, which can be decreased by increasing count or repetitions
 bool ResolverTest::is_black(std::string address_str, int count, int repetitions)
 {
   AddrInfo ai = ip_to_addr_info(address_str);
@@ -110,8 +95,6 @@ bool ResolverTest::is_black(std::string address_str, int count, int repetitions)
   return true;
 }
 
-/// Returns true if the record is graylisted. Has a chance of giving a false
-/// positive, which can be decreased by increasing count or repetitions
 bool ResolverTest::is_gray(std::string address_str, int count, int repetitions)
 {
   AddrInfo ai = ip_to_addr_info(address_str);
@@ -125,8 +108,6 @@ bool ResolverTest::is_gray(std::string address_str, int count, int repetitions)
   return is_black(address_str, count, repetitions - 1);
 }
 
-/// Returns true if the record is whitelisted. Has a chance of giving a false
-/// negative, which can be decreased by increasing count or repetitions
 bool ResolverTest::is_white(std::string address_str, int count, int repetitions)
 {
   AddrInfo ai = ip_to_addr_info(address_str);
