@@ -84,7 +84,7 @@ const std::string UT_DIR = UT_FILE.substr(0, UT_FILE.rfind("/"));
 
 int main(int argc, char** argv)
 {
-  // Seed the random number generatioor. Use the passed in seed if supplied.
+  // Seed the random number generator. Use the passed in seed if supplied.
   // Otherwise use the current time plus our PID.
   unsigned int seed;
   char* seed_str = getenv("RANDOM_SEED");
@@ -99,6 +99,7 @@ int main(int argc, char** argv)
   }
   std::cout << "Running main() from gmock_main.cc with random seed: "
             << seed << "\n";
+  srand(seed);
 
   // Since Google Mock depends on Google Test, InitGoogleMock() is
   // also responsible for initializing Google Test.  Therefore there's
