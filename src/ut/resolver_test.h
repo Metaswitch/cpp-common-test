@@ -1,5 +1,5 @@
 /**
- * @file baseresolver_test.h UT for BaseResolver class.
+ * @file resolver_test.h UT for Resolver classes.
  *
  * Project Clearwater - IMS in the Cloud
  * Copyright (C) 2016  Metaswitch Networks Ltd
@@ -34,20 +34,15 @@
  * as those licenses appear in the file LICENSE-OPENSSL.
  */
 
-#ifndef BASERESOLVER_TEST_H__
-#define BASERESOLVER_TEST_H__
+#ifndef RESOLVER_TEST_H__
+#define RESOLVER_TEST_H__
 
 #include <string>
 #include <sstream>
-#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include "utils.h"
 #include "dnscachedresolver.h"
 #include "baseresolver.h"
-#include "test_utils.hpp"
-#include "test_interposer.hpp"
-#include "resolver_utils.h"
 
 const std::string TEST_HOST = "cpp-common-test.cw-ngv.com";
 const int TEST_PORT = 80;
@@ -55,19 +50,14 @@ const int TEST_TRANSPORT = IPPROTO_TCP;
 const int TEST_TTL = 3600;
 
 /// Fixture for BaseResolverTest.
-class BaseResolverTest : public ::testing::Test
+class ResolverTest : public ::testing::Test
 {
-protected:
-  DnsCachedResolver _dnsresolver;
-  BaseResolver _baseresolver;
+public:
+  ResolverTest();
+  virtual ~ResolverTest();
 
-  // DNS Resolver is created with server address 0.0.0.0 to disable server
-  // queries.
-  BaseResolverTest();
-  virtual ~BaseResolverTest();
-
-  /// Modified a_resolve method more suited for testing
-  virtual std::vector<AddrInfo> a_resolve(int max_targets, std::string host = TEST_HOST);
+  /// Modified resolve method more suited for testing
+  virtual std::vector<AddrInfo> resolve(int max_targets) = 0;
 
   /// Creates and returns an AddrInfo object with the given data.
   AddrInfo ip_to_addr_info(std::string address_str, int port = TEST_PORT,
@@ -79,8 +69,7 @@ protected:
 
   /// Calls a_resolve with the given parameters, and returns true if the result
   /// contains addresss_str, and false otherwise.
-  bool a_resolve_contains(AddrInfo ai, int max_targets,
-                          std::string host = TEST_HOST);
+  bool resolution_contains(AddrInfo ai, int max_targets);
 
   // The following three methods assume that the resolver's cache contains
   // count records, one of which, given by address_str, is under
@@ -99,6 +88,10 @@ protected:
   /// Returns true if the record is whitelisted. Has a chance of giving a false
   /// negative, which can be decreased by increasing count or repetitions
   bool is_white(std::string address_str, int count, int repetitions);
+
+protected:
+  DnsCachedResolver _dnsresolver;
+
 };
 
 #endif

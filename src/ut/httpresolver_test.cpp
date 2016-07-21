@@ -43,25 +43,33 @@
 #include "httpresolver.h"
 #include "test_utils.hpp"
 #include "resolver_utils.h"
+#include "resolver_test.h"
+#include "test_interposer.hpp"
 
 using namespace std;
 
 /// Fixture for HttpResolverTest.
-class HttpResolverTest : public ::testing::Test
+class HttpResolverTest : public ResolverTest
 {
-  DnsCachedResolver _dnsresolver;
   HttpResolver _httpresolver;
 
-  // DNS Resolver is created with server address 0.0.0.0 to disable server
-  // queries.
   HttpResolverTest() :
-    _dnsresolver("0.0.0.0"),
     _httpresolver(&_dnsresolver, AF_INET)
   {
   }
 
   virtual ~HttpResolverTest()
   {
+    _httpresolver.destroy_blacklist();
+    cwtest_reset_time();
+  }
+
+  /// Implements the resolve method using a HttpResolver
+  std::vector<AddrInfo> resolve(int max_targets)
+  {
+    std::vector<AddrInfo> targets;
+    _httpresolver.resolve(TEST_HOST, TEST_PORT, max_targets, targets, 0);
+    return targets;
   }
 };
 
@@ -152,6 +160,38 @@ TEST_F(HttpResolverTest, AAAARecordResolution)
   _dnsresolver.add_to_cache("cpp-common-test.cw-ngv.com", ns_t_a, records);
   EXPECT_EQ("[3::1]:8888;transport=TCP",
             HttpRT(_httpresolver).set_host("cpp-common-test.cw-ngv.com").set_port(8888).resolve());
+}
+
+TEST_F(HttpResolverTest, BlacklistTimeLowerBound)
+{
+  add_white_records(11);
+  _httpresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+  cwtest_advance_time_ms(29999);
+  EXPECT_TRUE(is_black("3.0.0.0", 11, 15));
+}
+
+TEST_F(HttpResolverTest, BlackListTimeUpperBound)
+{
+  add_white_records(11);
+  _httpresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+  cwtest_advance_time_ms(30001);
+  EXPECT_TRUE(is_gray("3.0.0.0", 11, 15));
+}
+
+TEST_F(HttpResolverTest, GrayListTimeLowerBound)
+{
+  add_white_records(11);
+  _httpresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+  cwtest_advance_time_ms(59999);
+  EXPECT_TRUE(is_gray("3.0.0.0", 11, 15));
+}
+
+TEST_F(HttpResolverTest, GrayListTimeUpperBound)
+{
+  add_white_records(11);
+  _httpresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+  cwtest_advance_time_ms(60001);
+  EXPECT_TRUE(is_white("3.0.0.0", 11, 15));
 }
 
 TEST_F(HttpResolverTest, ResolutionFailure)
