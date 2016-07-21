@@ -35,6 +35,7 @@
  */
 
 #include <string>
+#include <sstream>
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include <boost/algorithm/string.hpp>
@@ -42,6 +43,7 @@
 #include "utils.h"
 #include "sas.h"
 #include "fakehttpresolver.hpp"
+#include "mockhttpresolver.h"
 #include "httpconnection.h"
 #include "basetest.hpp"
 #include "test_utils.hpp"
@@ -104,6 +106,91 @@ class HttpConnectionTest : public BaseTest
     delete _am; _am = NULL;
   }
 };
+
+/// Fixture for blacklist test.
+class HttpConnectionBlacklistTest : public BaseTest
+{
+  MockHttpResolver _resolver;
+  HttpConnection* _http;
+  LoadMonitor _lm;
+  AlarmManager* _am = new AlarmManager();
+  NiceMock<MockCommunicationMonitor>*_cm = new NiceMock<MockCommunicationMonitor>(_am);
+
+  HttpConnectionBlacklistTest() :
+    _lm(100000, 20, 10, 10)
+  {
+    _http = new HttpConnection("cyrus",
+                               true,
+                               &_resolver,
+                               &SNMP::FAKE_IP_COUNT_TABLE,
+                               &_lm,
+                               SASEvent::HttpLogLevel::PROTOCOL,
+                               _cm);
+    fakecurl_responses.clear();
+    fakecurl_responses["http://3.0.0.0:80/totalsuccess"] = "<message>success</message>";
+    fakecurl_responses["http://3.0.0.0:80/partialsuccess"] = CURLE_REMOTE_FILE_NOT_FOUND;
+    fakecurl_responses["http://3.0.0.0:80/failure"] = CURLE_COULDNT_RESOLVE_HOST;
+    fakecurl_responses["http://3.0.0.1:80/failure"] = "<message>success</message>";
+  }
+
+  ~HttpConnectionBlacklistTest()
+  {
+    fakecurl_responses.clear();
+    fakecurl_requests.clear();
+    delete _http; _http = NULL;
+    delete _cm; _cm = NULL;
+    delete _am; _am = NULL;
+  }
+
+  /// Creates a vector of count AddrInfo targets, beginning from 3.0.0.0 and
+  /// incrementing by one each time.
+  std::vector<AddrInfo> create_targets(int count)
+  {
+    std::vector<AddrInfo> targets;
+    AddrInfo ai;
+    ai.port = 80;
+    ai.transport = IPPROTO_TCP;
+    std::stringstream os;
+    for (int i = 0; i < count; ++i)
+    {
+      os << "3.0.0." << i;
+      BaseResolver::parse_ip_target(os.str(), ai.address);
+      targets.push_back(ai);
+      os.str(std::string());
+    }
+    return targets;
+  }
+};
+
+TEST_F(HttpConnectionBlacklistTest, BlacklistTestTotalSuccess)
+{
+  std::vector<AddrInfo> targets = create_targets(2);
+  EXPECT_CALL(_resolver, resolve(_,_,_,_,_)).WillOnce(SetArgReferee<3>(targets));
+  EXPECT_CALL(_resolver, success(targets[0])).Times(1);
+  EXPECT_CALL(_resolver, untested(targets[1])).Times(1);
+  string output;
+  _http->send_get("/totalsuccess", output, "", 0);
+}
+
+TEST_F(HttpConnectionBlacklistTest, BlacklistTestPartialSuccess)
+{
+  std::vector<AddrInfo> targets = create_targets(2);
+  EXPECT_CALL(_resolver, resolve(_,_,_,_,_)).WillOnce(SetArgReferee<3>(targets));
+  EXPECT_CALL(_resolver, success(targets[0])).Times(1);
+  EXPECT_CALL(_resolver, untested(targets[1])).Times(1);
+  string output;
+  _http->send_get("/partialsuccess", output, "", 0);
+}
+
+TEST_F(HttpConnectionBlacklistTest, BlacklistTestFailure)
+{
+  std::vector<AddrInfo> targets = create_targets(2);
+  EXPECT_CALL(_resolver, resolve(_,_,_,_,_)).WillOnce(SetArgReferee<3>(targets));
+  EXPECT_CALL(_resolver, blacklist(targets[0])).Times(1);
+  EXPECT_CALL(_resolver, success(targets[1])).Times(1);
+  string output;
+  _http->send_get("/failure", output, "", 0);
+}
 
 
 TEST_F(HttpConnectionTest, SimpleKeyAuthGet)
