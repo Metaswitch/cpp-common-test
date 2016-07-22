@@ -49,6 +49,9 @@
 using namespace std;
 using ::testing::MatchesRegex;
 
+const int DEFAULT_COUNT = 11;
+const int DEFAULT_REPETITIONS = 15;
+
 class BaseResolverTest : public ResolverTest
 {
   BaseResolver _baseresolver;
@@ -141,6 +144,7 @@ TEST_F(BaseResolverTest, IPv4AddressResolution)
 {
   add_white_records(1);
   std::string result = ResolverUtils::addrinfo_to_string(resolve(1)[0]);
+
   EXPECT_EQ(result, "3.0.0.0:80;transport=TCP");
 }
 
@@ -149,68 +153,155 @@ TEST_F(BaseResolverTest, IPv4AddressResolutionManyTargets)
 {
   add_white_records(7);
   std::string result = ResolverUtils::addrinfo_to_string(resolve(1)[0]);
+
   EXPECT_THAT(result, MatchesRegex("3.0.0.[0-6]:80;transport=TCP"));
+}
+
+// Test that at least one graylisted record is given out each call, if
+// available.
+TEST_F(BaseResolverTest, ARecordAtLeastOneGray)
+{
+  add_white_records(DEFAULT_COUNT);
+  AddrInfo gray_record = ip_to_addr_info("3.0.0.0");
+
+  _baseresolver.blacklist(gray_record);
+  cwtest_advance_time_ms(31000);
+  std::vector<AddrInfo> targets = resolve(DEFAULT_COUNT - 1);
+
+  // targets should contain gray
+  EXPECT_TRUE(find(targets.begin(), targets.end(), gray_record) != targets.end());
+}
+
+// Test that just one graylisted record is given out each call, provided there
+// are sufficient valid records.
+TEST_F(BaseResolverTest, ARecordJustOneGray)
+{
+  add_white_records(DEFAULT_COUNT + 1);
+  AddrInfo gray_record_0 = ip_to_addr_info("3.0.0.0");
+  AddrInfo gray_record_1 = ip_to_addr_info("3.0.0.1");
+
+  _baseresolver.blacklist(gray_record_0);
+  _baseresolver.blacklist(gray_record_1);
+  cwtest_advance_time_ms(31000);
+  std::vector<AddrInfo> targets = resolve(DEFAULT_COUNT);
+
+  // targets should contain at most one of the two gray records
+  EXPECT_TRUE((find(targets.begin(), targets.end(), gray_record_0) == targets.end()) ||
+               (find(targets.begin(), targets.end(), gray_record_1) == targets.end()));
 }
 
 // Test that whitelisted records are moved to the blackist on calling blacklist.
 TEST_F(BaseResolverTest, ARecordWhiteToBlackBlacklist)
 {
-  add_white_records(11);
+  add_white_records(DEFAULT_COUNT);
   _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
-  EXPECT_TRUE(is_black("3.0.0.0", 11, 15));
+
+  EXPECT_TRUE(is_black("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
 }
 
 // Test that blacklisted records are moved to the graylist after the specified
 // time.
 TEST_F(BaseResolverTest, ARecordBlackToGrayTime)
 {
-  add_white_records(11);
+  add_white_records(DEFAULT_COUNT);
   _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
   cwtest_advance_time_ms(31000);
-  EXPECT_TRUE(is_gray("3.0.0.0", 11, 15));
+
+  EXPECT_TRUE(is_gray("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
 }
 
 // Test that graylisted records are moved to the blacklist on calling blacklist.
 TEST_F(BaseResolverTest, ARecordGrayToBlackBlacklist)
 {
-  add_white_records(11);
+  add_white_records(DEFAULT_COUNT);
   _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
-  cwtest_advance_time_ms(61000);
+
+  cwtest_advance_time_ms(31000);
   _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
-  EXPECT_TRUE(is_black("3.0.0.0", 11, 15));
+
+  EXPECT_TRUE(is_black("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
 }
 
 // Test that the untested method correctly makes graylisted records available
 // for testing once more.
 TEST_F(BaseResolverTest, ARecordGrayToGrayUntested)
 {
-  add_white_records(11);
+  add_white_records(DEFAULT_COUNT);
   _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
   cwtest_advance_time_ms(31000);
+
   resolve(1);
   _baseresolver.untested(ip_to_addr_info("3.0.0.0"));
-  EXPECT_TRUE(is_gray("3.0.0.0", 11, 15));
+
+  EXPECT_TRUE(is_gray("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
 }
 
 // Test that graylisted records are moved to the whitelist after the specified
 // time.
 TEST_F(BaseResolverTest, ARecordGrayToWhiteTime)
 {
-  add_white_records(11);
+  add_white_records(DEFAULT_COUNT);
   _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+
   cwtest_advance_time_ms(61000);
-  EXPECT_TRUE(is_white("3.0.0.0", 11, 15));
+
+  EXPECT_TRUE(is_white("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
 }
 
 // Test that graylisted records are moved to the whitelist after calling
 // success.
 TEST_F(BaseResolverTest, ARecordGrayToWhiteSuccess)
 {
-  add_white_records(11);
+  add_white_records(DEFAULT_COUNT);
   _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+
   cwtest_advance_time_ms(31000);
   _baseresolver.success(ip_to_addr_info("3.0.0.0"));
-  EXPECT_TRUE(is_white("3.0.0.0", 11, 15));
+
+  EXPECT_TRUE(is_white("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
+}
+
+// Test that blacklisted records are returned in the case that there are
+// insufficient valid records.
+TEST_F(BaseResolverTest, ARecordMakeUpBlack)
+{
+  add_white_records(2);
+  AddrInfo black_record = ip_to_addr_info("3.0.0.0");
+  _baseresolver.blacklist(black_record);
+
+  std::vector<AddrInfo> targets = resolve(2);
+  EXPECT_TRUE(find(targets.begin(), targets.end(), black_record) != targets.end());
+}
+
+/// Test that multiple gray records may be returned in the case that there are
+/// insufficient valid records.
+TEST_F(BaseResolverTest, ARecordMakeUpMultipleGray)
+{
+  add_white_records(3);
+  AddrInfo gray_record_0 = ip_to_addr_info("3.0.0.0");
+  AddrInfo gray_record_1 = ip_to_addr_info("3.0.0.1");
+  _baseresolver.blacklist(gray_record_0);
+  _baseresolver.blacklist(gray_record_1);
+
+  std::vector<AddrInfo> targets = resolve(3);
+
+  // Both gray records should be returned.
+  EXPECT_TRUE((find(targets.begin(), targets.end(), gray_record_0) != targets.end()) &&
+              (find(targets.begin(), targets.end(), gray_record_1) != targets.end()));
+}
+
+/// Test that gray records that have already been given out once may be returned
+/// in the case that there are insufficient valid records.
+TEST_F(BaseResolverTest, ARecordMakeUpUsedGray)
+{
+  add_white_records(2);
+  AddrInfo gray_record = ip_to_addr_info("3.0.0.0");
+  _baseresolver.blacklist(gray_record);
+
+  std::vector<AddrInfo> targets = resolve(2);
+
+  // The gray record should be returned.
+  EXPECT_TRUE(find(targets.begin(), targets.end(), gray_record) != targets.end());
 }
 
 // Test that blacklisted SRV records aren't chosen

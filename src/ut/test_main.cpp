@@ -97,7 +97,7 @@ int main(int argc, char** argv)
   {
     seed = std::time(NULL) + getpid();
   }
-  std::cout << "Running main() from gmock_main.cc with random seed: "
+  std::cout << "Running main() from test_main.cpp with random seed: "
             << seed << "\n";
   srand(seed);
 

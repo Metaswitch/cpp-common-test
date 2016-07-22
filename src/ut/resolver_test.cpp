@@ -1,5 +1,5 @@
 /**
- * @file resolver_test.cpp UT for BaseResolver class.
+ * @file resolver_test.cpp Parent class for Resolver test fixtures.
  *
  * Project Clearwater - IMS in the Cloud
  * Copyright (C) 2016  Metaswitch Networks Ltd
@@ -63,12 +63,11 @@ AddrInfo ResolverTest::ip_to_addr_info(std::string address_str, int port, int tr
 void ResolverTest::add_white_records(int count, std::string host)
 {
   std::vector<DnsRRecord*> records;
-  std::stringstream os;
   for (int i = 0; i < count; ++i)
   {
+    std::stringstream os;
     os << "3.0.0." << i;
     records.push_back(ResolverUtils::a(host, 3600, os.str()));
-    os.str(std::string());
   }
   _dnsresolver.add_to_cache(host, ns_t_a, records);
 }
@@ -76,15 +75,15 @@ void ResolverTest::add_white_records(int count, std::string host)
 bool ResolverTest::resolution_contains(AddrInfo ai, int max_targets)
 {
   std::vector<AddrInfo> targets = resolve(max_targets);
-  std::vector<AddrInfo>::const_iterator record_iterator;
-  record_iterator = find(targets.begin(), targets.end(), ai);
-  return (record_iterator != targets.end());
+  return (find(targets.begin(), targets.end(), ai) != targets.end());
 }
 
 bool ResolverTest::is_black(std::string address_str, int count, int repetitions)
 {
   AddrInfo ai = ip_to_addr_info(address_str);
-  // The black record should not be returned on any call.
+  // We request one fewer than the number of records contained in the resolver's
+  // cache. If one record is black, and the remaining white, the black record
+  // should never be returned.
   for (int i = 0; i < repetitions; ++i)
   {
     if (resolution_contains(ai, count - 1))
@@ -98,7 +97,8 @@ bool ResolverTest::is_black(std::string address_str, int count, int repetitions)
 bool ResolverTest::is_gray(std::string address_str, int count, int repetitions)
 {
   AddrInfo ai = ip_to_addr_info(address_str);
-  // The gray record should be returned on the first call to a_resolve
+  // The gray record should be returned on the first call to resolve, as the
+  // remaining records are all white.
   if (!resolution_contains(ai, 1))
   {
     return false;
@@ -115,7 +115,9 @@ bool ResolverTest::is_white(std::string address_str, int count, int repetitions)
   // here.
   resolve(1);
 
-  // If the record is white, it is highly likely it is returned here.
+  // If the record is white, it is highly likely it is returned here. We request
+  // one fewer than the number of records so that only valid records will be
+  // returned, that is, blacklisted records are not used to make up the numbers.
   for (int i = 0; i < repetitions; ++i)
   {
     if (resolution_contains(ai, count - 1))
