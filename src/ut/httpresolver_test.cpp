@@ -64,81 +64,37 @@ class HttpResolverTest : public ResolverTest
   }
 
   /// Implements the resolve method using a HttpResolver
-  std::vector<AddrInfo> resolve(int max_targets)
+  std::vector<AddrInfo> resolve(int max_targets, std::string host, int port)
   {
     std::vector<AddrInfo> targets;
-    _httpresolver.resolve(TEST_HOST, TEST_PORT, max_targets, targets, 0);
+    _httpresolver.resolve(host, port, max_targets, targets, 0);
     return targets;
   }
-};
 
-/// A single resolver operation
-class HttpRT
-{
-public:
-  HttpRT(HttpResolver& resolver) :
-    _resolver(resolver),
-    _host(""),
-    _port(0),
-    _max_targets(2)
+  std::vector<AddrInfo> resolve(int max_targets)
   {
+    return resolve(max_targets, TEST_HOST, TEST_PORT);
   }
-
-  HttpRT& set_host(std::string host)
-  {
-    _host = host;
-    return *this;
-  }
-
-  HttpRT& set_port(int port)
-  {
-    _port = port;
-    return *this;
-  }
-
-  HttpRT& set_max_targets(int max_targets)
-  {
-    _max_targets = max_targets;
-    return *this;
-  }
-
-  std::string resolve()
-  {
-    std::vector<AddrInfo> targets;
-    std::string output;
-
-    _resolver.resolve(_host, _port, _max_targets, targets, 0);
-
-    if (!targets.empty())
-    {
-      // Successful, so render AddrInfo as a string.
-      output = ResolverUtils::addrinfo_to_string(targets[0]);
-    }
-    return output;
-  }
-
-private:
-  /// Reference to the HttpResolver.
-  HttpResolver& _resolver;
-
-  /// Input parameters to request.
-  std::string _host;
-  int _port;
-  int _max_targets;
 };
 
 TEST_F(HttpResolverTest, IPv4AddressResolution)
 {
   // Test defaulting of port and transport when target is just an IPv4 address
+  std::vector<AddrInfo> targets = resolve(1, "3.0.0.1", 0);
+
+  ASSERT_GT(targets.size(), 0);
   EXPECT_EQ("3.0.0.1:80;transport=TCP",
-            HttpRT(_httpresolver).set_host("3.0.0.1").resolve());
+            ResolverUtils::addrinfo_to_string(targets[0]));
 }
 
 TEST_F(HttpResolverTest, IPv6AddressResolution)
 {
   // Test defaulting of port and transport when target is just an IPv6 address
+  std::vector<AddrInfo> targets = resolve(1, "3::1", 0);
+
+  ASSERT_GT(targets.size(), 0);
   EXPECT_EQ("[3::1]:80;transport=TCP",
-            HttpRT(_httpresolver).set_host("3::1").resolve());
+            ResolverUtils::addrinfo_to_string(targets[0]));
 }
 
 TEST_F(HttpResolverTest, ARecordResolution)
@@ -148,8 +104,11 @@ TEST_F(HttpResolverTest, ARecordResolution)
   records.push_back(ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.1"));
   _dnsresolver.add_to_cache("cpp-common-test.cw-ngv.com", ns_t_a, records);
 
+  std::vector<AddrInfo> targets = resolve(1, "cpp-common-test.cw-ngv.com", 0);
+
+  ASSERT_GT(targets.size(), 0);
   EXPECT_EQ("3.0.0.1:80;transport=TCP",
-            HttpRT(_httpresolver).set_host("cpp-common-test.cw-ngv.com").resolve());
+            ResolverUtils::addrinfo_to_string(targets[0]));
 }
 
 TEST_F(HttpResolverTest, AAAARecordResolution)
@@ -159,8 +118,11 @@ TEST_F(HttpResolverTest, AAAARecordResolution)
   records.push_back(ResolverUtils::aaaa("cpp-common-test.cw-ngv.com", 3600, "3::1"));
   _dnsresolver.add_to_cache("cpp-common-test.cw-ngv.com", ns_t_a, records);
 
+  std::vector<AddrInfo> targets = resolve(1, "cpp-common-test.cw-ngv.com", 8888);
+
+  ASSERT_GT(targets.size(), 0);
   EXPECT_EQ("[3::1]:8888;transport=TCP",
-            HttpRT(_httpresolver).set_host("cpp-common-test.cw-ngv.com").set_port(8888).resolve());
+            ResolverUtils::addrinfo_to_string(targets[0]));
 }
 
 /// Tests that the default time to remain on the blacklist is greater than
@@ -214,6 +176,5 @@ TEST_F(HttpResolverTest, GrayListTimeUpperBound)
 TEST_F(HttpResolverTest, ResolutionFailure)
 {
   // Fail to resolve
-  EXPECT_EQ("",
-            HttpRT(_httpresolver).set_host("cpp-common-test.cw-ngv.com").resolve());
+  EXPECT_EQ(0, resolve(1, "cpp-common-test.cw-ngv.com", 0).size());
 }
