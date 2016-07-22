@@ -34,7 +34,7 @@
  * as those licenses appear in the file LICENSE-OPENSSL.
  */
 
-#include<resolver_test.h>
+#include "resolver_test.h"
 #include "resolver_utils.h"
 #include "test_interposer.hpp"
 

@@ -40,7 +40,6 @@
 #include "gtest/gtest.h"
 #include <algorithm>
 #include <string>
-#include <sstring>
 
 /// Expect that std::list L contains value X.
 #define EXPECT_CONTAINED(X, L) \
