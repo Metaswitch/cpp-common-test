@@ -55,8 +55,8 @@ AddrInfo ResolverTest::ip_to_addr_info(std::string address_str, int port, int tr
 {
   AddrInfo ai;
   BaseResolver::parse_ip_target(address_str, ai.address);
-  ai.port = TEST_PORT;
-  ai.transport = TEST_TRANSPORT;
+  ai.port = port;
+  ai.transport = transport;
   return ai;
 }
 

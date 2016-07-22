@@ -82,9 +82,8 @@ TEST_F(HttpResolverTest, IPv4AddressResolution)
   // Test defaulting of port and transport when target is just an IPv4 address
   std::vector<AddrInfo> targets = resolve(1, "3.0.0.1", 0);
 
-  ASSERT_GT(targets.size(), 0);
-  EXPECT_EQ("3.0.0.1:80;transport=TCP",
-            ResolverUtils::addrinfo_to_string(targets[0]));
+  ASSERT_EQ(targets.size(), 1);
+  EXPECT_EQ(targets[0], ip_to_addr_info("3.0.0.1", 80, IPPROTO_TCP));
 }
 
 TEST_F(HttpResolverTest, IPv6AddressResolution)
@@ -92,9 +91,8 @@ TEST_F(HttpResolverTest, IPv6AddressResolution)
   // Test defaulting of port and transport when target is just an IPv6 address
   std::vector<AddrInfo> targets = resolve(1, "3::1", 0);
 
-  ASSERT_GT(targets.size(), 0);
-  EXPECT_EQ("[3::1]:80;transport=TCP",
-            ResolverUtils::addrinfo_to_string(targets[0]));
+  ASSERT_EQ(targets.size(), 1);
+  EXPECT_EQ(targets[0], ip_to_addr_info("3::1", 80, IPPROTO_TCP));
 }
 
 TEST_F(HttpResolverTest, ARecordResolution)
@@ -107,8 +105,7 @@ TEST_F(HttpResolverTest, ARecordResolution)
   std::vector<AddrInfo> targets = resolve(1, "cpp-common-test.cw-ngv.com", 0);
 
   ASSERT_GT(targets.size(), 0);
-  EXPECT_EQ("3.0.0.1:80;transport=TCP",
-            ResolverUtils::addrinfo_to_string(targets[0]));
+  EXPECT_EQ(targets[0], ip_to_addr_info("3.0.0.1", 80, IPPROTO_TCP));
 }
 
 TEST_F(HttpResolverTest, AAAARecordResolution)
@@ -121,8 +118,7 @@ TEST_F(HttpResolverTest, AAAARecordResolution)
   std::vector<AddrInfo> targets = resolve(1, "cpp-common-test.cw-ngv.com", 8888);
 
   ASSERT_GT(targets.size(), 0);
-  EXPECT_EQ("[3::1]:8888;transport=TCP",
-            ResolverUtils::addrinfo_to_string(targets[0]));
+  EXPECT_EQ(targets[0], ip_to_addr_info("3::1", 8888, IPPROTO_TCP));
 }
 
 /// Tests that the default time to remain on the blacklist is greater than
