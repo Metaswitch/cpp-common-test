@@ -95,59 +95,31 @@ class BaseResolverTest : public ResolverTest
     return targets;
   }
 
-};
-
-/// A single resolver operation.
-class RT
-{
-public:
-  RT(BaseResolver& resolver, const std::string& realm) :
-    _resolver(resolver),
-    _realm(realm),
-    _host(""),
-    _max_targets(2)
-  {
-  }
-
-  RT& set_host(std::string host)
-  {
-    _host = host;
-    return *this;
-  }
-
-  /// Does an SRV record resolution for the specified SRV name, selecting
-  // appropriate targets.
-  std::string srv_resolve()
+  /// Calls srv resolve and renders the result as a string
+  std::string srv_resolve(std::string realm)
   {
     std::vector<AddrInfo> targets;
     int ttl;
     std::string output;
 
-    _resolver.srv_resolve(_realm, AF_INET, IPPROTO_SCTP, _max_targets, targets, ttl, 1);
+    _baseresolver.srv_resolve(realm, AF_INET, IPPROTO_SCTP, 2, targets, ttl, 1);
     if (!targets.empty())
     {
-      // Successful, so render AddrInfo as a string.
       output = ResolverUtils::addrinfo_to_string(targets[0]);
     }
     return output;
   }
-
-private:
-  /// Reference to the BaseResolver.
-  BaseResolver& _resolver;
-
-  /// Input parameters to request.
-  std::string _realm;
-  std::string _host;
-  int _max_targets;
 };
 
 // Test that basic IPv4 resolution works
 TEST_F(BaseResolverTest, IPv4AddressResolution)
 {
   add_white_records(1);
-  std::string result = ResolverUtils::addrinfo_to_string(resolve(1)[0]);
 
+  std::vector<AddrInfo> targets = resolve(1);
+  ASSERT_GT(targets.size(), 0);
+
+  std::string result = ResolverUtils::addrinfo_to_string(resolve(1)[0]);
   EXPECT_EQ(result, "3.0.0.0:80;transport=TCP");
 }
 
@@ -155,8 +127,11 @@ TEST_F(BaseResolverTest, IPv4AddressResolution)
 TEST_F(BaseResolverTest, IPv4AddressResolutionManyTargets)
 {
   add_white_records(7);
-  std::string result = ResolverUtils::addrinfo_to_string(resolve(1)[0]);
 
+  std::vector<AddrInfo> targets = resolve(1);
+  ASSERT_GT(targets.size(), 0);
+
+  std::string result = ResolverUtils::addrinfo_to_string(resolve(1)[0]);
   EXPECT_THAT(result, MatchesRegex("3.0.0.[0-6]:80;transport=TCP"));
 }
 
@@ -333,8 +308,7 @@ TEST_F(BaseResolverTest, SRVRecordResolutionWithBlacklist)
   ai.address = _baseresolver.to_ip46(bl);
   _baseresolver.blacklist((const AddrInfo)ai);
 
-  EXPECT_EQ("3.0.0.2:3868;transport=SCTP",
-            RT(_baseresolver, "_diameter._sctp.cpp-common-test.cw-ngv.com").srv_resolve());
+  EXPECT_EQ("3.0.0.2:3868;transport=SCTP", srv_resolve("_diameter._sctp.cpp-common-test.cw-ngv.com"));
 
   delete bl;
   _baseresolver.clear_blacklist();
@@ -359,13 +333,12 @@ TEST_F(BaseResolverTest, SRVRecordResolutionManyTargets)
   records.push_back(ResolverUtils::a("cpp-common-test-2.cw-ngv.com", 3600, "3.0.0.21"));
   records.push_back(ResolverUtils::a("cpp-common-test-2.cw-ngv.com", 3600, "3.0.0.22"));
   _dnsresolver.add_to_cache("cpp-common-test-2.cw-ngv.com", ns_t_a, records);
-  std::string resolve = RT(_baseresolver, "_diameter._sctp.cpp-common-test.cw-ngv.com").srv_resolve();
+  std::string resolve = srv_resolve("_diameter._sctp.cpp-common-test.cw-ngv.com");
   EXPECT_THAT(resolve, MatchesRegex("3.0.0.[0-9]{2}:3868;transport=SCTP"));
 }
 
 // Test that a failed SRV lookup returns empty
 TEST_F(BaseResolverTest, SRVRecordFailedResolution)
 {
-  EXPECT_EQ("",
-            RT(_baseresolver, "_diameter._sctp.cpp-common-test.cw-ngv.com").srv_resolve());
+  EXPECT_EQ("", srv_resolve("_diameter._sctp.cpp-common-test.cw-ngv.com"));
 }
