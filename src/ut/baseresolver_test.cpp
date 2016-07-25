@@ -48,6 +48,9 @@
 
 using namespace std;
 using ::testing::MatchesRegex;
+using ::testing::Contains;
+using ::testing::Not;
+using ::testing::AllOf;
 
 const int DEFAULT_COUNT = 11;
 const int DEFAULT_REPETITIONS = 15;
@@ -168,8 +171,7 @@ TEST_F(BaseResolverTest, ARecordAtLeastOneGray)
   cwtest_advance_time_ms(31000);
   std::vector<AddrInfo> targets = resolve(DEFAULT_COUNT - 1);
 
-  // targets should contain gray
-  EXPECT_TRUE(find(targets.begin(), targets.end(), gray_record) != targets.end());
+  EXPECT_THAT(targets, Contains(gray_record));
 }
 
 // Test that just one graylisted record is given out each call, provided there
@@ -186,8 +188,7 @@ TEST_F(BaseResolverTest, ARecordJustOneGray)
   std::vector<AddrInfo> targets = resolve(DEFAULT_COUNT);
 
   // targets should contain at most one of the two gray records
-  EXPECT_TRUE((find(targets.begin(), targets.end(), gray_record_0) == targets.end()) ||
-               (find(targets.begin(), targets.end(), gray_record_1) == targets.end()));
+  EXPECT_THAT(targets, Not(AllOf(Contains(gray_record_0), Contains(gray_record_1))));
 }
 
 // Test that whitelisted records are moved to the blackist on calling blacklist.
@@ -270,7 +271,7 @@ TEST_F(BaseResolverTest, ARecordMakeUpBlack)
   _baseresolver.blacklist(black_record);
 
   std::vector<AddrInfo> targets = resolve(2);
-  EXPECT_TRUE(find(targets.begin(), targets.end(), black_record) != targets.end());
+  EXPECT_THAT(targets, Contains(black_record));
 }
 
 /// Test that multiple gray records may be returned in the case that there are
@@ -282,12 +283,12 @@ TEST_F(BaseResolverTest, ARecordMakeUpMultipleGray)
   AddrInfo gray_record_1 = ip_to_addr_info("3.0.0.1");
   _baseresolver.blacklist(gray_record_0);
   _baseresolver.blacklist(gray_record_1);
+  cwtest_advance_time_ms(31000);
 
   std::vector<AddrInfo> targets = resolve(3);
 
   // Both gray records should be returned.
-  EXPECT_TRUE((find(targets.begin(), targets.end(), gray_record_0) != targets.end()) &&
-              (find(targets.begin(), targets.end(), gray_record_1) != targets.end()));
+  EXPECT_THAT(targets, AllOf(Contains(gray_record_0), Contains(gray_record_1)));
 }
 
 /// Test that gray records that have already been given out once may be returned
@@ -297,11 +298,15 @@ TEST_F(BaseResolverTest, ARecordMakeUpUsedGray)
   add_white_records(2);
   AddrInfo gray_record = ip_to_addr_info("3.0.0.0");
   _baseresolver.blacklist(gray_record);
+  cwtest_advance_time_ms(31000);
+
+  // This call should return the gray record
+  resolve(1);
 
   std::vector<AddrInfo> targets = resolve(2);
 
   // The gray record should be returned.
-  EXPECT_TRUE(find(targets.begin(), targets.end(), gray_record) != targets.end());
+  EXPECT_THAT(targets, Contains(gray_record));
 }
 
 // Test that blacklisted SRV records aren't chosen

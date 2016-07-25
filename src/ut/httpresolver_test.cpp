@@ -163,9 +163,11 @@ TEST_F(HttpResolverTest, AAAARecordResolution)
             HttpRT(_httpresolver).set_host("cpp-common-test.cw-ngv.com").set_port(8888).resolve());
 }
 
-/// Tests that the default time to remain on the blacklist is greater than
-/// 29999ms. Combined with the following test, effectively checks that the
-/// default time to remain on the blacklist is 30s.
+// The following four tests determine whether or not the blacklist_ttl and
+// graylist_ttl member variables have been set correctly to 30s each. This done
+// by bounding the time a record spends on the blacklist, and then the graylist,
+// above and below.
+
 TEST_F(HttpResolverTest, BlacklistTimeLowerBound)
 {
   add_white_records(11);
@@ -175,9 +177,6 @@ TEST_F(HttpResolverTest, BlacklistTimeLowerBound)
   EXPECT_TRUE(is_black("3.0.0.0", 11, 15));
 }
 
-/// Tests that the default time to remain on the blacklist is less than 30001ms.
-/// Combined with the previous test, effectively checks that the default time to
-/// remain on the blacklist is 30s.
 TEST_F(HttpResolverTest, BlackListTimeUpperBound)
 {
   add_white_records(11);
@@ -187,9 +186,6 @@ TEST_F(HttpResolverTest, BlackListTimeUpperBound)
   EXPECT_TRUE(is_gray("3.0.0.0", 11, 15));
 }
 
-/// Tests that the default time to remain on the graylist is greater than
-/// 29999ms. Combined with the following test, effectively checks that the
-/// default time to remain on the graylist is 30s.
 TEST_F(HttpResolverTest, GrayListTimeLowerBound)
 {
   add_white_records(11);
@@ -199,9 +195,6 @@ TEST_F(HttpResolverTest, GrayListTimeLowerBound)
   EXPECT_TRUE(is_gray("3.0.0.0", 11, 15));
 }
 
-/// Tests that the default time to remain on the graylist is less than 30001ms.
-/// Combined with the previous test, effectively checks that the default time to
-/// remain on the graylist is 30s.
 TEST_F(HttpResolverTest, GrayListTimeUpperBound)
 {
   add_white_records(11);
