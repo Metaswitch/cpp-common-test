@@ -166,6 +166,27 @@ TEST_F(BaseResolverTest, ARecordJustOneGray)
   EXPECT_THAT(targets, Not(AllOf(Contains(gray_record_0), Contains(gray_record_1))));
 }
 
+// Test that graylisted records are given out only once.
+TEST_F(BaseResolverTest, ARecordGrayReturnedOnce)
+{
+  add_white_records(DEFAULT_COUNT);
+  AddrInfo gray_record = ip_to_addr_info("3.0.0.0");
+
+  _baseresolver.blacklist(gray_record);
+  cwtest_advance_time_ms(31000);
+  std::vector<AddrInfo> targets = resolve(1);
+
+  // targets should contain the gray record
+  EXPECT_THAT(targets, Contains(gray_record));
+
+  // Further calls to resolve should not return the gray record
+  for (int i = 0; i < DEFAULT_REPETITIONS; i++)
+  {
+    targets = resolve(DEFAULT_COUNT - 1);
+    EXPECT_THAT(targets, Not(Contains(gray_record)));
+  }
+}
+
 // Test that whitelisted records are moved to the blackist on calling blacklist.
 TEST_F(BaseResolverTest, ARecordWhiteToBlackBlacklist)
 {

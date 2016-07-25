@@ -81,8 +81,8 @@ public:
   // modify the state of the resolver's records, so should be called at most
   // once per test.
   // Each evaluates a number of calls to resolve, determined by 'repetitions',
-  // for consistency with the hypothesis that the address_str record has the
-  // selected color.
+  // which reduces the probability that a record is reported as one color when
+  // it is actually another.
 
   /// Returns true if the record is blacklisted. Has a chance of giving a false
   /// positive, which can be decreased by increasing count or repetitions
