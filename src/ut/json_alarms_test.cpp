@@ -56,6 +56,35 @@ TEST_F(JSONAlarmsTest, ValidAlarms)
   std::vector<AlarmDef::AlarmDefinition> alarm_definitions;
   std::string error;
   EXPECT_TRUE(JSONAlarms::validate_alarms_from_json(std::string(UT_DIR).append("/valid_alarms.json"), error, alarm_definitions));
+  EXPECT_EQ(alarm_definitions[0]._index, 1000);
+  EXPECT_EQ(alarm_definitions[0]._cause, AlarmDef::Cause::SOFTWARE_ERROR);
+  EXPECT_EQ(alarm_definitions[0]._severity_details[0]._severity, AlarmDef::Severity::CLEARED);
+  EXPECT_EQ(alarm_definitions[0]._severity_details[0]._details, "The process has been restored to normal operation.");
+  EXPECT_EQ(alarm_definitions[0]._severity_details[0]._description, "Process failure cleared");
+  EXPECT_EQ(alarm_definitions[0]._severity_details[0]._cause, "Cause");
+  EXPECT_EQ(alarm_definitions[0]._severity_details[0]._effect, "Effect");
+  EXPECT_EQ(alarm_definitions[0]._severity_details[0]._action, "Action");
+  // Here we check that if there are no extended details or extended
+  // description that we use the regular details and description files.
+  EXPECT_EQ(alarm_definitions[0]._severity_details[0]._extended_details, "The process has been restored to normal operation.");
+  EXPECT_EQ(alarm_definitions[0]._severity_details[0]._extended_description, "Process failure cleared");
+}
+
+TEST_F(JSONAlarmsTest, ExtendedAlarmDetails)
+{
+  std::vector<AlarmDef::AlarmDefinition> alarm_definitions;
+  std::string error;
+  EXPECT_TRUE(JSONAlarms::validate_alarms_from_json(std::string(UT_DIR).append("/extended_fields.json"), error, alarm_definitions));
+  EXPECT_EQ(alarm_definitions[0]._index, 1000);
+  EXPECT_EQ(alarm_definitions[0]._cause, AlarmDef::Cause::SOFTWARE_ERROR);
+  EXPECT_EQ(alarm_definitions[0]._severity_details[0]._severity, AlarmDef::Severity::CLEARED);
+  EXPECT_EQ(alarm_definitions[0]._severity_details[0]._details, "The process has been restored to normal operation.");
+  EXPECT_EQ(alarm_definitions[0]._severity_details[0]._description, "Process failure cleared");
+  EXPECT_EQ(alarm_definitions[0]._severity_details[0]._cause, "Cause");
+  EXPECT_EQ(alarm_definitions[0]._severity_details[0]._effect, "Effect");
+  EXPECT_EQ(alarm_definitions[0]._severity_details[0]._action, "Action");
+  EXPECT_EQ(alarm_definitions[0]._severity_details[0]._extended_details, "These are some extended details");
+  EXPECT_EQ(alarm_definitions[0]._severity_details[0]._extended_description, "This is an extended description");
 }
 
 TEST_F(JSONAlarmsTest, ClearMissing)
