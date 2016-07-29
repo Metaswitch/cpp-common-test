@@ -148,7 +148,7 @@ TEST_F(JSONAlarmsTest, ExtendedDetailsTooLong)
   std::vector<AlarmDef::AlarmDefinition> alarm_definitions;
   std::string error;
   EXPECT_FALSE(JSONAlarms::validate_alarms_from_json(std::string(UT_DIR).append("/extended_details_too_long.json"), error, alarm_definitions));
-  EXPECT_THAT(error, testing::MatchesRegex(".*'extended details' exceeds.*"));
+  EXPECT_THAT(error, testing::MatchesRegex(".*'extended_details' exceeds.*"));
 }
 
 TEST_F(JSONAlarmsTest, ExtendedDescriptionTooLong)
@@ -156,7 +156,7 @@ TEST_F(JSONAlarmsTest, ExtendedDescriptionTooLong)
   std::vector<AlarmDef::AlarmDefinition> alarm_definitions;
   std::string error;
   EXPECT_FALSE(JSONAlarms::validate_alarms_from_json(std::string(UT_DIR).append("/extended_description_too_long.json"), error, alarm_definitions));
-  EXPECT_THAT(error, testing::MatchesRegex(".*'extended description' exceeds.*"));
+  EXPECT_THAT(error, testing::MatchesRegex(".*'extended_description' exceeds.*"));
 }
 
 TEST_F(JSONAlarmsTest, InvalidJSON)
