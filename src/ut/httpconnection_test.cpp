@@ -35,6 +35,7 @@
  */
 
 #include <string>
+#include <sstream>
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include <boost/algorithm/string.hpp>
@@ -42,6 +43,7 @@
 #include "utils.h"
 #include "sas.h"
 #include "fakehttpresolver.hpp"
+#include "mockhttpresolver.h"
 #include "httpconnection.h"
 #include "basetest.hpp"
 #include "test_utils.hpp"
@@ -57,6 +59,7 @@ using namespace std;
 using ::testing::MatchesRegex;
 using ::testing::_;
 using ::testing::NiceMock;
+using ::testing::StrictMock;
 
 /// Fixture for test.
 class HttpConnectionTest : public BaseTest
@@ -105,14 +108,124 @@ class HttpConnectionTest : public BaseTest
   }
 };
 
+/// Fixture for blacklist test.
+class HttpConnectionBlacklistTest : public BaseTest
+{
+  StrictMock<MockHttpResolver> _resolver;
+  HttpConnection* _http;
+  LoadMonitor _lm;
+  AlarmManager* _am = new AlarmManager();
+  NiceMock<MockCommunicationMonitor>*_cm = new NiceMock<MockCommunicationMonitor>(_am);
+
+  HttpConnectionBlacklistTest() :
+    _lm(100000, 20, 10, 10)
+  {
+    _http = new HttpConnection("cyrus",
+                               true,
+                               &_resolver,
+                               &SNMP::FAKE_IP_COUNT_TABLE,
+                               &_lm,
+                               SASEvent::HttpLogLevel::PROTOCOL,
+                               _cm);
+    fakecurl_responses.clear();
+    fakecurl_responses["http://3.0.0.0:80/http_success"] = "<message>success</message>";
+
+    fakecurl_responses["http://3.0.0.0:80/tcp_success"] = CURLE_REMOTE_FILE_NOT_FOUND;
+
+    fakecurl_responses["http://3.0.0.0:80/one_failure"] = CURLE_COULDNT_RESOLVE_HOST;
+    fakecurl_responses["http://3.0.0.1:80/one_failure"] = "<message>success</message>";
+
+    fakecurl_responses["http://3.0.0.0:80/all_failure"] = CURLE_COULDNT_RESOLVE_HOST;
+    fakecurl_responses["http://3.0.0.1:80/all_failure"] = CURLE_COULDNT_RESOLVE_HOST;
+  }
+
+  ~HttpConnectionBlacklistTest()
+  {
+    fakecurl_responses.clear();
+    fakecurl_requests.clear();
+    delete _http; _http = NULL;
+    delete _cm; _cm = NULL;
+    delete _am; _am = NULL;
+  }
+
+  /// Creates a vector of count AddrInfo targets, beginning from 3.0.0.0 and
+  /// incrementing by one each time.
+  std::vector<AddrInfo> create_targets(int count)
+  {
+    std::vector<AddrInfo> targets;
+    AddrInfo ai;
+    ai.port = 80;
+    ai.transport = IPPROTO_TCP;
+    std::stringstream os;
+    for (int i = 0; i < count; ++i)
+    {
+      os << "3.0.0." << i;
+      BaseResolver::parse_ip_target(os.str(), ai.address);
+      targets.push_back(ai);
+      os.str(std::string());
+    }
+    return targets;
+  }
+};
+
+TEST_F(HttpConnectionBlacklistTest, BlacklistTestHttpSuccess)
+{
+  std::vector<AddrInfo> targets = create_targets(2);
+
+  EXPECT_CALL(_resolver, resolve(_,_,_,_,_)).WillOnce(SetArgReferee<3>(targets));
+  EXPECT_CALL(_resolver, success(targets[0])).Times(1);
+  EXPECT_CALL(_resolver, untested(targets[1])).Times(1);
+
+  string output;
+  _http->send_get("/http_success", output, "", 0);
+}
+
+TEST_F(HttpConnectionBlacklistTest, BlacklistTestTcpSuccess)
+{
+  std::vector<AddrInfo> targets = create_targets(2);
+
+  EXPECT_CALL(_resolver, resolve(_,_,_,_,_)).WillOnce(SetArgReferee<3>(targets));
+  EXPECT_CALL(_resolver, success(targets[0])).Times(1);
+  EXPECT_CALL(_resolver, untested(targets[1])).Times(1);
+
+  string output;
+  _http->send_get("/tcp_success", output, "", 0);
+}
+
+TEST_F(HttpConnectionBlacklistTest, BlacklistTestOneFailure)
+{
+  std::vector<AddrInfo> targets = create_targets(2);
+
+  EXPECT_CALL(_resolver, resolve(_,_,_,_,_)).WillOnce(SetArgReferee<3>(targets));
+  EXPECT_CALL(_resolver, blacklist(targets[0])).Times(1);
+  EXPECT_CALL(_resolver, success(targets[1])).Times(1);
+
+  string output;
+  _http->send_get("/one_failure", output, "", 0);
+}
+
+TEST_F(HttpConnectionBlacklistTest, BlacklistTestAllFailure)
+{
+  std::vector<AddrInfo> targets = create_targets(2);
+
+  EXPECT_CALL(_resolver, resolve(_,_,_,_,_)).WillOnce(SetArgReferee<3>(targets));
+  EXPECT_CALL(_resolver, blacklist(targets[0])).Times(1);
+  EXPECT_CALL(_resolver, blacklist(targets[1])).Times(1);
+
+  string output;
+  _http->send_get("/all_failure", output, "", 0);
+}
 
 TEST_F(HttpConnectionTest, SimpleKeyAuthGet)
 {
   string output;
   long ret = _http->send_get("/blah/blah/blah", output, "gandalf", 0);
+
   EXPECT_EQ(200, ret);
   EXPECT_EQ("<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>", output);
+
   Request& req = fakecurl_requests["http://10.42.42.42:80/blah/blah/blah"];
+
   EXPECT_EQ("GET", req._method);
   EXPECT_FALSE(req._httpauth & CURLAUTH_DIGEST) << req._httpauth;
   EXPECT_EQ("", req._username);
@@ -133,16 +246,21 @@ TEST_F(HttpConnectionTest, SimpleIPv6Get)
 
   fakecurl_responses["http://[1::1]:80/ipv6get"] = CURLE_OK;
   long ret = http2.send_get("/ipv6get", output, "gandalf", 0);
+
   EXPECT_EQ(200, ret);
 }
 
 TEST_F(HttpConnectionTest, SimpleGetFailure)
 {
   EXPECT_CALL(*_cm, inform_failure(_)).Times(2);
+
   string output;
   long ret = _http->send_get("/blah/blah/wot", output, "gandalf", 0);
+
   EXPECT_EQ(404, ret);
+
   ret = _http->send_get("/blah/blah/503", output, "gandalf", 0);
+
   EXPECT_EQ(503, ret);
 }
 
@@ -152,10 +270,12 @@ TEST_F(HttpConnectionTest, SimpleGetRetry)
 
   // Warm up the connection.
   long ret = _http->send_get("/blah/blah/blah", output, "gandalf", 0);
+
   EXPECT_EQ(200, ret);
 
   // Get a failure on the connection and retry it.
   ret = _http->send_get("/down/around", output, "gandalf", 0);
+
   EXPECT_EQ(200, ret);
   EXPECT_EQ("<message>Gotcha!</message>", output);
 }
@@ -167,6 +287,7 @@ TEST_F(HttpConnectionTest, GetWithOverride)
   headers_in_req.push_back("Range: 100");
 
   long ret = _http->send_get("/path", output, headers_in_req, "10.42.42.42:80", 0);
+
   EXPECT_EQ(200, ret);
 }
 
@@ -176,14 +297,17 @@ TEST_F(HttpConnectionTest, GetWithUsername)
   std::map<std::string, std::string> headers_in_rsp;
 
   long ret = _http->send_get("/path", headers_in_rsp, output, "username", 0);
+
   EXPECT_EQ(200, ret);
 }
 
 TEST_F(HttpConnectionTest, ReceiveError)
 {
   EXPECT_CALL(*_cm, inform_failure(_));
+
   string output;
   long ret = _http->send_get("/blah/blah/recv_error", output, "gandalf", 0);
+
   EXPECT_EQ(500, ret);
 }
 
@@ -192,6 +316,7 @@ TEST_F(HttpConnectionTest, ConnectionRecycle)
   // Warm up.
   string output;
   long ret = _http->send_get("/blah/blah/blah", output, "gandalf", 0);
+
   EXPECT_EQ(200, ret);
 
   // Wait a very short time. Note that this is reverted by the
@@ -202,8 +327,11 @@ TEST_F(HttpConnectionTest, ConnectionRecycle)
   // unlikely (~2e-4) that we'll choose to recycle already - let's
   // just take the risk of an occasional spurious test failure).
   ret = _http->send_get("/up/up/up", output, "legolas", 0);
+
   EXPECT_EQ(200, ret);
+
   Request& req = fakecurl_requests["http://10.42.42.42:80/up/up/up"];
+
   EXPECT_FALSE(req._fresh);
 
   // Now wait a long time - much longer than the 1-minute average
@@ -214,8 +342,11 @@ TEST_F(HttpConnectionTest, ConnectionRecycle)
   // a tiny chance (~5e-5) we'll fail here because we're still using
   // the same connection, but we'll take the risk.
   ret = _http->send_get("/down/down/down", output, "gimli", 0);
+
   EXPECT_EQ(200, ret);
+
   Request& req2 = fakecurl_requests["http://10.42.42.42:80/down/down/down"];
+
   EXPECT_TRUE(req2._fresh);
 }
 
@@ -225,21 +356,26 @@ TEST_F(HttpConnectionTest, SimplePost)
   std::string response;
 
   long ret = _http->send_post("/post_id", head, response, "", 0);
+
   EXPECT_EQ(200, ret);
 }
 
 TEST_F(HttpConnectionTest, SimplePut)
 {
   EXPECT_CALL(*_cm, inform_success(_));
+
   long ret = _http->send_put("/put_id", "", 0);
+
   EXPECT_EQ(200, ret);
 }
 
 TEST_F(HttpConnectionTest, SimplePutWithResponse)
 {
   EXPECT_CALL(*_cm, inform_success(_));
+
   std::string response;
   long ret = _http->send_put("/put_id_response", response, "", 0);
+
   EXPECT_EQ(200, ret);
   EXPECT_EQ("response", response);
 }
@@ -247,12 +383,14 @@ TEST_F(HttpConnectionTest, SimplePutWithResponse)
 TEST_F(HttpConnectionTest, SimpleDelete)
 {
   long ret = _http->send_delete("/delete_id", 0);
+
   EXPECT_EQ(200, ret);
 }
 
 TEST_F(HttpConnectionTest, DeleteBody)
 {
   long ret = _http->send_delete("/delete_id", 0, "body");
+
   EXPECT_EQ(200, ret);
 }
 
@@ -260,12 +398,14 @@ TEST_F(HttpConnectionTest, DeleteBodyWithResponse)
 {
   std::string response;
   long ret = _http->send_delete("/delete_id", 0, "body", response);
+
   EXPECT_EQ(200, ret);
 }
 
 TEST_F(HttpConnectionTest, DeleteBodyWithOverride)
 {
   long ret = _http->send_delete("/path", 0, "body", "10.42.42.42:80");
+
   EXPECT_EQ(200, ret);
 }
 
@@ -301,10 +441,12 @@ TEST_F(HttpConnectionTest, SASCorrelationHeader)
       found_header = true;
     }
   }
+
   EXPECT_TRUE(found_header);
 
   // Check that we logged a branch ID marker.
   MockSASMessage* marker = mock_sas_find_marker(MARKER_ID_VIA_BRANCH_PARAM);
+
   EXPECT_TRUE(marker != NULL);
   EXPECT_EQ(marker->var_params.size(), 1u);
   EXPECT_EQ(marker->var_params[0], uuid);
@@ -326,6 +468,7 @@ TEST_F(HttpConnectionTest, ParseHostPort)
 
   string output;
   long ret = http2.send_get("/port-1234", output, "gandalf", 0);
+
   EXPECT_EQ(200, ret);
   EXPECT_EQ("<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>", output);
 }
@@ -343,6 +486,7 @@ TEST_F(HttpConnectionTest, ParseHostPortIPv6)
 
   string output;
   long ret = http2.send_get("/blah/blah/blah", output, "gandalf", 0);
+
   EXPECT_EQ(200, ret);
   EXPECT_EQ("<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>", output);
 }

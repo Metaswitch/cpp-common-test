@@ -35,33 +35,33 @@
  */
 
 #include <string>
+#include <sstream>
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 #include "utils.h"
-#include "dnscachedresolver.h"
 #include "baseresolver.h"
 #include "test_utils.hpp"
 #include "test_interposer.hpp"
 #include "resolver_utils.h"
+#include "resolver_test.h"
 
 using namespace std;
 using ::testing::MatchesRegex;
+using ::testing::Contains;
+using ::testing::Not;
+using ::testing::AllOf;
 
-/// Fixture for BaseResolverTest.
-class BaseResolverTest : public ::testing::Test
+const int DEFAULT_COUNT = 11;
+const int DEFAULT_REPETITIONS = 15;
+
+class BaseResolverTest : public ResolverTest
 {
-  DnsCachedResolver _dnsresolver;
   BaseResolver _baseresolver;
 
-  // DNS Resolver is created with server address 0.0.0.0 to disable server
-  // queries.
   BaseResolverTest() :
-    _dnsresolver("0.0.0.0"),
     _baseresolver(&_dnsresolver)
   {
-    cwtest_completely_control_time();
-
     // Create the NAPTR cache.
     std::map<std::string, int> naptr_services;
     naptr_services["AAA+D2T"] = IPPROTO_TCP;
@@ -74,10 +74,10 @@ class BaseResolverTest : public ::testing::Test
     _baseresolver.create_srv_cache();
 
     // Create the blacklist.
-    _baseresolver.create_blacklist(30); 
+    _baseresolver.create_blacklist(30, 30);
   }
 
-  virtual ~BaseResolverTest()
+  ~BaseResolverTest()
   {
     _baseresolver.destroy_blacklist();
     _baseresolver.destroy_srv_cache();
@@ -85,116 +85,224 @@ class BaseResolverTest : public ::testing::Test
     cwtest_reset_time();
   }
 
-};
-
-/// A single resolver operation.
-class RT
-{
-public:
-  RT(BaseResolver& resolver, const std::string& realm) :
-    _resolver(resolver),
-    _realm(realm),
-    _host(""),
-    _max_targets(2)
+  /// Implements the resolve method using a BaseResolver
+  std::vector<AddrInfo> resolve(int max_targets) override
   {
+    std::vector<AddrInfo> targets;
+    int ttl;
+    _baseresolver.a_resolve(TEST_HOST, AF_INET, TEST_PORT, TEST_TRANSPORT,
+                            max_targets, targets, ttl, 1);
+    return targets;
   }
 
-  RT& set_host(std::string host)
-  {
-    _host = host;
-    return *this;
-  }
-
-  /// Does an A/AAAA record resolution for the specified name, selecting
-  /// appropriate targets.
-  std::string a_resolve()
+  /// Calls srv resolve and renders the result as a string
+  std::string srv_resolve(std::string realm)
   {
     std::vector<AddrInfo> targets;
     int ttl;
     std::string output;
 
-    _resolver.a_resolve(_host, AF_INET, 80, IPPROTO_TCP, _max_targets, targets, ttl, 1);
+    _baseresolver.srv_resolve(realm, AF_INET, IPPROTO_SCTP, 2, targets, ttl, 1);
     if (!targets.empty())
     {
-      // Successful, so render AddrInfo as a string.
       output = ResolverUtils::addrinfo_to_string(targets[0]);
     }
     return output;
   }
-
-  /// Does an SRV record resolution for the specified SRV name, selecting
-  // appropriate targets.
-  std::string srv_resolve()
-  {
-    std::vector<AddrInfo> targets;
-    int ttl;
-    std::string output;
-
-    _resolver.srv_resolve(_realm, AF_INET, IPPROTO_SCTP, _max_targets, targets, ttl, 1);
-    if (!targets.empty())
-    {
-      // Successful, so render AddrInfo as a string.
-      output = ResolverUtils::addrinfo_to_string(targets[0]);
-    }
-    return output;
-  }
-
-private:
-  /// Reference to the BaseResolver.
-  BaseResolver& _resolver;
-
-  /// Input parameters to request.
-  std::string _realm;
-  std::string _host;
-  int _max_targets;
 };
 
 // Test that basic IPv4 resolution works
 TEST_F(BaseResolverTest, IPv4AddressResolution)
 {
-  std::vector<DnsRRecord*> records;
-  records.push_back(ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.1"));
-  _dnsresolver.add_to_cache("cpp-common-test.cw-ngv.com", ns_t_a, records);
-  EXPECT_EQ("3.0.0.1:80;transport=TCP",
-            RT(_baseresolver, "").set_host("cpp-common-test.cw-ngv.com").a_resolve());
+  add_white_records(1);
+
+  std::vector<AddrInfo> targets = resolve(1);
+  ASSERT_GT(targets.size(), 0);
+
+  std::string result = ResolverUtils::addrinfo_to_string(resolve(1)[0]);
+  EXPECT_EQ(result, "3.0.0.0:80;transport=TCP");
 }
 
 // Test that IPv4 resolution works when there's multiple correct answers
 TEST_F(BaseResolverTest, IPv4AddressResolutionManyTargets)
 {
-  std::vector<DnsRRecord*> records;
-  records.push_back(ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.1"));
-  records.push_back(ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.2"));
-  records.push_back(ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.3"));
-  records.push_back(ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.4"));
-  records.push_back(ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.5"));
-  records.push_back(ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.6"));
-  _dnsresolver.add_to_cache("cpp-common-test.cw-ngv.com", ns_t_a, records);
-  std::string resolve = RT(_baseresolver, "").set_host("cpp-common-test.cw-ngv.com").a_resolve();
-  EXPECT_THAT(resolve, MatchesRegex("3.0.0.[1-6]:80;transport=TCP"));
+  add_white_records(7);
+
+  std::vector<AddrInfo> targets = resolve(1);
+  ASSERT_GT(targets.size(), 0);
+
+  std::string result = ResolverUtils::addrinfo_to_string(resolve(1)[0]);
+  EXPECT_THAT(result, MatchesRegex("3.0.0.[0-6]:80;transport=TCP"));
 }
 
-// Test that blacklisted A records aren't chosen
-TEST_F(BaseResolverTest, ARecordResolutionWithBlacklist)
+// Test that at least one graylisted record is given out each call, if
+// available.
+TEST_F(BaseResolverTest, ARecordAtLeastOneGray)
 {
-  // Clear the blacklist to start
-  _baseresolver.clear_blacklist();
+  add_white_records(DEFAULT_COUNT);
+  AddrInfo gray_record = ip_to_addr_info("3.0.0.0");
 
-  std::vector<DnsRRecord*> records;
-  records.push_back(ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.1"));
-  records.push_back(ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.2"));
-  _dnsresolver.add_to_cache("cpp-common-test.cw-ngv.com", ns_t_a, records);
-  AddrInfo ai;
-  ai.transport = IPPROTO_TCP;
-  ai.port = 80;
-  DnsRRecord* bl = ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.1");
-  ai.address = _baseresolver.to_ip46(bl);
-  _baseresolver.blacklist((const AddrInfo)ai);
+  _baseresolver.blacklist(gray_record);
+  cwtest_advance_time_ms(31000);
+  std::vector<AddrInfo> targets = resolve(DEFAULT_COUNT - 1);
 
-  EXPECT_EQ("3.0.0.2:80;transport=TCP",
-            RT(_baseresolver, "").set_host("cpp-common-test.cw-ngv.com").a_resolve());
-  delete bl;
-  _baseresolver.clear_blacklist();
+  EXPECT_THAT(targets, Contains(gray_record));
+}
+
+// Test that just one graylisted record is given out each call, provided there
+// are sufficient valid records.
+TEST_F(BaseResolverTest, ARecordJustOneGray)
+{
+  add_white_records(DEFAULT_COUNT + 1);
+  AddrInfo gray_record_0 = ip_to_addr_info("3.0.0.0");
+  AddrInfo gray_record_1 = ip_to_addr_info("3.0.0.1");
+
+  _baseresolver.blacklist(gray_record_0);
+  _baseresolver.blacklist(gray_record_1);
+  cwtest_advance_time_ms(31000);
+  std::vector<AddrInfo> targets = resolve(DEFAULT_COUNT);
+
+  // targets should contain at most one of the two gray records
+  EXPECT_THAT(targets, Not(AllOf(Contains(gray_record_0), Contains(gray_record_1))));
+}
+
+// Test that graylisted records are given out only once.
+TEST_F(BaseResolverTest, ARecordGrayReturnedOnce)
+{
+  add_white_records(DEFAULT_COUNT);
+  AddrInfo gray_record = ip_to_addr_info("3.0.0.0");
+
+  _baseresolver.blacklist(gray_record);
+  cwtest_advance_time_ms(31000);
+  std::vector<AddrInfo> targets = resolve(1);
+
+  // targets should contain the gray record
+  EXPECT_THAT(targets, Contains(gray_record));
+
+  // Further calls to resolve should not return the gray record
+  for (int i = 0; i < DEFAULT_REPETITIONS; i++)
+  {
+    targets = resolve(DEFAULT_COUNT - 1);
+    EXPECT_THAT(targets, Not(Contains(gray_record)));
+  }
+}
+
+// Test that whitelisted records are moved to the blackist on calling blacklist.
+TEST_F(BaseResolverTest, ARecordWhiteToBlackBlacklist)
+{
+  add_white_records(DEFAULT_COUNT);
+  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+
+  EXPECT_TRUE(is_black("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
+}
+
+// Test that blacklisted records are moved to the graylist after the specified
+// time.
+TEST_F(BaseResolverTest, ARecordBlackToGrayTime)
+{
+  add_white_records(DEFAULT_COUNT);
+  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+  cwtest_advance_time_ms(31000);
+
+  EXPECT_TRUE(is_gray("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
+}
+
+// Test that graylisted records are moved to the blacklist on calling blacklist.
+TEST_F(BaseResolverTest, ARecordGrayToBlackBlacklist)
+{
+  add_white_records(DEFAULT_COUNT);
+  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+
+  cwtest_advance_time_ms(31000);
+  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+
+  EXPECT_TRUE(is_black("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
+}
+
+// Test that the untested method correctly makes graylisted records available
+// for testing once more.
+TEST_F(BaseResolverTest, ARecordGrayToGrayUntested)
+{
+  add_white_records(DEFAULT_COUNT);
+  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+  cwtest_advance_time_ms(31000);
+
+  resolve(1);
+  _baseresolver.untested(ip_to_addr_info("3.0.0.0"));
+
+  EXPECT_TRUE(is_gray("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
+}
+
+// Test that graylisted records are moved to the whitelist after the specified
+// time.
+TEST_F(BaseResolverTest, ARecordGrayToWhiteTime)
+{
+  add_white_records(DEFAULT_COUNT);
+  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+
+  cwtest_advance_time_ms(61000);
+
+  EXPECT_TRUE(is_white("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
+}
+
+// Test that graylisted records are moved to the whitelist after calling
+// success.
+TEST_F(BaseResolverTest, ARecordGrayToWhiteSuccess)
+{
+  add_white_records(DEFAULT_COUNT);
+  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+
+  cwtest_advance_time_ms(31000);
+  _baseresolver.success(ip_to_addr_info("3.0.0.0"));
+
+  EXPECT_TRUE(is_white("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
+}
+
+// Test that blacklisted records are returned in the case that there are
+// insufficient valid records.
+TEST_F(BaseResolverTest, ARecordMakeUpBlack)
+{
+  add_white_records(2);
+  AddrInfo black_record = ip_to_addr_info("3.0.0.0");
+  _baseresolver.blacklist(black_record);
+
+  std::vector<AddrInfo> targets = resolve(2);
+  EXPECT_THAT(targets, Contains(black_record));
+}
+
+/// Test that multiple gray records may be returned in the case that there are
+/// insufficient valid records.
+TEST_F(BaseResolverTest, ARecordMakeUpMultipleGray)
+{
+  add_white_records(3);
+  AddrInfo gray_record_0 = ip_to_addr_info("3.0.0.0");
+  AddrInfo gray_record_1 = ip_to_addr_info("3.0.0.1");
+  _baseresolver.blacklist(gray_record_0);
+  _baseresolver.blacklist(gray_record_1);
+  cwtest_advance_time_ms(31000);
+
+  std::vector<AddrInfo> targets = resolve(3);
+
+  // Both gray records should be returned.
+  EXPECT_THAT(targets, AllOf(Contains(gray_record_0), Contains(gray_record_1)));
+}
+
+/// Test that gray records that have already been given out once may be returned
+/// in the case that there are insufficient valid records.
+TEST_F(BaseResolverTest, ARecordMakeUpUsedGray)
+{
+  add_white_records(2);
+  AddrInfo gray_record = ip_to_addr_info("3.0.0.0");
+  _baseresolver.blacklist(gray_record);
+  cwtest_advance_time_ms(31000);
+
+  // This call should return the gray record
+  resolve(1);
+
+  std::vector<AddrInfo> targets = resolve(2);
+
+  // The gray record should be returned.
+  EXPECT_THAT(targets, Contains(gray_record));
 }
 
 // Test that blacklisted SRV records aren't chosen
@@ -221,8 +329,7 @@ TEST_F(BaseResolverTest, SRVRecordResolutionWithBlacklist)
   ai.address = _baseresolver.to_ip46(bl);
   _baseresolver.blacklist((const AddrInfo)ai);
 
-  EXPECT_EQ("3.0.0.2:3868;transport=SCTP",
-            RT(_baseresolver, "_diameter._sctp.cpp-common-test.cw-ngv.com").srv_resolve());
+  EXPECT_EQ("3.0.0.2:3868;transport=SCTP", srv_resolve("_diameter._sctp.cpp-common-test.cw-ngv.com"));
 
   delete bl;
   _baseresolver.clear_blacklist();
@@ -247,54 +354,12 @@ TEST_F(BaseResolverTest, SRVRecordResolutionManyTargets)
   records.push_back(ResolverUtils::a("cpp-common-test-2.cw-ngv.com", 3600, "3.0.0.21"));
   records.push_back(ResolverUtils::a("cpp-common-test-2.cw-ngv.com", 3600, "3.0.0.22"));
   _dnsresolver.add_to_cache("cpp-common-test-2.cw-ngv.com", ns_t_a, records);
-  std::string resolve = RT(_baseresolver, "_diameter._sctp.cpp-common-test.cw-ngv.com").srv_resolve();
+  std::string resolve = srv_resolve("_diameter._sctp.cpp-common-test.cw-ngv.com");
   EXPECT_THAT(resolve, MatchesRegex("3.0.0.[0-9]{2}:3868;transport=SCTP"));
-}
-
-// Test that blacklist entries time out correctly
-TEST_F(BaseResolverTest, ARecordResolutionWithOutOfDateBlacklist)
-{
-  // Clear the blacklist to start
-  _baseresolver.clear_blacklist();
-
-  std::vector<DnsRRecord*> records;
-  records.push_back(ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.1"));
-  records.push_back(ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.2"));
-  _dnsresolver.add_to_cache("cpp-common-test.cw-ngv.com", ns_t_a, records);
-
-  // Now add a record to the blacklist
-  AddrInfo ai;
-  ai.transport = IPPROTO_TCP;
-  ai.port = 80;
-  DnsRRecord* bl1 = ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.1");
-  ai.address = _baseresolver.to_ip46(bl1);
-  _baseresolver.blacklist((const AddrInfo)ai);
-
-  // Check that we get the non-blacklisted entry
-  EXPECT_EQ("3.0.0.2:80;transport=TCP",
-            RT(_baseresolver, "").set_host("cpp-common-test.cw-ngv.com").a_resolve());
-
-  // Advance time so the blacklist becomes out of date. Then add the other entry
-  // to the blacklist
-  cwtest_advance_time_ms(31000);
-  AddrInfo ai2;
-  ai2.transport = IPPROTO_TCP;
-  ai2.port = 80;
-  DnsRRecord* bl2 = ResolverUtils::a("cpp-common-test.cw-ngv.com", 3600, "3.0.0.2");
-  ai2.address = _baseresolver.to_ip46(bl2);
-  _baseresolver.blacklist((const AddrInfo)ai2);
-
-  // Check that we get the other entry
-  EXPECT_EQ("3.0.0.1:80;transport=TCP",
-            RT(_baseresolver, "").set_host("cpp-common-test.cw-ngv.com").a_resolve());
-
-  delete bl1;
-  delete bl2;
 }
 
 // Test that a failed SRV lookup returns empty
 TEST_F(BaseResolverTest, SRVRecordFailedResolution)
 {
-  EXPECT_EQ("",
-            RT(_baseresolver, "_diameter._sctp.cpp-common-test.cw-ngv.com").srv_resolve());
+  EXPECT_EQ("", srv_resolve("_diameter._sctp.cpp-common-test.cw-ngv.com"));
 }

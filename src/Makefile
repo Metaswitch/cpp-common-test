@@ -32,6 +32,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 memcachedstoreview.cpp \
                                 namespace_hop.cpp \
                                 realmmanager.cpp \
+                                resolver_test.cpp \
                                 saslogger.cpp \
                                 signalhandler.cpp \
                                 sip_string_to_request_type.cpp \
