@@ -39,7 +39,7 @@
 #include "gtest/gtest.h"
 #include "test_interposer.hpp"
 
-#include "mock_connectionpool.h"
+#include "testableconnectionpool.h"
 
 using ::testing::Return;
 
@@ -52,12 +52,12 @@ public:
   ConnectionPoolTest();
   ~ConnectionPoolTest();
 
-  MockConnectionPool conn_pool;
+  TestableConnectionPool conn_pool;
   AddrInfo ai_1;
   AddrInfo ai_2;
 };
 
-ConnectionPoolTest::ConnectionPoolTest() : conn_pool(MockConnectionPool(TEST_MAX_IDLE_TIME_S))
+ConnectionPoolTest::ConnectionPoolTest() : conn_pool(TestableConnectionPool(TEST_MAX_IDLE_TIME_S))
 {
   cwtest_completely_control_time();
 
@@ -154,10 +154,28 @@ TEST_F(ConnectionPoolTest, RemoveIdleConnections)
   cwtest_advance_time_ms(1000 * TEST_MAX_IDLE_TIME_S + TEST_TIME_DELTA_MS);
   // The connection is now considered idle - retrieve and return a connection
   // for a different AddrInfo to trigger removal
-  EXPECT_CALL(conn_pool, destroy_connection(1)).Times(1);
   conn_pool.get_connection(ai_2);
 
   // The connection should have been removed
   ConnectionHandle<int> conn_handle = conn_pool.get_connection(ai_1);
   EXPECT_EQ(conn_handle.get_connection(), 2);
+}
+
+TEST_F(ConnectionPoolTest, MoveConnectionHandle)
+{
+  EXPECT_CALL(conn_pool, create_connection(ai_1)).Times(2).WillOnce(Return(1)).WillOnce(Return(2));
+
+  // Create a connection handle, move it, and let both drop out of scope. The
+  // connection should only be returned to the pool once.
+  {
+    ConnectionHandle<int> conn_handle_1 = conn_pool.get_connection(ai_1);
+    ConnectionHandle<int> conn_handle_2 = std::move(conn_handle_1);
+  }
+
+  // The first call should retrieve the existing connection
+  ConnectionHandle<int> conn_handle_1 = conn_pool.get_connection(ai_1);
+  EXPECT_EQ(conn_handle_1.get_connection(), 1);
+
+  // The second call should create a new connection
+  EXPECT_EQ(conn_pool.get_connection(ai_1).get_connection(), 2);
 }
