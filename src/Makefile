@@ -28,6 +28,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 log.cpp \
                                 logger.cpp \
                                 memcached_config.cpp \
+                                memcachedconnectionpool.cpp \
                                 memcachedstore.cpp \
                                 memcachedstoreview.cpp \
                                 namespace_hop.cpp \

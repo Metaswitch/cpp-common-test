@@ -35,9 +35,6 @@
  * as those licenses appear in the file LICENSE-OPENSSL.
  */
 
-#include <string>
-#include <sstream>
-
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "test_interposer.hpp"
@@ -49,7 +46,7 @@ using ::testing::Return;
 class ConnectionPoolTest : public ::testing::Test
 {
 public:
-  static const int TEST_MAX_IDLE_TIME_S = 30;
+  static const int TEST_MAX_IDLE_TIME_S = 60;
   static const int TEST_TIME_DELTA_MS = 500;
 
   ConnectionPoolTest();
@@ -64,7 +61,7 @@ ConnectionPoolTest::ConnectionPoolTest() : conn_pool(MockConnectionPool(TEST_MAX
 {
   cwtest_completely_control_time();
 
-  // Create a 'default' AddrInfo to use for indexing into the pool
+  // Create two AddrInfo objects to use for indexing into the pool
   IP46Address address;
   address.af = AF_INET;
   inet_pton(AF_INET, "0.0.0.0", &address.addr.ipv4);
