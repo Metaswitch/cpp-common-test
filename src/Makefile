@@ -17,6 +17,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 dnsparser.cpp \
                                 exception_handler.cpp \
                                 health_checker.cpp \
+                                httpconnectionpool.cpp \
                                 httpconnection.cpp \
                                 httpresolver.cpp \
                                 httpstack.cpp \
