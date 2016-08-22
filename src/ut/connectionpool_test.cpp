@@ -131,6 +131,21 @@ TEST_F(ConnectionPoolTest, RetrieveAndReturnConnection)
   EXPECT_CALL(conn_pool, destroy_connection(1)).Times(1);
 }
 
+// Test that connections are destroyed on destruction of a handle when the
+// 'return to pool' flag is false
+TEST_F(ConnectionPoolTest, ConnectionDestroyOnRelease)
+{
+  EXPECT_CALL(conn_pool, create_connection(ai_1)).Times(1).WillOnce(Return(1));
+  EXPECT_CALL(conn_pool, destroy_connection(1)).Times(1);
+
+  // Create a connection handle, set the 'return to pool' flag to false, and let
+  // the handle fall out of scope
+  {
+    ConnectionHandle<int> conn_handle = conn_pool.get_connection(ai_1);
+    conn_handle.set_release_to_pool(false);
+  }
+}
+
 // Test that retrieving connections for two different targets works correctly
 TEST_F(ConnectionPoolTest, RetrieveConnectionsToTwoTargets)
 {
