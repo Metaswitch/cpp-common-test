@@ -82,7 +82,10 @@ ConnectionPoolTest::~ConnectionPoolTest()
 // for the specified AddrInfo
 TEST_F(ConnectionPoolTest, CreateNewConnection)
 {
+  // Check that the create connection and increment statistic methods are called
+  // correctly
   EXPECT_CALL(conn_pool, create_connection(ai_1)).Times(1).WillOnce(Return(1));
+  EXPECT_CALL(conn_pool, increment_statistic(ai_1, 1));
   ConnectionHandle<int> conn_handle = conn_pool.get_connection(ai_1);
 
   // Check that the connection has the correct parameters
@@ -90,7 +93,9 @@ TEST_F(ConnectionPoolTest, CreateNewConnection)
   EXPECT_EQ(conn_handle.get_target(), ai_1);
 
   // Check that the connection is destroyed when the conn_pool destructor is
-  // called as conn_pool drops out of scope
+  // called as conn_pool drops out of scope, and the decrement statistic method
+  // is called correctly
+  EXPECT_CALL(conn_pool, decrement_statistic(ai_1, 1));
   EXPECT_CALL(conn_pool, destroy_connection(1)).Times(1);
 }
 
@@ -98,7 +103,11 @@ TEST_F(ConnectionPoolTest, CreateNewConnection)
 // get_connection
 TEST_F(ConnectionPoolTest, ConnectionRemovedFromPool)
 {
+  // Check that the create connection and increment statistic methods are called
+  // correctly
   EXPECT_CALL(conn_pool, create_connection(ai_1)).Times(2).WillOnce(Return(1)).WillOnce(Return(2));
+  EXPECT_CALL(conn_pool, increment_statistic(ai_1, 1));
+  EXPECT_CALL(conn_pool, increment_statistic(ai_1, 2));
 
   // A connection is created and retrieved
   ConnectionHandle<int> conn_handle_1 = conn_pool.get_connection(ai_1);
@@ -107,7 +116,11 @@ TEST_F(ConnectionPoolTest, ConnectionRemovedFromPool)
   // The second call should return a different connection from the first
   EXPECT_EQ(conn_handle_2.get_connection(), 2);
 
-  // Check that the connections are correctly destroyed
+  // Check that the connections are correctly destroyed, and the decrement
+  // statistic method is called correctly
+  EXPECT_CALL(conn_pool, decrement_statistic(ai_1, 1));
+  EXPECT_CALL(conn_pool, decrement_statistic(ai_1, 2));
+
   EXPECT_CALL(conn_pool, destroy_connection(1)).Times(1);
   EXPECT_CALL(conn_pool, destroy_connection(2)).Times(1);
 }
@@ -118,6 +131,8 @@ TEST_F(ConnectionPoolTest, ConnectionRemovedFromPool)
 TEST_F(ConnectionPoolTest, RetrieveAndReturnConnection)
 {
   EXPECT_CALL(conn_pool, create_connection(ai_1)).Times(1).WillOnce(Return(1));
+  EXPECT_CALL(conn_pool, increment_statistic(ai_1, 1));
+
   // Create then immediately destroy a ConnectionHandle, which should return the
   // connection to the pool
   conn_pool.get_connection(ai_1);
@@ -128,6 +143,7 @@ TEST_F(ConnectionPoolTest, RetrieveAndReturnConnection)
   EXPECT_EQ(conn_handle.get_connection(), 1);
 
   // Check that the connection is correctly destroyed
+  EXPECT_CALL(conn_pool, decrement_statistic(ai_1, 1));
   EXPECT_CALL(conn_pool, destroy_connection(1)).Times(1);
 }
 
@@ -136,13 +152,16 @@ TEST_F(ConnectionPoolTest, RetrieveAndReturnConnection)
 TEST_F(ConnectionPoolTest, ConnectionDestroyOnRelease)
 {
   EXPECT_CALL(conn_pool, create_connection(ai_1)).Times(1).WillOnce(Return(1));
+  EXPECT_CALL(conn_pool, increment_statistic(ai_1, 1));
+
+  EXPECT_CALL(conn_pool, decrement_statistic(ai_1, 1));
   EXPECT_CALL(conn_pool, destroy_connection(1)).Times(1);
 
   // Create a connection handle, set the 'return to pool' flag to false, and let
   // the handle fall out of scope
   {
     ConnectionHandle<int> conn_handle = conn_pool.get_connection(ai_1);
-    conn_handle.set_release_to_pool(false);
+    conn_handle.set_return_to_pool(false);
   }
 }
 
@@ -150,7 +169,10 @@ TEST_F(ConnectionPoolTest, ConnectionDestroyOnRelease)
 TEST_F(ConnectionPoolTest, RetrieveConnectionsToTwoTargets)
 {
   EXPECT_CALL(conn_pool, create_connection(ai_1)).Times(1).WillOnce(Return(1));
+  EXPECT_CALL(conn_pool, increment_statistic(ai_1, 1));
+
   EXPECT_CALL(conn_pool, create_connection(ai_2)).Times(1).WillOnce(Return(2));
+  EXPECT_CALL(conn_pool,increment_statistic(ai_2, 2));
 
   ConnectionHandle<int> conn_handle_1 = conn_pool.get_connection(ai_1);
   ConnectionHandle<int> conn_handle_2 = conn_pool.get_connection(ai_2);
@@ -161,6 +183,9 @@ TEST_F(ConnectionPoolTest, RetrieveConnectionsToTwoTargets)
   EXPECT_EQ(conn_handle_2.get_connection(), 2);
 
   // Check that the connections are correctly destroyed
+  EXPECT_CALL(conn_pool, decrement_statistic(ai_1, 1));
+  EXPECT_CALL(conn_pool, decrement_statistic(ai_2, 2));
+
   EXPECT_CALL(conn_pool, destroy_connection(1)).Times(1);
   EXPECT_CALL(conn_pool, destroy_connection(2)).Times(1);
 }
@@ -171,6 +196,10 @@ TEST_F(ConnectionPoolTest, RemoveIdleConnections)
 {
   EXPECT_CALL(conn_pool, create_connection(ai_1)).Times(2).WillOnce(Return(1)).WillOnce(Return(2));
   EXPECT_CALL(conn_pool, create_connection(ai_2)).Times(1).WillOnce(Return(3));
+
+  EXPECT_CALL(conn_pool, increment_statistic(ai_1, 1));
+  EXPECT_CALL(conn_pool, increment_statistic(ai_1, 2));
+  EXPECT_CALL(conn_pool, increment_statistic(ai_2, 3));
 
   // Create the connection by requesting a connection from the pool then
   // immediately returning it
@@ -187,6 +216,7 @@ TEST_F(ConnectionPoolTest, RemoveIdleConnections)
   // The connection is now considered idle - retrieve and return a connection
   // for a different AddrInfo to trigger removal, and check that the connection
   // is correctly destroyed
+  EXPECT_CALL(conn_pool, decrement_statistic(ai_1, 1));
   EXPECT_CALL(conn_pool, destroy_connection(1)).Times(1);
   conn_pool.get_connection(ai_2);
 
@@ -195,6 +225,9 @@ TEST_F(ConnectionPoolTest, RemoveIdleConnections)
   EXPECT_EQ(conn_handle.get_connection(), 2);
 
   // Check that the connections are correctly destroyed
+  EXPECT_CALL(conn_pool, decrement_statistic(ai_1, 2));
+  EXPECT_CALL(conn_pool, decrement_statistic(ai_2, 3));
+
   EXPECT_CALL(conn_pool, destroy_connection(2)).Times(1);
   EXPECT_CALL(conn_pool, destroy_connection(3)).Times(1);
 }
@@ -202,6 +235,9 @@ TEST_F(ConnectionPoolTest, RemoveIdleConnections)
 TEST_F(ConnectionPoolTest, MoveConnectionHandle)
 {
   EXPECT_CALL(conn_pool, create_connection(ai_1)).Times(2).WillOnce(Return(1)).WillOnce(Return(2));
+
+  EXPECT_CALL(conn_pool, increment_statistic(ai_1, 1));
+  EXPECT_CALL(conn_pool, increment_statistic(ai_1, 2));
 
   // Create a connection handle, move it, and let both drop out of scope. The
   // connection should only be returned to the pool once.
@@ -218,6 +254,9 @@ TEST_F(ConnectionPoolTest, MoveConnectionHandle)
   EXPECT_EQ(conn_pool.get_connection(ai_1).get_connection(), 2);
 
   // Check that the connections are correctly destroyed
+  EXPECT_CALL(conn_pool, decrement_statistic(ai_1, 1));
+  EXPECT_CALL(conn_pool, decrement_statistic(ai_1, 2));
+
   EXPECT_CALL(conn_pool, destroy_connection(1)).Times(1);
   EXPECT_CALL(conn_pool, destroy_connection(2)).Times(1);
 }
