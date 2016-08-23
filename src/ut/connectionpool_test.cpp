@@ -1,6 +1,6 @@
 /**
  * @file connectionpool_test.cpp UT for connection pooling classes in
- * connection_pool.h
+ * connectionpool.h
  *
  * Project Clearwater - IMS in the Cloud
  * Copyright (C) 2016  Metaswitch Networks Ltd
