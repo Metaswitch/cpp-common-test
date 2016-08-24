@@ -39,7 +39,7 @@
 #include "gtest/gtest.h"
 #include "test_interposer.hpp"
 
-#include "testableconnectionpool.h"
+#include "testable_connection_pool.h"
 
 using ::testing::Return;
 using ::testing::_;

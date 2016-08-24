@@ -17,7 +17,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 dnsparser.cpp \
                                 exception_handler.cpp \
                                 health_checker.cpp \
-                                httpconnectionpool.cpp \
+                                http_connection_pool.cpp \
                                 httpconnection.cpp \
                                 httpresolver.cpp \
                                 httpstack.cpp \
@@ -29,7 +29,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 log.cpp \
                                 logger.cpp \
                                 memcached_config.cpp \
-                                memcachedconnectionpool.cpp \
+                                memcached_connection_pool.cpp \
                                 memcachedstore.cpp \
                                 memcachedstoreview.cpp \
                                 namespace_hop.cpp \
@@ -73,7 +73,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 baseresolver_test.cpp \
                                 chronosconnection_test.cpp \
                                 communicationmonitor_test.cpp \
-                                connectionpool_test.cpp \
+                                connection_pool_test.cpp \
                                 diameterresolver_test.cpp \
                                 diameterstack_test.cpp \
                                 httpconnection_test.cpp \
