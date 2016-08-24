@@ -336,7 +336,7 @@ TEST_F(BaseResolverTest, ARecordIteratorIsLazy)
   AddrInfo black_to_gray_record = ip_to_addr_info("3.0.0.0");
   _baseresolver.blacklist(black_to_gray_record);
 
-  // Get an iterator, and make a call to next
+  // Get an iterator
   BaseResolver::Iterator it = resolve_iter();
 
   // Move the record to the graylist
@@ -344,7 +344,7 @@ TEST_F(BaseResolverTest, ARecordIteratorIsLazy)
 
   // The record should be returned by the next call to the iterator
   AddrInfo record;
-  it.next(record);
+  EXPECT_TRUE(it.next(record));
   EXPECT_EQ(record, black_to_gray_record);
 }
 
