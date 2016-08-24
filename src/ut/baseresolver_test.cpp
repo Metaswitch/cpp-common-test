@@ -95,6 +95,14 @@ class BaseResolverTest : public ResolverTest
     return targets;
   }
 
+  /// Implements the resolve_iter mathod using a BaseResolver
+  BaseResolver::Iterator resolve_iter()
+  {
+    int ttl;
+    return _baseresolver.a_resolve_iter(TEST_HOST, AF_INET, TEST_PORT,
+                                        TEST_TRANSPORT, ttl, 1);
+  }
+
   /// Calls srv resolve and renders the result as a string
   std::string srv_resolve(std::string realm)
   {
@@ -303,6 +311,41 @@ TEST_F(BaseResolverTest, ARecordMakeUpUsedGray)
 
   // The gray record should be returned.
   EXPECT_THAT(targets, Contains(gray_record));
+}
+
+/// Test that the lazy target selection iterator returns true when the target
+/// has been set, and false otherwise
+TEST_F(BaseResolverTest, ARecordIteratorNextReturnValue)
+{
+  AddrInfo record;
+
+  add_white_records(1);
+  BaseResolver::Iterator it = resolve_iter();
+
+  EXPECT_TRUE(it.next(record));
+  EXPECT_FALSE(it.next(record));
+}
+
+/// Test that the lazy target selection iterator uses the state of each Host at
+/// the time that next is called each time, i.e. acts lazily
+TEST_F(BaseResolverTest, ARecordIteratorIsLazy)
+{
+  add_white_records(3);
+
+  // Blacklist a record
+  AddrInfo black_to_gray_record = ip_to_addr_info("3.0.0.0");
+  _baseresolver.blacklist(black_to_gray_record);
+
+  // Get an iterator, and make a call to next
+  BaseResolver::Iterator it = resolve_iter();
+
+  // Move the record to the graylist
+  cwtest_advance_time_ms(31000);
+
+  // The record should be returned by the next call to the iterator
+  AddrInfo record;
+  it.next(record);
+  EXPECT_EQ(record, black_to_gray_record);
 }
 
 // Test that blacklisted SRV records aren't chosen
