@@ -1,6 +1,6 @@
 /**
  * @file connectionpool_test.cpp UT for connection pooling classes in
- * connection_pool.h
+ * connectionpool.h
  *
  * Project Clearwater - IMS in the Cloud
  * Copyright (C) 2016  Metaswitch Networks Ltd
@@ -39,7 +39,7 @@
 #include "gtest/gtest.h"
 #include "test_interposer.hpp"
 
-#include "testableconnectionpool.h"
+#include "testable_connection_pool.h"
 
 using ::testing::Return;
 using ::testing::_;
@@ -82,6 +82,7 @@ ConnectionPoolTest::~ConnectionPoolTest()
 // for the specified AddrInfo
 TEST_F(ConnectionPoolTest, CreateNewConnection)
 {
+  // Check that the create connection  method is called correctly
   EXPECT_CALL(conn_pool, create_connection(ai_1)).Times(1).WillOnce(Return(1));
   ConnectionHandle<int> conn_handle = conn_pool.get_connection(ai_1);
 
@@ -91,13 +92,14 @@ TEST_F(ConnectionPoolTest, CreateNewConnection)
 
   // Check that the connection is destroyed when the conn_pool destructor is
   // called as conn_pool drops out of scope
-  EXPECT_CALL(conn_pool, destroy_connection(1)).Times(1);
+  EXPECT_CALL(conn_pool, destroy_connection(ai_1, 1)).Times(1);
 }
 
 // Test that a connection is removed from the pool when selected by
 // get_connection
 TEST_F(ConnectionPoolTest, ConnectionRemovedFromPool)
 {
+  // Check that the create connection method is called correctly
   EXPECT_CALL(conn_pool, create_connection(ai_1)).Times(2).WillOnce(Return(1)).WillOnce(Return(2));
 
   // A connection is created and retrieved
@@ -108,8 +110,8 @@ TEST_F(ConnectionPoolTest, ConnectionRemovedFromPool)
   EXPECT_EQ(conn_handle_2.get_connection(), 2);
 
   // Check that the connections are correctly destroyed
-  EXPECT_CALL(conn_pool, destroy_connection(1)).Times(1);
-  EXPECT_CALL(conn_pool, destroy_connection(2)).Times(1);
+  EXPECT_CALL(conn_pool, destroy_connection(ai_1, 1)).Times(1);
+  EXPECT_CALL(conn_pool, destroy_connection(ai_1, 2)).Times(1);
 }
 
 // Test that a connection is retrieved from the pool if one exists for the
@@ -118,6 +120,7 @@ TEST_F(ConnectionPoolTest, ConnectionRemovedFromPool)
 TEST_F(ConnectionPoolTest, RetrieveAndReturnConnection)
 {
   EXPECT_CALL(conn_pool, create_connection(ai_1)).Times(1).WillOnce(Return(1));
+
   // Create then immediately destroy a ConnectionHandle, which should return the
   // connection to the pool
   conn_pool.get_connection(ai_1);
@@ -128,7 +131,22 @@ TEST_F(ConnectionPoolTest, RetrieveAndReturnConnection)
   EXPECT_EQ(conn_handle.get_connection(), 1);
 
   // Check that the connection is correctly destroyed
-  EXPECT_CALL(conn_pool, destroy_connection(1)).Times(1);
+  EXPECT_CALL(conn_pool, destroy_connection(ai_1, 1)).Times(1);
+}
+
+// Test that connections are destroyed on destruction of a handle when the
+// 'return to pool' flag is false
+TEST_F(ConnectionPoolTest, ConnectionDestroyOnRelease)
+{
+  EXPECT_CALL(conn_pool, create_connection(ai_1)).Times(1).WillOnce(Return(1));
+  EXPECT_CALL(conn_pool, destroy_connection(ai_1, 1)).Times(1);
+
+  // Create a connection handle, set the 'return to pool' flag to false, and let
+  // the handle fall out of scope
+  {
+    ConnectionHandle<int> conn_handle = conn_pool.get_connection(ai_1);
+    conn_handle.set_return_to_pool(false);
+  }
 }
 
 // Test that retrieving connections for two different targets works correctly
@@ -146,8 +164,8 @@ TEST_F(ConnectionPoolTest, RetrieveConnectionsToTwoTargets)
   EXPECT_EQ(conn_handle_2.get_connection(), 2);
 
   // Check that the connections are correctly destroyed
-  EXPECT_CALL(conn_pool, destroy_connection(1)).Times(1);
-  EXPECT_CALL(conn_pool, destroy_connection(2)).Times(1);
+  EXPECT_CALL(conn_pool, destroy_connection(ai_1, 1)).Times(1);
+  EXPECT_CALL(conn_pool, destroy_connection(ai_2, 2)).Times(1);
 }
 
 // Test that idle connections are removed from the pool after the specified
@@ -172,7 +190,7 @@ TEST_F(ConnectionPoolTest, RemoveIdleConnections)
   // The connection is now considered idle - retrieve and return a connection
   // for a different AddrInfo to trigger removal, and check that the connection
   // is correctly destroyed
-  EXPECT_CALL(conn_pool, destroy_connection(1)).Times(1);
+  EXPECT_CALL(conn_pool, destroy_connection(ai_1, 1)).Times(1);
   conn_pool.get_connection(ai_2);
 
   // The connection should have been removed
@@ -180,8 +198,8 @@ TEST_F(ConnectionPoolTest, RemoveIdleConnections)
   EXPECT_EQ(conn_handle.get_connection(), 2);
 
   // Check that the connections are correctly destroyed
-  EXPECT_CALL(conn_pool, destroy_connection(2)).Times(1);
-  EXPECT_CALL(conn_pool, destroy_connection(3)).Times(1);
+  EXPECT_CALL(conn_pool, destroy_connection(ai_1, 2)).Times(1);
+  EXPECT_CALL(conn_pool, destroy_connection(ai_2, 3)).Times(1);
 }
 
 TEST_F(ConnectionPoolTest, MoveConnectionHandle)
@@ -203,6 +221,6 @@ TEST_F(ConnectionPoolTest, MoveConnectionHandle)
   EXPECT_EQ(conn_pool.get_connection(ai_1).get_connection(), 2);
 
   // Check that the connections are correctly destroyed
-  EXPECT_CALL(conn_pool, destroy_connection(1)).Times(1);
-  EXPECT_CALL(conn_pool, destroy_connection(2)).Times(1);
+  EXPECT_CALL(conn_pool, destroy_connection(ai_1, 1)).Times(1);
+  EXPECT_CALL(conn_pool, destroy_connection(ai_1, 2)).Times(1);
 }
