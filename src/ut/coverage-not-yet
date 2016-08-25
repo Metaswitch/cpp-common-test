@@ -41,5 +41,4 @@ accesslogger.cpp
 exception_handler.cpp
 namespace_hop.cpp
 base64.cpp
-ipv6utils.cpp
 unique.cpp
