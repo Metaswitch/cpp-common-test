@@ -1,5 +1,5 @@
 /**
- * @file utils_test.cpp UT for LoadMonitor classes.
+ * @file utils_test.cpp
  *
  * Project Clearwater - IMS in the Cloud
  * Copyright (C) 2016  Metaswitch Networks Ltd
