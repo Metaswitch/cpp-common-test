@@ -311,45 +311,6 @@ TEST_F(HttpConnectionTest, ReceiveError)
   EXPECT_EQ(500, ret);
 }
 
-TEST_F(HttpConnectionTest, ConnectionRecycle)
-{
-  // Warm up.
-  string output;
-  long ret = _http->send_get("/blah/blah/blah", output, "gandalf", 0);
-
-  EXPECT_EQ(200, ret);
-
-  // Wait a very short time. Note that this is reverted by the
-  // BaseTest destructor, which calls cwtest_reset_time().
-  cwtest_advance_time_ms(10L);
-
-  // Next request should be on same connection (it's possible but very
-  // unlikely (~2e-4) that we'll choose to recycle already - let's
-  // just take the risk of an occasional spurious test failure).
-  ret = _http->send_get("/up/up/up", output, "legolas", 0);
-
-  EXPECT_EQ(200, ret);
-
-  Request& req = fakecurl_requests["http://10.42.42.42:80/up/up/up"];
-
-  EXPECT_FALSE(req._fresh);
-
-  // Now wait a long time - much longer than the 1-minute average
-  // recycle time.
-  cwtest_advance_time_ms(10 * 60 * 1000L);
-
-  // Next request should be on a different connection. Again, there's
-  // a tiny chance (~5e-5) we'll fail here because we're still using
-  // the same connection, but we'll take the risk.
-  ret = _http->send_get("/down/down/down", output, "gimli", 0);
-
-  EXPECT_EQ(200, ret);
-
-  Request& req2 = fakecurl_requests["http://10.42.42.42:80/down/down/down"];
-
-  EXPECT_TRUE(req2._fresh);
-}
-
 TEST_F(HttpConnectionTest, SimplePost)
 {
   std::map<std::string, std::string> head;
