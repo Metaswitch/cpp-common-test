@@ -280,17 +280,6 @@ TEST_F(HttpConnectionTest, SimpleGetRetry)
   EXPECT_EQ("<message>Gotcha!</message>", output);
 }
 
-TEST_F(HttpConnectionTest, GetWithOverride)
-{
-  string output;
-  std::vector<std::string> headers_in_req;
-  headers_in_req.push_back("Range: 100");
-
-  long ret = _http->send_get("/path", output, headers_in_req, "10.42.42.42:80", 0);
-
-  EXPECT_EQ(200, ret);
-}
-
 TEST_F(HttpConnectionTest, GetWithUsername)
 {
   string output;
@@ -359,13 +348,6 @@ TEST_F(HttpConnectionTest, DeleteBodyWithResponse)
 {
   std::string response;
   long ret = _http->send_delete("/delete_id", 0, "body", response);
-
-  EXPECT_EQ(200, ret);
-}
-
-TEST_F(HttpConnectionTest, DeleteBodyWithOverride)
-{
-  long ret = _http->send_delete("/path", 0, "body", "10.42.42.42:80");
 
   EXPECT_EQ(200, ret);
 }
