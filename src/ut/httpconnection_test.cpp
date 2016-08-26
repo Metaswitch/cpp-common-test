@@ -245,21 +245,6 @@ TEST_F(HttpConnectionTest, SimpleGetRetry)
   EXPECT_EQ("<message>Gotcha!</message>", output);
 }
 
-TEST_F(HttpConnectionTest, GetWithOverride)
-{
-  _resolver.targets.push_back(MockHttpResolver::create_target("3.0.0.0"));
-  string output;
-  std::vector<std::string> headers_in_req;
-  headers_in_req.push_back("Range: 100");
-
-  fakecurl_responses["http://3.0.0.0:80/path"] = CURLE_OK;
-  EXPECT_CALL(_resolver, success(_));
-
-  long ret = _http->send_get("/path", output, headers_in_req, "3.0.0.0:80", 0);
-
-  EXPECT_EQ(200, ret);
-}
-
 TEST_F(HttpConnectionTest, GetWithUsername)
 {
   _resolver.targets.push_back(MockHttpResolver::create_target("3.0.0.0"));
@@ -354,18 +339,6 @@ TEST_F(HttpConnectionTest, DeleteBodyWithResponse)
 
   EXPECT_CALL(_resolver, success(_));
   long ret = _http->send_delete("/delete_id", 0, "body", response);
-
-  EXPECT_EQ(200, ret);
-}
-
-TEST_F(HttpConnectionTest, DeleteBodyWithOverride)
-{
-  _resolver.targets.push_back(MockHttpResolver::create_target("3.0.0.0"));
-
-  fakecurl_responses["http://3.0.0.0:80/path"] = CURLE_OK;
-  EXPECT_CALL(_resolver, success(_));
-
-  long ret = _http->send_delete("/path", 0, "body", "3.0.0.0:80");
 
   EXPECT_EQ(200, ret);
 }

@@ -23,7 +23,6 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 httpresolver.cpp \
                                 httpstack.cpp \
                                 httpstack_utils.cpp \
-                                ipv6utils.cpp \
                                 json_alarms.cpp \
                                 load_monitor.cpp \
                                 localstore.cpp \
@@ -87,7 +86,8 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 memcached_config_test.cpp \
                                 memcachedstorereview_test.cpp \
                                 realmmanager_test.cpp \
-                                timer_heap_test.cpp
+                                timer_heap_test.cpp \
+                                utils_test.cpp
 
 cpp_common_test_test_CPPFLAGS := -Wno-write-strings \
                                  -I../usr/include \
