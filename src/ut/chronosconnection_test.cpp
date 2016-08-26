@@ -39,7 +39,7 @@
 
 #include "utils.h"
 #include "sas.h"
-#include "mockhttpresolver.h"
+#include "mock_http_resolver.h"
 #include "chronosconnection.h"
 #include "basetest.hpp"
 #include "curl_interposer.hpp"

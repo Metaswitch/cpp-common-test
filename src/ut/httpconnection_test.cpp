@@ -42,8 +42,7 @@
 
 #include "utils.h"
 #include "sas.h"
-#include "fakehttpresolver.hpp"
-#include "mockhttpresolver.h"
+#include "mock_http_resolver.h"
 #include "httpconnection.h"
 #include "basetest.hpp"
 #include "test_utils.hpp"
@@ -82,17 +81,6 @@ class HttpConnectionTest : public BaseTest
                                SASEvent::HttpLogLevel::PROTOCOL,
                                _cm);
     fakecurl_responses.clear();
-
-    fakecurl_responses["http://3.0.0.0:80/blah/blah/recv_error"] = CURLE_RECV_ERROR;
-    fakecurl_responses["http://3.0.0.0:80/up/up/up"] = "<message>ok, whatever...</message>";
-    fakecurl_responses["http://3.0.0.0:80/up/up/down"] = CURLE_REMOTE_ACCESS_DENIED;
-    fakecurl_responses["http://3.0.0.0:80/down/down/down"] = "<message>WHOOOOSH!!</message>";
-    fakecurl_responses["http://3.0.0.0:80/down/down/up"] = CURLE_RECV_ERROR;
-    fakecurl_responses["http://3.0.0.0:80/down/around"] = Response(CURLE_SEND_ERROR, "<message>Gotcha!</message>");
-    fakecurl_responses["http://3.0.0.0:80/delete_id"] = CURLE_OK;
-    fakecurl_responses["http://3.0.0.0:80/put_id"] = CURLE_OK;
-    fakecurl_responses["http://3.0.0.0:80/put_id_response"] = Response({"response"});
-    fakecurl_responses["http://3.0.0.0:80/post_id"] = Response({"Location: test"});
   }
 
   ~HttpConnectionTest()
@@ -229,17 +217,20 @@ TEST_F(HttpConnectionTest, SimpleGetRetry)
 
   string output;
 
-  fakecurl_responses["http://3.0.0.0:80/get_retry"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>";
-  EXPECT_CALL(_resolver, success(_)).Times(2);
-  EXPECT_CALL(_resolver, blacklist(_)).Times(1);
-
   // Warm up the connection.
-  long ret = _http->send_get("/get_retry", output, "gandalf", 0);
+  fakecurl_responses["http://3.0.0.0:80/warm"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>";
+  EXPECT_CALL(_resolver, success(_)).Times(1);
+
+  long ret = _http->send_get("/warm", output, "gandalf", 0);
 
   EXPECT_EQ(200, ret);
 
   // Get a failure on the connection and retry it.
-  ret = _http->send_get("/down/around", output, "gandalf", 0);
+  fakecurl_responses["http://3.0.0.0:80/get_retry"] = Response(CURLE_SEND_ERROR, "<message>Gotcha!</message>");
+  EXPECT_CALL(_resolver, success(_)).Times(1);
+  EXPECT_CALL(_resolver, blacklist(_)).Times(1);
+
+  ret = _http->send_get("/get_retry", output, "gandalf", 0);
 
   EXPECT_EQ(200, ret);
   EXPECT_EQ("<message>Gotcha!</message>", output);
@@ -266,9 +257,11 @@ TEST_F(HttpConnectionTest, ReceiveError)
 
   string output;
 
+  fakecurl_responses["http://3.0.0.0:80/recv_error"] = CURLE_RECV_ERROR;
   EXPECT_CALL(*_cm, inform_failure(_));
   EXPECT_CALL(_resolver, blacklist(_)).Times(2);
-  long ret = _http->send_get("/blah/blah/recv_error", output, "gandalf", 0);
+
+  long ret = _http->send_get("/recv_error", output, "gandalf", 0);
 
   EXPECT_EQ(500, ret);
 }
@@ -280,7 +273,9 @@ TEST_F(HttpConnectionTest, SimplePost)
   std::map<std::string, std::string> head;
   std::string response;
 
+  fakecurl_responses["http://3.0.0.0:80/post_id"] = Response({"Location: test"});
   EXPECT_CALL(_resolver, success(_));
+
   long ret = _http->send_post("/post_id", head, response, "", 0);
 
   EXPECT_EQ(200, ret);
@@ -290,8 +285,10 @@ TEST_F(HttpConnectionTest, SimplePut)
 {
   _resolver.targets.push_back(MockHttpResolver::create_target("3.0.0.0"));
 
+  fakecurl_responses["http://3.0.0.0:80/put_id"] = Response({"response"});
   EXPECT_CALL(*_cm, inform_success(_));
   EXPECT_CALL(_resolver, success(_));
+
   long ret = _http->send_put("/put_id", "", 0);
 
   EXPECT_EQ(200, ret);
@@ -303,8 +300,10 @@ TEST_F(HttpConnectionTest, SimplePutWithResponse)
 
   std::string response;
 
+  fakecurl_responses["http://3.0.0.0:80/put_id_response"] = Response({"response"});
   EXPECT_CALL(*_cm, inform_success(_));
   EXPECT_CALL(_resolver, success(_));
+
   long ret = _http->send_put("/put_id_response", response, "", 0);
 
   EXPECT_EQ(200, ret);
@@ -315,7 +314,9 @@ TEST_F(HttpConnectionTest, SimpleDelete)
 {
   _resolver.targets.push_back(MockHttpResolver::create_target("3.0.0.0"));
 
+  fakecurl_responses["http://3.0.0.0:80/delete_id"] = CURLE_OK;
   EXPECT_CALL(_resolver, success(_));
+
   long ret = _http->send_delete("/delete_id", 0);
 
   EXPECT_EQ(200, ret);
@@ -325,7 +326,9 @@ TEST_F(HttpConnectionTest, DeleteBody)
 {
   _resolver.targets.push_back(MockHttpResolver::create_target("3.0.0.0"));
 
+  fakecurl_responses["http://3.0.0.0:80/delete_id"] = CURLE_OK;
   EXPECT_CALL(_resolver, success(_));
+
   long ret = _http->send_delete("/delete_id", 0, "body");
 
   EXPECT_EQ(200, ret);
@@ -337,7 +340,9 @@ TEST_F(HttpConnectionTest, DeleteBodyWithResponse)
 
   std::string response;
 
+  fakecurl_responses["http://3.0.0.0:80/delete_id"] = CURLE_OK;
   EXPECT_CALL(_resolver, success(_));
+
   long ret = _http->send_delete("/delete_id", 0, "body", response);
 
   EXPECT_EQ(200, ret);
