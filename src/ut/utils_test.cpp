@@ -113,29 +113,49 @@ TEST_F(UtilsTest, InvalidAddress)
   EXPECT_EQ(IPAddressType::INVALID, parse_ip_address("327.0.0.1"));
 }
 
+TEST_F(UtilsTest, IsBracketedAddressNo)
+{
+  EXPECT_FALSE(is_bracketed_address("::1"));
+}
+
+TEST_F(UtilsTest, IsBracketedAddressYes)
+{
+  EXPECT_TRUE(is_bracketed_address("[::1]"));
+}
+
 TEST_F(UtilsTest, UriServerForIpV4WithDefaultPort)
 {
-  EXPECT_EQ("127.0.0.1:80", uri_ip_address("127.0.0.1:80", 80));
+  EXPECT_EQ("127.0.0.1:80", uri_address("127.0.0.1:80", 80));
 }
 
 TEST_F(UtilsTest, UriServerForIpV4WithSpecifiedPort)
 {
-  EXPECT_EQ("127.0.0.1:81", uri_ip_address("127.0.0.1:81", 80));
+  EXPECT_EQ("127.0.0.1:81", uri_address("127.0.0.1:81", 80));
 }
 
 TEST_F(UtilsTest, UriServerForIpV6WithDefaultPort)
 {
-  EXPECT_EQ("[::1]:80", uri_ip_address("::1", 80));
+  EXPECT_EQ("[::1]:80", uri_address("::1", 80));
 }
 
 TEST_F(UtilsTest, UriServerForIpV6BracketedWithDefaultPort)
 {
-  EXPECT_EQ("[::1]:80", uri_ip_address("[::1]", 80));
+  EXPECT_EQ("[::1]:80", uri_address("[::1]", 80));
 }
 
 TEST_F(UtilsTest, UriServerForIpV6WithSpecifiedPort)
 {
-  EXPECT_EQ("[::1]:81", uri_ip_address("[::1]:81", 80));
+  EXPECT_EQ("[::1]:81", uri_address("[::1]:81", 80));
+}
+
+TEST_F(UtilsTest, UriServerForHost)
+{
+  EXPECT_EQ("example.com:80", uri_address("example.com", 80));
+}
+
+TEST_F(UtilsTest, UriServerForHostWithPort)
+{
+  EXPECT_EQ("example.com:81", uri_address("example.com:81", 80));
 }
 
 TEST_F(UtilsTest, RemoveBracketsFromIPv4Address)
