@@ -232,6 +232,24 @@ TEST_F(HttpConnectionTest, SimpleKeyAuthGet)
   EXPECT_EQ("", req._password);
 }
 
+TEST_F(HttpConnectionTest, GetWithHeadersAndUsername)
+{
+  std::map<std::string, std::string> headers;
+  string output;
+  std::vector<std::string> headers_to_add;
+  long ret = _http->send_get("/blah/blah/blah", headers, output, "gandalf", headers_to_add, 0);
+
+  EXPECT_EQ(200, ret);
+  EXPECT_EQ("<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>", output);
+
+  Request& req = fakecurl_requests["http://10.42.42.42:80/blah/blah/blah"];
+
+  EXPECT_EQ("GET", req._method);
+  EXPECT_FALSE(req._httpauth & CURLAUTH_DIGEST) << req._httpauth;
+  EXPECT_EQ("", req._username);
+  EXPECT_EQ("", req._password);
+}
+
 TEST_F(HttpConnectionTest, SimpleIPv6Get)
 {
   string output;
@@ -330,6 +348,19 @@ TEST_F(HttpConnectionTest, SimplePutWithResponse)
   EXPECT_EQ("response", response);
 }
 
+TEST_F(HttpConnectionTest, PutWithHeadersAndUsername)
+{
+  EXPECT_CALL(*_cm, inform_success(_));
+
+  std::map<std::string, std::string> headers;
+  std::string response;
+  std::vector<std::string> extra_req_headers;
+  long ret = _http->send_put("/put_id_response", headers, response, "", extra_req_headers, 0, "");
+
+  EXPECT_EQ(200, ret);
+  EXPECT_EQ("response", response);
+}
+
 TEST_F(HttpConnectionTest, SimpleDelete)
 {
   long ret = _http->send_delete("/delete_id", 0);
@@ -348,6 +379,15 @@ TEST_F(HttpConnectionTest, DeleteBodyWithResponse)
 {
   std::string response;
   long ret = _http->send_delete("/delete_id", 0, "body", response);
+
+  EXPECT_EQ(200, ret);
+}
+
+TEST_F(HttpConnectionTest, DeleteBodyWithHeadersAndUsername)
+{
+  std::map<std::string, std::string> headers;
+  std::string response;
+  long ret = _http->send_delete("/delete_id", headers, response, 0, "body", "gandalf");
 
   EXPECT_EQ(200, ret);
 }
