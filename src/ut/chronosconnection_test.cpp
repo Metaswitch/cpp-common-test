@@ -55,7 +55,7 @@ using namespace std;
 /// Fixture for ChronosConnectionTest.
 class ChronosConnectionTest : public BaseTest
 {
-  MockHttpResolver _resolver;
+  FakeHttpResolver _resolver;
   AlarmManager* _alarm_manager;
   CommunicationMonitor* _cm;
   ChronosConnection* _chronos;
@@ -64,7 +64,7 @@ class ChronosConnectionTest : public BaseTest
     _alarm_manager(new AlarmManager()),
     _cm(new CommunicationMonitor(new Alarm(_alarm_manager, "sprout", AlarmDef::CPP_COMMON_FAKE_ALARM, AlarmDef::MAJOR), "sprout", "chronos"))
   {
-    _resolver.targets.push_back(MockHttpResolver::create_target("10.42.42.42"));
+    _resolver._targets.push_back(FakeHttpResolver::create_target("10.42.42.42"));
     _chronos = new ChronosConnection("narcissus", "localhost:9888", &_resolver, _cm);
     fakecurl_responses.clear();
   }
@@ -81,7 +81,6 @@ class ChronosConnectionTest : public BaseTest
 TEST_F(ChronosConnectionTest, SendDelete)
 {
   fakecurl_responses["http://10.42.42.42:80/timers/delete_id"] = CURLE_OK;
-  EXPECT_CALL(_resolver, success(_));
   HTTPCode status = _chronos->send_delete("delete_id",  0);
   EXPECT_EQ(status, 200);
 }
@@ -96,7 +95,6 @@ TEST_F(ChronosConnectionTest, SendPost)
 {
   std::list<std::string> headers = {"Location: http://localhost:7253/timers/abcd"};
   fakecurl_responses["http://10.42.42.42:80/timers"] = Response(headers);
-  EXPECT_CALL(_resolver, success(_));
 
   std::string opaque = "{\"aor_id\": \"aor_id\", \"binding_id\": \"binding_id\"}";
   std::string post_identity = "";
@@ -109,7 +107,6 @@ TEST_F(ChronosConnectionTest, SendPostWithTags)
 {
   std::list<std::string> headers = {"Location: http://localhost:7253/timers/abcd"};
   fakecurl_responses["http://10.42.42.42:80/timers"] = Response(headers);
-  EXPECT_CALL(_resolver, success(_));
 
   std::string opaque = "{\"aor_id\": \"aor_id\", \"binding_id\": \"binding_id\"}";
   std::map<std::string, uint32_t> tags = { {"TAG1", 1}, {"TAG2", 1} };
@@ -123,7 +120,6 @@ TEST_F(ChronosConnectionTest, SendPostWithNoLocationHeader)
 {
   std::list<std::string> headers = {"Header: header"};
   fakecurl_responses["http://10.42.42.42:80/timers"] = Response(headers);
-  EXPECT_CALL(_resolver, success(_));
 
   std::string opaque = "{\"aor_id\": \"aor_id\", \"binding_id\": \"binding_id\"}";
   std::string post_identity = "";
@@ -136,7 +132,6 @@ TEST_F(ChronosConnectionTest, SendPostWithNoHeaders)
 {
   std::list<std::string> headers = {""};
   fakecurl_responses["http://10.42.42.42:80/timers"] = Response(headers);
-  EXPECT_CALL(_resolver, success(_));
 
   std::string opaque = "{\"aor_id\": \"aor_id\", \"binding_id\": \"binding_id\"}";
   std::string post_identity = "";
@@ -149,7 +144,6 @@ TEST_F(ChronosConnectionTest, SendPut)
 {
   std::list<std::string> headers = {"Location: http://localhost:7253/timers/efgh"};
   fakecurl_responses["http://10.42.42.42:80/timers/abcd"] = Response(headers);
-  EXPECT_CALL(_resolver, success(_));
 
   // We expect Chronos to change the put identity to the value in the Location
   // header.
@@ -164,7 +158,6 @@ TEST_F(ChronosConnectionTest, SendPutWithTags)
 {
   std::list<std::string> headers = {"Location: http://localhost:7253/timers/efgh"};
   fakecurl_responses["http://10.42.42.42:80/timers/abcd"] = Response(headers);
-  EXPECT_CALL(_resolver, success(_));
 
   // We expect Chronos to change the put identity to the value in the Location
   // header.
@@ -180,7 +173,6 @@ TEST_F(ChronosConnectionTest, SendPutWithNoLocationHeader)
 {
   std::list<std::string> headers = {"Header: header"};
   fakecurl_responses["http://10.42.42.42:80/timers/abcd"] = Response(headers);
-  EXPECT_CALL(_resolver, success(_));
 
   std::string opaque = "{\"aor_id\": \"aor_id\", \"binding_id\": \"binding_id\"}";
   std::string put_identity = "abcd";
