@@ -42,8 +42,8 @@
 
 #include "utils.h"
 #include "sas.h"
-#include "mock_http_resolver.h"
 #include "fakehttpresolver.hpp"
+#include "mock_http_resolver.h"
 #include "httpconnection.h"
 #include "basetest.hpp"
 #include "test_utils.hpp"
@@ -65,14 +65,13 @@ using ::testing::StrictMock;
 // Fixture for tests using fake resolver
 class HttpConnectionTest : public BaseTest
 {
-  FakeHttpResolver _resolver;
-  HttpConnection* _http;
   LoadMonitor _lm;
+  FakeHttpResolver _resolver;
   AlarmManager* _am = new AlarmManager();
   NiceMock<MockCommunicationMonitor>*_cm = new NiceMock<MockCommunicationMonitor>(_am);
+  HttpConnection* _http;
 
   HttpConnectionTest() :
-    _resolver(),
     _lm(100000, 20, 10, 10)
   {
     _http = new HttpConnection("cyrus",
@@ -85,7 +84,7 @@ class HttpConnectionTest : public BaseTest
     fakecurl_responses.clear();
   }
 
-  ~HttpConnectionTest()
+  virtual ~HttpConnectionTest()
   {
     fakecurl_responses.clear();
     fakecurl_requests.clear();
@@ -98,14 +97,13 @@ class HttpConnectionTest : public BaseTest
 // Fixture for blacklist tests using mock resolver
 class HttpConnectionBlacklistTest : public BaseTest
 {
-  MockHttpResolver _resolver;
+  StrictMock<MockHttpResolver> _resolver;
   HttpConnection* _http;
   LoadMonitor _lm;
   AlarmManager* _am = new AlarmManager();
   NiceMock<MockCommunicationMonitor>*_cm = new NiceMock<MockCommunicationMonitor>(_am);
 
   HttpConnectionBlacklistTest() :
-    _resolver(),
     _lm(100000, 20, 10, 10)
   {
     _http = new HttpConnection("cyrus",

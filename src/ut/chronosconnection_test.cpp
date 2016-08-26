@@ -39,7 +39,7 @@
 
 #include "utils.h"
 #include "sas.h"
-#include "mock_http_resolver.h"
+#include "fakehttpresolver.hpp"
 #include "chronosconnection.h"
 #include "basetest.hpp"
 #include "curl_interposer.hpp"
@@ -49,7 +49,6 @@ namespace AlarmDef {
   static const int CPP_COMMON_FAKE_ALARM = 9999;
 }
 
-using ::testing::_;
 using namespace std;
 
 /// Fixture for ChronosConnectionTest.
