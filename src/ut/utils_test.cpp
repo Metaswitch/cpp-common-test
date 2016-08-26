@@ -112,3 +112,43 @@ TEST_F(UtilsTest, InvalidAddress)
 {
   EXPECT_EQ(IPAddressType::INVALID, parse_ip_address("327.0.0.1"));
 }
+
+TEST_F(UtilsTest, UriServerForIpV4WithDefaultPort)
+{
+  EXPECT_EQ("127.0.0.1:80", uri_ip_address("127.0.0.1:80", 80));
+}
+
+TEST_F(UtilsTest, UriServerForIpV4WithSpecifiedPort)
+{
+  EXPECT_EQ("127.0.0.1:81", uri_ip_address("127.0.0.1:81", 80));
+}
+
+TEST_F(UtilsTest, UriServerForIpV6WithDefaultPort)
+{
+  EXPECT_EQ("[::1]:80", uri_ip_address("::1", 80));
+}
+
+TEST_F(UtilsTest, UriServerForIpV6BracketedWithDefaultPort)
+{
+  EXPECT_EQ("[::1]:80", uri_ip_address("[::1]", 80));
+}
+
+TEST_F(UtilsTest, UriServerForIpV6WithSpecifiedPort)
+{
+  EXPECT_EQ("[::1]:81", uri_ip_address("[::1]:81", 80));
+}
+
+TEST_F(UtilsTest, RemoveBracketsFromIPv4Address)
+{
+  EXPECT_EQ("127.0.0.1", remove_brackets_from_ip("127.0.0.1"));
+}
+
+TEST_F(UtilsTest, RemoveBracketsFromBracketedIPv6Address)
+{
+  EXPECT_EQ("::1", remove_brackets_from_ip("[::1]"));
+}
+
+TEST_F(UtilsTest, RemoveBracketsFromBareIPv6Address)
+{
+  EXPECT_EQ("::1", remove_brackets_from_ip("::1"));
+}
