@@ -318,12 +318,18 @@ TEST_F(BaseResolverTest, ARecordMakeUpUsedGray)
 TEST_F(BaseResolverTest, ARecordIteratorNextReturnValue)
 {
   AddrInfo record;
+  AddrInfo expected_record = ip_to_addr_info("3.0.0.0");
 
   add_white_records(1);
   BaseResolver::Iterator it = resolve_iter();
 
+  // The value of record should be set by the iterator.
   EXPECT_TRUE(it.next(record));
+  EXPECT_EQ(record, expected_record);
+
+  // The value of record should be left unchanged by the iterator.
   EXPECT_FALSE(it.next(record));
+  EXPECT_EQ(record, expected_record);
 }
 
 /// Test that the lazy target selection iterator uses the state of each Host at
