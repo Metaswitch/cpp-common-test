@@ -54,7 +54,6 @@
 #include "curl_interposer.hpp"
 #include "fakecurl.hpp"
 #include "test_interposer.hpp"
-#include "fake_iterator.h"
 
 using namespace std;
 using ::testing::MatchesRegex;
