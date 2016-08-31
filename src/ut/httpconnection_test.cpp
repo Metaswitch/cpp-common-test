@@ -43,7 +43,7 @@
 #include "utils.h"
 #include "sas.h"
 #include "fakehttpresolver.hpp"
-#include "mock_http_resolver.h"
+#include "mockhttpresolver.h"
 #include "httpconnection.h"
 #include "basetest.hpp"
 #include "test_utils.hpp"
