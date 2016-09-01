@@ -349,6 +349,8 @@ TEST_F(BaseResolverTest, ARecordEmptyIteratorNext)
   // The value of record should be left unchanged by the iterator.
   EXPECT_FALSE(it->next(record));
   EXPECT_EQ(record, expected_record);
+
+  delete it; it = nullptr;
 }
 
 /// Test that the lazy target selection iterator functions correctly when there
@@ -358,6 +360,8 @@ TEST_F(BaseResolverTest, ARecordEmptyIteratorTake)
   BaseAddrIterator* it = resolve_iter();
   std::vector<AddrInfo> results = it->take(1);
   EXPECT_EQ(results.size(), 0);
+
+  delete it; it = nullptr;
 }
 
 TEST_F(BaseResolverTest, ARecordIteratorTakeAll)
@@ -370,6 +374,8 @@ TEST_F(BaseResolverTest, ARecordIteratorTakeAll)
 
   results = it->take(5);
   EXPECT_EQ(results.size(), 0);
+
+  delete it; it = nullptr;
 }
 
 TEST_F(BaseResolverTest, ARecordIteratorTakeSome)
@@ -384,6 +390,8 @@ TEST_F(BaseResolverTest, ARecordIteratorTakeSome)
   std::vector<AddrInfo> results_2 = it->take(1);
   ASSERT_EQ(results_2.size(), 1);
   EXPECT_THAT(results_1, Not(Contains(results_2[0])));
+
+  delete it; it = nullptr;
 }
 
 /// Test that the lazy target selection iterator functions correctly when too
@@ -395,6 +403,8 @@ TEST_F(BaseResolverTest, ARecordIteratorTakeTooMany)
 
   std::vector<AddrInfo> results = it->take(5);
   EXPECT_EQ(results.size(), 3);
+
+  delete it; it = nullptr;
 }
 
 /// Test that the lazy target selection iterator functions correctly when
@@ -414,6 +424,8 @@ TEST_F(BaseResolverTest, ARecordIteratorMixTakeAndNext)
   AddrInfo result_2;
   EXPECT_TRUE(it->next(result_2));
   EXPECT_THAT(results, Not(Contains(result_2)));
+
+  delete it; it = nullptr;
 }
 
 /// Test that the lazy target selection iterator uses the state of each Host at
