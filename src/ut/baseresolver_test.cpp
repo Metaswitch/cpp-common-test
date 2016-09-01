@@ -88,7 +88,7 @@ class BaseResolverTest : public ResolverTest
     cwtest_reset_time();
   }
 
-  /// Implements the resolve method using a BaseResolver
+  /// Helper function calling the a_resolve method of BaseResolver.
   std::vector<AddrInfo> resolve(int max_targets) override
   {
     std::vector<AddrInfo> targets;
@@ -98,7 +98,7 @@ class BaseResolverTest : public ResolverTest
     return targets;
   }
 
-  /// Implements the resolve_iter mathod using a BaseResolver
+  /// Helper function calling the a_resolve_iter method of BaseResolver.
   BaseAddrIterator* resolve_iter()
   {
     int ttl;
@@ -337,28 +337,113 @@ TEST_F(BaseResolverTest, ARecordIteratorNextReturnValue)
   delete it; it = nullptr;
 }
 
-/// Test that the lazy target selection iterator uses the state of each Host at
-/// the time that next is called each time, i.e. acts lazily
-TEST_F(BaseResolverTest, ARecordIteratorIsLazy)
+/// Test that the lazy target selection iterator functions correctly when there
+/// are no targets
+TEST_F(BaseResolverTest, ARecordEmptyIteratorNext)
+{
+  AddrInfo record = ResolverTest::ip_to_addr_info("3.0.0.0");
+  AddrInfo expected_record = record;
+
+  BaseAddrIterator* it = resolve_iter();
+
+  // The value of record should be left unchanged by the iterator.
+  EXPECT_FALSE(it->next(record));
+  EXPECT_EQ(record, expected_record);
+}
+
+/// Test that the lazy target selection iterator functions correctly when there
+/// are no targets
+TEST_F(BaseResolverTest, ARecordEmptyIteratorTake)
+{
+  BaseAddrIterator* it = resolve_iter();
+  std::vector<AddrInfo> results = it->take(1);
+  EXPECT_EQ(results.size(), 0);
+}
+
+TEST_F(BaseResolverTest, ARecordIteratorTakeAll)
+{
+  add_white_records(5);
+  BaseAddrIterator* it = resolve_iter();
+
+  std::vector<AddrInfo> results = it->take(5);
+  EXPECT_EQ(results.size(), 5);
+
+  results = it->take(5);
+  EXPECT_EQ(results.size(), 0);
+}
+
+TEST_F(BaseResolverTest, ARecordIteratorTakeSome)
+{
+  add_white_records(5);
+  BaseAddrIterator* it = resolve_iter();
+
+  std::vector<AddrInfo> results_1 = it->take(4);
+  EXPECT_EQ(results_1.size(), 4);
+
+  // The second call should return the remaining result
+  std::vector<AddrInfo> results_2 = it->take(1);
+  ASSERT_EQ(results_2.size(), 1);
+  EXPECT_THAT(results_1, Not(Contains(results_2[0])));
+}
+
+/// Test that the lazy target selection iterator functions correctly when too
+/// many targets are requested
+TEST_F(BaseResolverTest, ARecordIteratorTakeTooMany)
 {
   add_white_records(3);
+  BaseAddrIterator* it = resolve_iter();
+
+  std::vector<AddrInfo> results = it->take(5);
+  EXPECT_EQ(results.size(), 3);
+}
+
+/// Test that the lazy target selection iterator functions correctly when
+/// calling a mixture of the take and next methods
+TEST_F(BaseResolverTest, ARecordIteratorMixTakeAndNext)
+{
+  add_white_records(5);
+  BaseAddrIterator* it = resolve_iter();
+
+  AddrInfo result_1;
+  EXPECT_TRUE(it->next(result_1));
+
+  std::vector<AddrInfo> results = it->take(3);
+  EXPECT_EQ(results.size(), 3);
+  EXPECT_THAT(results, Not(Contains(result_1)));
+
+  AddrInfo result_2;
+  EXPECT_TRUE(it->next(result_2));
+  EXPECT_THAT(results, Not(Contains(result_2)));
+}
+
+/// Test that the lazy target selection iterator uses the state of each Host at
+/// the time that next is called each time, i.e. acts lazily
+TEST_F(BaseResolverTest, ARecordLazyIteratorIsLazy)
+{
+  AddrInfo record;
+  add_white_records(2);
 
   // Blacklist a record
   AddrInfo black_to_gray_record = ResolverTest::ip_to_addr_info("3.0.0.0");
   _baseresolver.blacklist(black_to_gray_record);
 
-  // Get an iterator
-  BaseAddrIterator* it = resolve_iter();
+  // Get two iterators
+  BaseAddrIterator* it_1 = resolve_iter();
+  BaseAddrIterator* it_2 = resolve_iter();
+
+  // The blacklisted record should not be returned
+  EXPECT_TRUE(it_1->next(record));
+  EXPECT_NE(record, black_to_gray_record);
 
   // Move the record to the graylist
   cwtest_advance_time_ms(31000);
 
-  // The record should be returned by the next call to the iterator
-  AddrInfo record;
-  EXPECT_TRUE(it->next(record));
+  // The graylisted record should be returned
+  EXPECT_TRUE(it_2->next(record));
   EXPECT_EQ(record, black_to_gray_record);
 
-  delete it; it = nullptr;
+  delete it_1; it_1 = nullptr;
+  delete it_2; it_2 = nullptr;
 }
 
 // Test that blacklisted SRV records aren't chosen
@@ -421,7 +506,7 @@ TEST_F(BaseResolverTest, SRVRecordFailedResolution)
 }
 
 // Test that SimpleAddrIterator's next method works correctly
-TEST(SimpleAddrIterator, Next)
+TEST(SimpleAddrIterator, NextMethod)
 {
   std::vector<AddrInfo> targets;
   AddrInfo ai = ResolverTest::ip_to_addr_info("3.0.0.1");
@@ -457,5 +542,20 @@ TEST(SimpleAddrIterator, ReturnsInOrder)
 
   addr_it.next(target);
   EXPECT_EQ(target, ai_2);
+}
+
+// Test that SimpleAddrIterator functions correctly when too many targets are
+// requested
+TEST(SimpleAddrIterator, TooManyTargetsRequested)
+{
+  std::vector<AddrInfo> targets_in;
+  AddrInfo ai = ResolverTest::ip_to_addr_info("3.0.0.1");
+  targets_in.push_back(ai);
+
+  SimpleAddrIterator addr_it(targets_in);
+  std::vector<AddrInfo> targets_out = addr_it.take(2);
+
+  ASSERT_EQ(targets_out.size(), 1);
+  EXPECT_EQ(targets_out[0], ai);
 }
 
