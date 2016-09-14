@@ -58,9 +58,11 @@ const int DEFAULT_REPETITIONS = 15;
 class BaseResolverTest : public ResolverTest
 {
   BaseResolver _baseresolver;
+  BaseAddrIterator* it;
 
   BaseResolverTest() :
-    _baseresolver(&_dnsresolver)
+    _baseresolver(&_dnsresolver),
+    it(nullptr)
   {
     // Create the NAPTR cache.
     std::map<std::string, int> naptr_services;
@@ -82,10 +84,11 @@ class BaseResolverTest : public ResolverTest
     _baseresolver.destroy_blacklist();
     _baseresolver.destroy_srv_cache();
     _baseresolver.destroy_naptr_cache();
+    delete it; it = nullptr;
     cwtest_reset_time();
   }
 
-  /// Implements the resolve method using a BaseResolver
+  /// Helper function calling the a_resolve method of BaseResolver.
   std::vector<AddrInfo> resolve(int max_targets) override
   {
     std::vector<AddrInfo> targets;
@@ -93,6 +96,14 @@ class BaseResolverTest : public ResolverTest
     _baseresolver.a_resolve(TEST_HOST, AF_INET, TEST_PORT, TEST_TRANSPORT,
                             max_targets, targets, ttl, 1);
     return targets;
+  }
+
+  /// Helper function calling the a_resolve_iter method of BaseResolver.
+  BaseAddrIterator* resolve_iter()
+  {
+    int ttl;
+    return _baseresolver.a_resolve_iter(TEST_HOST, AF_INET, TEST_PORT,
+                                        TEST_TRANSPORT, ttl, 1);
   }
 
   /// Calls srv resolve and renders the result as a string
@@ -140,7 +151,7 @@ TEST_F(BaseResolverTest, IPv4AddressResolutionManyTargets)
 TEST_F(BaseResolverTest, ARecordAtLeastOneGray)
 {
   add_white_records(DEFAULT_COUNT);
-  AddrInfo gray_record = ip_to_addr_info("3.0.0.0");
+  AddrInfo gray_record = ResolverTest::ip_to_addr_info("3.0.0.0");
 
   _baseresolver.blacklist(gray_record);
   cwtest_advance_time_ms(31000);
@@ -154,8 +165,8 @@ TEST_F(BaseResolverTest, ARecordAtLeastOneGray)
 TEST_F(BaseResolverTest, ARecordJustOneGray)
 {
   add_white_records(DEFAULT_COUNT + 1);
-  AddrInfo gray_record_0 = ip_to_addr_info("3.0.0.0");
-  AddrInfo gray_record_1 = ip_to_addr_info("3.0.0.1");
+  AddrInfo gray_record_0 = ResolverTest::ip_to_addr_info("3.0.0.0");
+  AddrInfo gray_record_1 = ResolverTest::ip_to_addr_info("3.0.0.1");
 
   _baseresolver.blacklist(gray_record_0);
   _baseresolver.blacklist(gray_record_1);
@@ -170,7 +181,7 @@ TEST_F(BaseResolverTest, ARecordJustOneGray)
 TEST_F(BaseResolverTest, ARecordGrayReturnedOnce)
 {
   add_white_records(DEFAULT_COUNT);
-  AddrInfo gray_record = ip_to_addr_info("3.0.0.0");
+  AddrInfo gray_record = ResolverTest::ip_to_addr_info("3.0.0.0");
 
   _baseresolver.blacklist(gray_record);
   cwtest_advance_time_ms(31000);
@@ -191,7 +202,7 @@ TEST_F(BaseResolverTest, ARecordGrayReturnedOnce)
 TEST_F(BaseResolverTest, ARecordWhiteToBlackBlacklist)
 {
   add_white_records(DEFAULT_COUNT);
-  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+  _baseresolver.blacklist(ResolverTest::ip_to_addr_info("3.0.0.0"));
 
   EXPECT_TRUE(is_black("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
 }
@@ -201,7 +212,7 @@ TEST_F(BaseResolverTest, ARecordWhiteToBlackBlacklist)
 TEST_F(BaseResolverTest, ARecordBlackToGrayTime)
 {
   add_white_records(DEFAULT_COUNT);
-  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+  _baseresolver.blacklist(ResolverTest::ip_to_addr_info("3.0.0.0"));
   cwtest_advance_time_ms(31000);
 
   EXPECT_TRUE(is_gray("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
@@ -211,10 +222,10 @@ TEST_F(BaseResolverTest, ARecordBlackToGrayTime)
 TEST_F(BaseResolverTest, ARecordGrayToBlackBlacklist)
 {
   add_white_records(DEFAULT_COUNT);
-  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+  _baseresolver.blacklist(ResolverTest::ip_to_addr_info("3.0.0.0"));
 
   cwtest_advance_time_ms(31000);
-  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+  _baseresolver.blacklist(ResolverTest::ip_to_addr_info("3.0.0.0"));
 
   EXPECT_TRUE(is_black("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
 }
@@ -224,11 +235,11 @@ TEST_F(BaseResolverTest, ARecordGrayToBlackBlacklist)
 TEST_F(BaseResolverTest, ARecordGrayToGrayUntested)
 {
   add_white_records(DEFAULT_COUNT);
-  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+  _baseresolver.blacklist(ResolverTest::ip_to_addr_info("3.0.0.0"));
   cwtest_advance_time_ms(31000);
 
   resolve(1);
-  _baseresolver.untested(ip_to_addr_info("3.0.0.0"));
+  _baseresolver.untested(ResolverTest::ip_to_addr_info("3.0.0.0"));
 
   EXPECT_TRUE(is_gray("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
 }
@@ -238,7 +249,7 @@ TEST_F(BaseResolverTest, ARecordGrayToGrayUntested)
 TEST_F(BaseResolverTest, ARecordGrayToWhiteTime)
 {
   add_white_records(DEFAULT_COUNT);
-  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+  _baseresolver.blacklist(ResolverTest::ip_to_addr_info("3.0.0.0"));
 
   cwtest_advance_time_ms(61000);
 
@@ -250,10 +261,10 @@ TEST_F(BaseResolverTest, ARecordGrayToWhiteTime)
 TEST_F(BaseResolverTest, ARecordGrayToWhiteSuccess)
 {
   add_white_records(DEFAULT_COUNT);
-  _baseresolver.blacklist(ip_to_addr_info("3.0.0.0"));
+  _baseresolver.blacklist(ResolverTest::ip_to_addr_info("3.0.0.0"));
 
   cwtest_advance_time_ms(31000);
-  _baseresolver.success(ip_to_addr_info("3.0.0.0"));
+  _baseresolver.success(ResolverTest::ip_to_addr_info("3.0.0.0"));
 
   EXPECT_TRUE(is_white("3.0.0.0", DEFAULT_COUNT, DEFAULT_REPETITIONS));
 }
@@ -263,7 +274,7 @@ TEST_F(BaseResolverTest, ARecordGrayToWhiteSuccess)
 TEST_F(BaseResolverTest, ARecordMakeUpBlack)
 {
   add_white_records(2);
-  AddrInfo black_record = ip_to_addr_info("3.0.0.0");
+  AddrInfo black_record = ResolverTest::ip_to_addr_info("3.0.0.0");
   _baseresolver.blacklist(black_record);
 
   std::vector<AddrInfo> targets = resolve(2);
@@ -275,8 +286,8 @@ TEST_F(BaseResolverTest, ARecordMakeUpBlack)
 TEST_F(BaseResolverTest, ARecordMakeUpMultipleGray)
 {
   add_white_records(3);
-  AddrInfo gray_record_0 = ip_to_addr_info("3.0.0.0");
-  AddrInfo gray_record_1 = ip_to_addr_info("3.0.0.1");
+  AddrInfo gray_record_0 = ResolverTest::ip_to_addr_info("3.0.0.0");
+  AddrInfo gray_record_1 = ResolverTest::ip_to_addr_info("3.0.0.1");
   _baseresolver.blacklist(gray_record_0);
   _baseresolver.blacklist(gray_record_1);
   cwtest_advance_time_ms(31000);
@@ -292,7 +303,7 @@ TEST_F(BaseResolverTest, ARecordMakeUpMultipleGray)
 TEST_F(BaseResolverTest, ARecordMakeUpUsedGray)
 {
   add_white_records(2);
-  AddrInfo gray_record = ip_to_addr_info("3.0.0.0");
+  AddrInfo gray_record = ResolverTest::ip_to_addr_info("3.0.0.0");
   _baseresolver.blacklist(gray_record);
   cwtest_advance_time_ms(31000);
 
@@ -303,6 +314,148 @@ TEST_F(BaseResolverTest, ARecordMakeUpUsedGray)
 
   // The gray record should be returned.
   EXPECT_THAT(targets, Contains(gray_record));
+}
+
+/// Test that the lazy target selection iterator returns true when the target
+/// has been set, and false otherwise
+TEST_F(BaseResolverTest, ARecordIteratorNextReturnValue)
+{
+  AddrInfo record;
+  AddrInfo expected_record = ResolverTest::ip_to_addr_info("3.0.0.0");
+
+  add_white_records(1);
+  BaseAddrIterator* it = resolve_iter();
+
+  // The value of record should be set by the iterator.
+  EXPECT_TRUE(it->next(record));
+  EXPECT_EQ(record, expected_record);
+
+  // The value of record should be left unchanged by the iterator.
+  EXPECT_FALSE(it->next(record));
+  EXPECT_EQ(record, expected_record);
+
+  delete it; it = nullptr;
+}
+
+/// Test that the lazy target selection iterator functions correctly when there
+/// are no targets
+TEST_F(BaseResolverTest, ARecordEmptyIteratorNext)
+{
+  AddrInfo record = ResolverTest::ip_to_addr_info("3.0.0.0");
+  AddrInfo expected_record = record;
+
+  BaseAddrIterator* it = resolve_iter();
+
+  // The value of record should be left unchanged by the iterator.
+  EXPECT_FALSE(it->next(record));
+  EXPECT_EQ(record, expected_record);
+
+  delete it; it = nullptr;
+}
+
+/// Test that the lazy target selection iterator functions correctly when there
+/// are no targets
+TEST_F(BaseResolverTest, ARecordEmptyIteratorTake)
+{
+  BaseAddrIterator* it = resolve_iter();
+  std::vector<AddrInfo> results = it->take(1);
+  EXPECT_EQ(results.size(), 0);
+
+  delete it; it = nullptr;
+}
+
+TEST_F(BaseResolverTest, ARecordIteratorTakeAll)
+{
+  add_white_records(5);
+  BaseAddrIterator* it = resolve_iter();
+
+  std::vector<AddrInfo> results = it->take(5);
+  EXPECT_EQ(results.size(), 5);
+
+  results = it->take(5);
+  EXPECT_EQ(results.size(), 0);
+
+  delete it; it = nullptr;
+}
+
+TEST_F(BaseResolverTest, ARecordIteratorTakeSome)
+{
+  add_white_records(5);
+  BaseAddrIterator* it = resolve_iter();
+
+  std::vector<AddrInfo> results_1 = it->take(4);
+  EXPECT_EQ(results_1.size(), 4);
+
+  // The second call should return the remaining result
+  std::vector<AddrInfo> results_2 = it->take(1);
+  ASSERT_EQ(results_2.size(), 1);
+  EXPECT_THAT(results_1, Not(Contains(results_2[0])));
+
+  delete it; it = nullptr;
+}
+
+/// Test that the lazy target selection iterator functions correctly when too
+/// many targets are requested
+TEST_F(BaseResolverTest, ARecordIteratorTakeTooMany)
+{
+  add_white_records(3);
+  BaseAddrIterator* it = resolve_iter();
+
+  std::vector<AddrInfo> results = it->take(5);
+  EXPECT_EQ(results.size(), 3);
+
+  delete it; it = nullptr;
+}
+
+/// Test that the lazy target selection iterator functions correctly when
+/// calling a mixture of the take and next methods
+TEST_F(BaseResolverTest, ARecordIteratorMixTakeAndNext)
+{
+  add_white_records(5);
+  BaseAddrIterator* it = resolve_iter();
+
+  AddrInfo result_1;
+  EXPECT_TRUE(it->next(result_1));
+
+  std::vector<AddrInfo> results = it->take(3);
+  EXPECT_EQ(results.size(), 3);
+  EXPECT_THAT(results, Not(Contains(result_1)));
+
+  AddrInfo result_2;
+  EXPECT_TRUE(it->next(result_2));
+  EXPECT_THAT(results, Not(Contains(result_2)));
+
+  delete it; it = nullptr;
+}
+
+/// Test that the lazy target selection iterator uses the state of each Host at
+/// the time that next is called each time, i.e. acts lazily
+TEST_F(BaseResolverTest, ARecordLazyIteratorIsLazy)
+{
+  AddrInfo record;
+  add_white_records(2);
+
+  // Blacklist a record
+  AddrInfo black_to_gray_record = ResolverTest::ip_to_addr_info("3.0.0.0");
+  _baseresolver.blacklist(black_to_gray_record);
+
+  // Get two iterators
+  BaseAddrIterator* it_1 = resolve_iter();
+  BaseAddrIterator* it_2 = resolve_iter();
+
+  // The blacklisted record should not be returned
+  EXPECT_TRUE(it_1->next(record));
+  EXPECT_NE(record, black_to_gray_record);
+
+  // Move the record to the graylist
+  cwtest_advance_time_ms(31000);
+
+  // The graylisted record should be returned
+  EXPECT_TRUE(it_2->next(record));
+  EXPECT_EQ(record, black_to_gray_record);
+
+  delete it_1; it_1 = nullptr;
+  delete it_2; it_2 = nullptr;
 }
 
 // Test that blacklisted SRV records aren't chosen
@@ -363,3 +516,58 @@ TEST_F(BaseResolverTest, SRVRecordFailedResolution)
 {
   EXPECT_EQ("", srv_resolve("_diameter._sctp.cpp-common-test.cw-ngv.com"));
 }
+
+// Test that SimpleAddrIterator's next method works correctly
+TEST(SimpleAddrIterator, NextMethod)
+{
+  std::vector<AddrInfo> targets;
+  AddrInfo ai = ResolverTest::ip_to_addr_info("3.0.0.1");
+  targets.push_back(ai);
+
+  SimpleAddrIterator addr_it(targets);
+  AddrInfo target;
+
+  // Check that target is set and true is returned when a target is available.
+  EXPECT_TRUE(addr_it.next(target));
+  EXPECT_EQ(target, ai);
+
+  // Check that target is left unchanged and false is returned when a target is
+  // not available.
+  EXPECT_FALSE(addr_it.next(target));
+  EXPECT_EQ(target, ai);
+}
+
+// Test that SimpleAddrIterator returns elements of its target vector in order
+TEST(SimpleAddrIterator, ReturnsInOrder)
+{
+  std::vector<AddrInfo> targets;
+  AddrInfo ai_1 = ResolverTest::ip_to_addr_info("3.0.0.1");
+  targets.push_back(ai_1);
+  AddrInfo ai_2 = ResolverTest::ip_to_addr_info("3.0.0.2");
+  targets.push_back(ai_2);
+
+  SimpleAddrIterator addr_it(targets);
+  AddrInfo target;
+
+  addr_it.next(target);
+  EXPECT_EQ(target, ai_1);
+
+  addr_it.next(target);
+  EXPECT_EQ(target, ai_2);
+}
+
+// Test that SimpleAddrIterator functions correctly when too many targets are
+// requested
+TEST(SimpleAddrIterator, TooManyTargetsRequested)
+{
+  std::vector<AddrInfo> targets_in;
+  AddrInfo ai = ResolverTest::ip_to_addr_info("3.0.0.1");
+  targets_in.push_back(ai);
+
+  SimpleAddrIterator addr_it(targets_in);
+  std::vector<AddrInfo> targets_out = addr_it.take(2);
+
+  ASSERT_EQ(targets_out.size(), 1);
+  EXPECT_EQ(targets_out[0], ai);
+}
+

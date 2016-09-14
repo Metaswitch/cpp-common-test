@@ -63,7 +63,7 @@ public:
   virtual std::vector<AddrInfo> resolve(int max_targets) = 0;
 
   /// Creates and returns an AddrInfo object with the given data.
-  AddrInfo ip_to_addr_info(std::string address_str,
+  static AddrInfo ip_to_addr_info(std::string address_str,
                            int port = TEST_PORT,
                            int transport = TEST_TRANSPORT);
 
