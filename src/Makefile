@@ -7,6 +7,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 base64.cpp \
                                 base_communication_monitor.cpp \
                                 baseresolver.cpp \
+                                cassandra_connection_pool.cpp \
                                 cassandra_store.cpp \
                                 chronosconnection.cpp \
                                 communicationmonitor.cpp \
@@ -20,7 +21,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 http_connection_pool.cpp \
                                 httpclient.cpp \
                                 httpconnection.cpp \
-                                httpresolver.cpp \
+                                a_record_resolver.cpp \
                                 httpstack.cpp \
                                 httpstack_utils.cpp \
                                 json_alarms.cpp \
