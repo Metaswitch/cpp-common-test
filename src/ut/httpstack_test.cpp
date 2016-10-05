@@ -58,7 +58,7 @@ public:
   HttpStackTest()
   {
     cwtest_release_curl();
-    _stack = NULL;
+    _stack = new HttpStack(1, NULL);
     _host = "127.0.0.1";
     _port = 16384 + (getpid() % 16384);
     std::stringstream ss;
@@ -68,30 +68,21 @@ public:
 
   ~HttpStackTest()
   {
-    if (_stack != NULL)
-    {
-      stop_stack();
-    }
-
+    delete _stack; _stack = NULL;
     cwtest_control_curl();
   }
 
   void start_stack(std::string host = "")
   {
-    // Store the HttpStack in a local variable first, so _stack is
-    // either NULL or fully initialised.
-    HttpStack* lstack = HttpStack::get_instance();
-    lstack->initialize();
-    lstack->configure((host == "" ? _host.c_str() : host.c_str()), _port, 1, NULL);
-    lstack->start();
-    _stack = lstack;
+    _stack->initialize();
+    _stack->bind_tcp_socket((host == "" ? _host.c_str() : host.c_str()), _port);
+    _stack->start();
   }
 
   void stop_stack()
   {
     _stack->stop();
     _stack->wait_stopped();
-    _stack = NULL;
   }
 
   int get(const std::string& path,
@@ -173,24 +164,17 @@ public:
 
     // Store the HttpStack in a local variable first, so _stack is
     // either NULL or fully initialised.
-    HttpStack* lstack = HttpStack::get_instance();
-    lstack->initialize();
-    lstack->configure(_host.c_str(), _port, 1, NULL, NULL, &_load_monitor, _stats_manager);
-    lstack->start();
-    _stack = lstack;
+    _stack = new HttpStack(1, NULL, NULL, &_load_monitor, _stats_manager);
 
     cwtest_completely_control_time();
   }
   virtual ~HttpStackStatsTest()
   {
     cwtest_reset_time();
-    stop_stack();
     cwtest_control_curl();
-    delete _stats_manager;
-  }
 
-  void start_stack()
-  {
+    delete _stats_manager;
+    delete _stack; _stack = NULL;
   }
 
 private:
@@ -317,6 +301,8 @@ TEST_F(HttpStackTest, SASCorrelationHeader)
 
 TEST_F(HttpStackStatsTest, SuccessfulRequest)
 {
+  start_stack();
+
   SlowHandler handler;
   _stack->register_handler("^/BasicHandler$", &handler);
 
@@ -330,10 +316,14 @@ TEST_F(HttpStackStatsTest, SuccessfulRequest)
   EXPECT_EQ(1, _stats_manager->_latency_us->_count);
   ASSERT_EQ(CURLE_OK, rc);
   ASSERT_EQ(200, status);
+
+  stop_stack();
 }
 
 TEST_F(HttpStackStatsTest, RejectOverload)
 {
+  start_stack();
+
   BasicHandler handler;
   _stack->register_handler("^/BasicHandler$", &handler);
 
@@ -346,10 +336,14 @@ TEST_F(HttpStackStatsTest, RejectOverload)
   EXPECT_EQ(1, _stats_manager->_rejected_overload->_count);
   ASSERT_EQ(CURLE_OK, rc);
   ASSERT_EQ(503, status);  // Request is rejected with a 503.
+
+  stop_stack();
 }
 
 TEST_F(HttpStackStatsTest, LatencyPenalties)
 {
+  start_stack();
+
   PenaltyHandler handler;
   _stack->register_handler("^/BasicHandler$", &handler);
 
@@ -364,4 +358,6 @@ TEST_F(HttpStackStatsTest, LatencyPenalties)
   EXPECT_EQ(1, _stats_manager->_latency_us->_count);
   ASSERT_EQ(CURLE_OK, rc);
   ASSERT_EQ(200, status);
+
+  stop_stack();
 }
