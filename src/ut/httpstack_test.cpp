@@ -44,6 +44,10 @@
 #include "fakesimplestatsmanager.hpp"
 #include "mock_sas.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 using ::testing::Return;
 using ::testing::StrictMock;
 using ::testing::_;
@@ -64,6 +68,7 @@ public:
     std::stringstream ss;
     ss << "http://" << _host << ":" << _port;
     _url_prefix = ss.str();
+    _socket_path = "/tmp/test-http-socket." + std::to_string(getpid());
   }
 
   virtual ~HttpStackTest()
@@ -76,6 +81,13 @@ public:
   {
     _stack->initialize();
     _stack->bind_tcp_socket((host == "" ? _host.c_str() : host.c_str()), _port);
+    _stack->start();
+  }
+
+  void start_stack_unix(std::string path = "")
+  {
+    _stack->initialize();
+    _stack->bind_unix_socket(path.empty() ? _socket_path : path);
     _stack->start();
   }
 
@@ -151,6 +163,7 @@ private:
   std::string _host;
   int _port;
   std::string _url_prefix;
+  std::string _socket_path;
 };
 
 class HttpStackStatsTest : public HttpStackTest
@@ -229,7 +242,6 @@ TEST_F(HttpStackTest, SimpleMainlinIPv6)
 
 TEST_F(HttpStackTest, NoHandler)
 {
-  cwtest_release_curl();
   start_stack();
 
   int status;
@@ -239,7 +251,6 @@ TEST_F(HttpStackTest, NoHandler)
   ASSERT_EQ(404, status);
 
   stop_stack();
-  cwtest_control_curl();
 }
 
 TEST_F(HttpStackTest, SimpleHandler)
@@ -290,6 +301,43 @@ TEST_F(HttpStackTest, SASCorrelationHeader)
 
   stop_stack();
   mock_sas_collect_messages(false);
+}
+
+// Test binding to a unix socket.
+TEST_F(HttpStackTest, BindUnixSocket)
+{
+  start_stack_unix();
+
+  // The version of curl that comes with Ubuntu 14.04 does not support talking
+  // to unix domain sockets. Instead we just check that the Http stack has
+  // created a socket file in the expected place.
+  struct stat fileinfo;
+  int rc = stat(_socket_path.c_str(), &fileinfo);
+  EXPECT_EQ(rc, 0);
+  EXPECT_NE(fileinfo.st_mode & S_IFSOCK, 0);
+
+  stop_stack();
+}
+
+// Test rebinding to a unix socket (e.g. if the process that uses the HttpStack
+// restarts unexpectedly). This checks that the stack overwrites any
+// pre-existing unix domain socket.
+TEST_F(HttpStackTest, RebindUnixSocket)
+{
+  // Start and stop the stack. This happens to leave a socket file left over. We
+  // check this, as it's important to the rest of the test.
+  start_stack_unix();
+  stop_stack();
+
+  struct stat fileinfo;
+  int rc = stat(_socket_path.c_str(), &fileinfo);
+  EXPECT_EQ(rc, 0);
+  EXPECT_EQ(fileinfo.st_mode & S_IFSOCK, S_IFSOCK);
+
+  // Check that restarting the stack works. If the stack cannot bind the socket
+  // this will throw an exception.
+  start_stack_unix();
+  stop_stack();
 }
 
 TEST_F(HttpStackStatsTest, SuccessfulRequest)
