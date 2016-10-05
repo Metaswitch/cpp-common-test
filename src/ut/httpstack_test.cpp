@@ -66,7 +66,7 @@ public:
     _url_prefix = ss.str();
   }
 
-  ~HttpStackTest()
+  virtual ~HttpStackTest()
   {
     delete _stack; _stack = NULL;
     cwtest_control_curl();
@@ -156,31 +156,24 @@ private:
 class HttpStackStatsTest : public HttpStackTest
 {
 public:
-  HttpStackStatsTest()
+  HttpStackStatsTest() : HttpStackTest()
   {
-    cwtest_release_curl();
-
-    _stats_manager = new FakeSimpleStatsManager();
-
-    // Store the HttpStack in a local variable first, so _stack is
-    // either NULL or fully initialised.
-    _stack = new HttpStack(1, NULL, NULL, &_load_monitor, _stats_manager);
+    // Replace the stack with a version that has a stats manager.
+    delete _stack; _stack = NULL;
+    _stack = new HttpStack(1, NULL, NULL, &_load_monitor, &_stats_manager);
 
     cwtest_completely_control_time();
   }
+
   virtual ~HttpStackStatsTest()
   {
     cwtest_reset_time();
-    cwtest_control_curl();
-
-    delete _stats_manager;
-    delete _stack; _stack = NULL;
   }
 
 private:
   // Strict mocks - we only allow method calls that the test explicitly expects.
   StrictMock<MockLoadMonitor> _load_monitor;
-  FakeSimpleStatsManager* _stats_manager;
+  FakeSimpleStatsManager _stats_manager;
 };
 
 // Basic handler.
@@ -312,8 +305,8 @@ TEST_F(HttpStackStatsTest, SuccessfulRequest)
   int status;
   std::string response;
   int rc = get("/BasicHandler", status, response);
-  EXPECT_EQ(1, _stats_manager->_incoming_requests->_count);
-  EXPECT_EQ(1, _stats_manager->_latency_us->_count);
+  EXPECT_EQ(1, _stats_manager._incoming_requests->_count);
+  EXPECT_EQ(1, _stats_manager._latency_us->_count);
   ASSERT_EQ(CURLE_OK, rc);
   ASSERT_EQ(200, status);
 
@@ -332,8 +325,8 @@ TEST_F(HttpStackStatsTest, RejectOverload)
   int status;
   std::string response;
   int rc = get("/BasicHandler", status, response);
-  EXPECT_EQ(1, _stats_manager->_incoming_requests->_count);
-  EXPECT_EQ(1, _stats_manager->_rejected_overload->_count);
+  EXPECT_EQ(1, _stats_manager._incoming_requests->_count);
+  EXPECT_EQ(1, _stats_manager._rejected_overload->_count);
   ASSERT_EQ(CURLE_OK, rc);
   ASSERT_EQ(503, status);  // Request is rejected with a 503.
 
@@ -354,8 +347,8 @@ TEST_F(HttpStackStatsTest, LatencyPenalties)
   int status;
   std::string response;
   int rc = get("/BasicHandler", status, response);
-  EXPECT_EQ(1, _stats_manager->_incoming_requests->_count);
-  EXPECT_EQ(1, _stats_manager->_latency_us->_count);
+  EXPECT_EQ(1, _stats_manager._incoming_requests->_count);
+  EXPECT_EQ(1, _stats_manager._latency_us->_count);
   ASSERT_EQ(CURLE_OK, rc);
   ASSERT_EQ(200, status);
 
