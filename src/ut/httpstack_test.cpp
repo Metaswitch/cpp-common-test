@@ -44,6 +44,10 @@
 #include "fakesimplestatsmanager.hpp"
 #include "mock_sas.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 using ::testing::Return;
 using ::testing::StrictMock;
 using ::testing::_;
@@ -58,40 +62,39 @@ public:
   HttpStackTest()
   {
     cwtest_release_curl();
-    _stack = NULL;
+    _stack = new HttpStack(1, NULL);
     _host = "127.0.0.1";
     _port = 16384 + (getpid() % 16384);
     std::stringstream ss;
     ss << "http://" << _host << ":" << _port;
     _url_prefix = ss.str();
+    _socket_path = "/tmp/test-http-socket." + std::to_string(getpid());
   }
 
-  ~HttpStackTest()
+  virtual ~HttpStackTest()
   {
-    if (_stack != NULL)
-    {
-      stop_stack();
-    }
-
+    delete _stack; _stack = NULL;
     cwtest_control_curl();
   }
 
   void start_stack(std::string host = "")
   {
-    // Store the HttpStack in a local variable first, so _stack is
-    // either NULL or fully initialised.
-    HttpStack* lstack = HttpStack::get_instance();
-    lstack->initialize();
-    lstack->configure((host == "" ? _host.c_str() : host.c_str()), _port, 1, NULL);
-    lstack->start();
-    _stack = lstack;
+    _stack->initialize();
+    _stack->bind_tcp_socket((host == "" ? _host.c_str() : host.c_str()), _port);
+    _stack->start();
+  }
+
+  void start_stack_unix(std::string path = "")
+  {
+    _stack->initialize();
+    _stack->bind_unix_socket(path.empty() ? _socket_path : path);
+    _stack->start();
   }
 
   void stop_stack()
   {
     _stack->stop();
     _stack->wait_stopped();
-    _stack = NULL;
   }
 
   int get(const std::string& path,
@@ -160,43 +163,30 @@ private:
   std::string _host;
   int _port;
   std::string _url_prefix;
+  std::string _socket_path;
 };
 
 class HttpStackStatsTest : public HttpStackTest
 {
 public:
-  HttpStackStatsTest()
+  HttpStackStatsTest() : HttpStackTest()
   {
-    cwtest_release_curl();
-
-    _stats_manager = new FakeSimpleStatsManager();
-
-    // Store the HttpStack in a local variable first, so _stack is
-    // either NULL or fully initialised.
-    HttpStack* lstack = HttpStack::get_instance();
-    lstack->initialize();
-    lstack->configure(_host.c_str(), _port, 1, NULL, NULL, &_load_monitor, _stats_manager);
-    lstack->start();
-    _stack = lstack;
+    // Replace the stack with a version that has a stats manager.
+    delete _stack; _stack = NULL;
+    _stack = new HttpStack(1, NULL, NULL, &_load_monitor, &_stats_manager);
 
     cwtest_completely_control_time();
   }
+
   virtual ~HttpStackStatsTest()
   {
     cwtest_reset_time();
-    stop_stack();
-    cwtest_control_curl();
-    delete _stats_manager;
-  }
-
-  void start_stack()
-  {
   }
 
 private:
   // Strict mocks - we only allow method calls that the test explicitly expects.
   StrictMock<MockLoadMonitor> _load_monitor;
-  FakeSimpleStatsManager* _stats_manager;
+  FakeSimpleStatsManager _stats_manager;
 };
 
 // Basic handler.
@@ -252,7 +242,6 @@ TEST_F(HttpStackTest, SimpleMainlinIPv6)
 
 TEST_F(HttpStackTest, NoHandler)
 {
-  cwtest_release_curl();
   start_stack();
 
   int status;
@@ -262,7 +251,6 @@ TEST_F(HttpStackTest, NoHandler)
   ASSERT_EQ(404, status);
 
   stop_stack();
-  cwtest_control_curl();
 }
 
 TEST_F(HttpStackTest, SimpleHandler)
@@ -315,8 +303,47 @@ TEST_F(HttpStackTest, SASCorrelationHeader)
   mock_sas_collect_messages(false);
 }
 
+// Test binding to a unix socket.
+TEST_F(HttpStackTest, BindUnixSocket)
+{
+  start_stack_unix();
+
+  // The version of curl that comes with Ubuntu 14.04 does not support talking
+  // to unix domain sockets. Instead we just check that the Http stack has
+  // created a socket file in the expected place.
+  struct stat fileinfo;
+  int rc = stat(_socket_path.c_str(), &fileinfo);
+  EXPECT_EQ(rc, 0);
+  EXPECT_NE(fileinfo.st_mode & S_IFSOCK, 0);
+
+  stop_stack();
+}
+
+// Test rebinding to a unix socket (e.g. if the process that uses the HttpStack
+// restarts unexpectedly). This checks that the stack overwrites any
+// pre-existing unix domain socket.
+TEST_F(HttpStackTest, RebindUnixSocket)
+{
+  // Start and stop the stack. This happens to leave a socket file left over. We
+  // check this, as it's important to the rest of the test.
+  start_stack_unix();
+  stop_stack();
+
+  struct stat fileinfo;
+  int rc = stat(_socket_path.c_str(), &fileinfo);
+  EXPECT_EQ(rc, 0);
+  EXPECT_EQ(fileinfo.st_mode & S_IFSOCK, S_IFSOCK);
+
+  // Check that restarting the stack works. If the stack cannot bind the socket
+  // this will throw an exception.
+  start_stack_unix();
+  stop_stack();
+}
+
 TEST_F(HttpStackStatsTest, SuccessfulRequest)
 {
+  start_stack();
+
   SlowHandler handler;
   _stack->register_handler("^/BasicHandler$", &handler);
 
@@ -326,14 +353,18 @@ TEST_F(HttpStackStatsTest, SuccessfulRequest)
   int status;
   std::string response;
   int rc = get("/BasicHandler", status, response);
-  EXPECT_EQ(1, _stats_manager->_incoming_requests->_count);
-  EXPECT_EQ(1, _stats_manager->_latency_us->_count);
+  EXPECT_EQ(1, _stats_manager._incoming_requests->_count);
+  EXPECT_EQ(1, _stats_manager._latency_us->_count);
   ASSERT_EQ(CURLE_OK, rc);
   ASSERT_EQ(200, status);
+
+  stop_stack();
 }
 
 TEST_F(HttpStackStatsTest, RejectOverload)
 {
+  start_stack();
+
   BasicHandler handler;
   _stack->register_handler("^/BasicHandler$", &handler);
 
@@ -342,14 +373,18 @@ TEST_F(HttpStackStatsTest, RejectOverload)
   int status;
   std::string response;
   int rc = get("/BasicHandler", status, response);
-  EXPECT_EQ(1, _stats_manager->_incoming_requests->_count);
-  EXPECT_EQ(1, _stats_manager->_rejected_overload->_count);
+  EXPECT_EQ(1, _stats_manager._incoming_requests->_count);
+  EXPECT_EQ(1, _stats_manager._rejected_overload->_count);
   ASSERT_EQ(CURLE_OK, rc);
   ASSERT_EQ(503, status);  // Request is rejected with a 503.
+
+  stop_stack();
 }
 
 TEST_F(HttpStackStatsTest, LatencyPenalties)
 {
+  start_stack();
+
   PenaltyHandler handler;
   _stack->register_handler("^/BasicHandler$", &handler);
 
@@ -360,8 +395,10 @@ TEST_F(HttpStackStatsTest, LatencyPenalties)
   int status;
   std::string response;
   int rc = get("/BasicHandler", status, response);
-  EXPECT_EQ(1, _stats_manager->_incoming_requests->_count);
-  EXPECT_EQ(1, _stats_manager->_latency_us->_count);
+  EXPECT_EQ(1, _stats_manager._incoming_requests->_count);
+  EXPECT_EQ(1, _stats_manager._latency_us->_count);
   ASSERT_EQ(CURLE_OK, rc);
   ASSERT_EQ(200, status);
+
+  stop_stack();
 }
