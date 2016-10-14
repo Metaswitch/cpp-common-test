@@ -1,0 +1,15 @@
+{
+  "one.extra.domain": [
+    {
+      "rrtype": "CNAME",
+      "target": "one.made.up.domain"
+    }
+  ],
+  "two.extra.domain": [
+    {
+      "rrtype": "CNAME",
+      "target": "two.made.up.domain"
+    }
+THIS IS NOT VALID JSON
+}
+

@@ -1,0 +1,19 @@
+{
+  "one.duplicated.domain": [
+    {
+      "rrtype": "CNAME",
+      "target": "one.made.up.domain"
+    },
+    {
+      "rrtype": "CNAME",
+      "target": "two.made.up.domain"
+    }
+  ],
+  "one.duplicated.domain": [
+    {
+      "rrtype": "CNAME",
+      "target": "three.made.up.domain"
+    }
+  ]
+}
+

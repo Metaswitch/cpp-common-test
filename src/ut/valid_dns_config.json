@@ -1,0 +1,21 @@
+{
+  "one.extra.domain": [
+    {
+      "rrtype": "CNAME",
+      "target": "one.made.up.domain"
+    }
+  ],
+  "two.extra.domain": [
+    {
+      "rrtype": "CNAME",
+      "target": "two.made.up.domain"
+    }
+  ],
+  "three.extra.domain": [
+    {
+      "rrtype": "CNAME",
+      "target": "three.made.up.domain"
+    }
+  ]
+}
+
