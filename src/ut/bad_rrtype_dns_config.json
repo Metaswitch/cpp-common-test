@@ -1,0 +1,16 @@
+{
+  "one.redirected.domain": [
+    {
+      "target": "a.different.target"
+    },
+    {
+      "rrtype": "A",
+      "target": "10.10.10.10"
+    },
+    {
+      "rrtype": "CNAME",
+      "target": "one.made.up.domain"
+    }
+  ]
+}
+

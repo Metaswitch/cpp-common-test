@@ -182,3 +182,18 @@ TEST_F(DnsCachedResolverTest, DuplicateJson)
   EXPECT_EQ(result.domain(), "one.made.up.domain");
   EXPECT_EQ(result.records().size(), 1);
 }
+
+TEST_F(DnsCachedResolverTest, JsonBadRrtype)
+{
+  TestDnsCachedResolver resolver(string(UT_DIR).append("/bad_rrtype_dns_config.json"));
+  resolver.add_fake_entries_to_cache();
+
+  DnsResult result = resolver.dns_query("one.redirected.domain", ns_t_a, 0);
+
+  // The first entry with a missing "rrtype" member and the A record should have
+  // been skipped, but the valid CNAME record should have been read in
+  EXPECT_EQ(resolver.static_records().size(), 1);
+  EXPECT_EQ(resolver.static_records().at("one.redirected.domain").size(), 1);
+  EXPECT_EQ(result.domain(), "one.made.up.domain");
+  EXPECT_EQ(result.records().size(), 1);
+}
