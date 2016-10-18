@@ -1,15 +1,20 @@
 {
-  "one.redirected.domain": [
+  "hostnames": [
     {
-      "target": "a.different.target"
-    },
-    {
-      "rrtype": "A",
-      "target": "10.10.10.10"
-    },
-    {
-      "rrtype": "CNAME",
-      "target": "one.made.up.domain"
+      "name": "one.redirected.domain",
+      "records": [
+        {
+          "target": "one.made.up.domain"
+        },
+        {
+          "rrtype": "A",
+          "target": "10.10.10.10"
+        },
+        {
+          "rrtype": "CNAME",
+          "target": "one.made.up.domain"
+        }
+      ]
     }
   ]
 }

@@ -1,15 +1,14 @@
 {
-  "one.extra.domain": [
+  "hostnames": [
     {
-      "rrtype": "CNAME",
-      "target": "one.made.up.domain"
+      "name": "one.extra.domain",
+      "records": [
+        {
+          "rrtype": "CNAME",
+          "target": "one.made.up.domain"
+        }
+      ]
     }
-  ],
-  "two.extra.domain": [
-    {
-      "rrtype": "CNAME",
-      "target": "two.made.up.domain"
-    }
-THIS IS NOT VALID JSON
+INVALID JSON
+  ]
 }
-
