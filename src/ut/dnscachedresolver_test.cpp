@@ -49,6 +49,8 @@ class TestDnsCachedResolver : public  DnsCachedResolver
   TestDnsCachedResolver(string filename) :
     DnsCachedResolver({"0.0.0.0"}, filename)
   {
+    reload_static_records();
+    add_fake_entries_to_cache();
   }
 
   // Adds some A records to the cache
@@ -97,7 +99,6 @@ public:
 TEST_F(DnsCachedResolverTest, SingleRecordLookup)
 {
   TestDnsCachedResolver resolver("");
-  resolver.add_fake_entries_to_cache();
 
   string domain = "one.made.up.domain";
   DnsResult result = resolver.dns_query(domain, ns_t_a, 0);
@@ -109,7 +110,6 @@ TEST_F(DnsCachedResolverTest, SingleRecordLookup)
 TEST_F(DnsCachedResolverTest, NoRecordLookup)
 {
   TestDnsCachedResolver resolver("");
-  resolver.add_fake_entries_to_cache();
 
   string domain = "nonexistent.made.up.domain";
   DnsResult result = resolver.dns_query(domain, ns_t_a, 0);
@@ -121,7 +121,6 @@ TEST_F(DnsCachedResolverTest, NoRecordLookup)
 TEST_F(DnsCachedResolverTest, MissingJson)
 {
   TestDnsCachedResolver resolver(string(UT_DIR).append("/nonexistent_file.json"));
-  resolver.add_fake_entries_to_cache();
 
   EXPECT_EQ(resolver.static_records().size(), 0);
 }
@@ -129,7 +128,6 @@ TEST_F(DnsCachedResolverTest, MissingJson)
 TEST_F(DnsCachedResolverTest, ValidJson)
 {
   TestDnsCachedResolver resolver(string(UT_DIR).append("/valid_dns_config.json"));
-  resolver.add_fake_entries_to_cache();
 
   EXPECT_EQ(resolver.static_records().size(), 3);
 }
@@ -137,7 +135,6 @@ TEST_F(DnsCachedResolverTest, ValidJson)
 TEST_F(DnsCachedResolverTest, InvalidJson)
 {
   TestDnsCachedResolver resolver(string(UT_DIR).append("/invalid_dns_config.json"));
-  resolver.add_fake_entries_to_cache();
 
   EXPECT_EQ(resolver.static_records().size(), 0);
 }
@@ -145,7 +142,6 @@ TEST_F(DnsCachedResolverTest, InvalidJson)
 TEST_F(DnsCachedResolverTest, ValidJsonRedirectedLookup)
 {
   TestDnsCachedResolver resolver(string(UT_DIR).append("/valid_dns_config.json"));
-  resolver.add_fake_entries_to_cache();
 
   DnsResult result = resolver.dns_query("one.extra.domain", ns_t_a, 0);
 
@@ -158,7 +154,6 @@ TEST_F(DnsCachedResolverTest, ValidJsonRedirectedLookup)
 TEST_F(DnsCachedResolverTest, ValidJsonRedirectedLookupNoResult)
 {
   TestDnsCachedResolver resolver(string(UT_DIR).append("/valid_dns_config.json"));
-  resolver.add_fake_entries_to_cache();
 
   DnsResult result = resolver.dns_query("three.extra.domain", ns_t_a, 0);
 
@@ -171,7 +166,6 @@ TEST_F(DnsCachedResolverTest, ValidJsonRedirectedLookupNoResult)
 TEST_F(DnsCachedResolverTest, DuplicateJson)
 {
   TestDnsCachedResolver resolver(string(UT_DIR).append("/duplicate_dns_config.json"));
-  resolver.add_fake_entries_to_cache();
 
   DnsResult result = resolver.dns_query("one.duplicated.domain", ns_t_a, 0);
 
@@ -186,7 +180,6 @@ TEST_F(DnsCachedResolverTest, DuplicateJson)
 TEST_F(DnsCachedResolverTest, JsonBadRrtype)
 {
   TestDnsCachedResolver resolver(string(UT_DIR).append("/bad_rrtype_dns_config.json"));
-  resolver.add_fake_entries_to_cache();
 
   DnsResult result = resolver.dns_query("one.redirected.domain", ns_t_a, 0);
 
