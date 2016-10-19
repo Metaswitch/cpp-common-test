@@ -1,0 +1,32 @@
+{
+  "hostnames": [
+    {
+      "name": "one.extra.domain",
+      "records": [
+        {
+          "rrtype": "CNAME",
+          "target": "one.made.up.domain"
+        }
+      ]
+    },
+    {
+      "name": "two.extra.domain",
+      "records": [
+        {
+          "rrtype": "CNAME",
+          "target": "two.made.up.domain"
+        }
+      ]
+    },
+    {
+      "name": "three.extra.domain",
+      "records": [
+        {
+          "rrtype": "CNAME",
+          "target": "three.made.up.domain"
+        }
+      ]
+    }
+  ]
+}
+

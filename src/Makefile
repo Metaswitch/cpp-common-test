@@ -75,6 +75,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 chronosconnection_test.cpp \
                                 communicationmonitor_test.cpp \
                                 connection_pool_test.cpp \
+                                dnscachedresolver_test.cpp \
                                 diameterresolver_test.cpp \
                                 diameterstack_test.cpp \
                                 httpclient_test.cpp \
