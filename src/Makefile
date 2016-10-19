@@ -107,8 +107,6 @@ cpp_common_test_test_LDFLAGS := -L../usr/lib \
                                 -ldl \
                                 -lpthread \
                                 -lboost_regex \
-                                -lboost_thread \
-                                -lboost_system \
                                 -lzmq \
                                 -lcares \
                                 -levhtp \
