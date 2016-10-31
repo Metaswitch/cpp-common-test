@@ -224,3 +224,37 @@ TEST_F(ConnectionPoolTest, MoveConnectionHandle)
   EXPECT_CALL(conn_pool, destroy_connection(ai_1, 1)).Times(1);
   EXPECT_CALL(conn_pool, destroy_connection(ai_1, 2)).Times(1);
 }
+
+TEST_F(ConnectionPoolTest, FreeOnError)
+{
+  EXPECT_CALL(conn_pool, create_connection(ai_1)).Times(3)
+    .WillOnce(Return(1)).WillOnce(Return(2)).WillOnce(Return(3));
+
+  // Set the pool to free all connections to the same target on error
+  conn_pool.set_free_on_error(true);
+
+  // Check that the connections are correctly destroyed
+  EXPECT_CALL(conn_pool, destroy_connection(ai_1, 1)).Times(1);
+  EXPECT_CALL(conn_pool, destroy_connection(ai_1, 2)).Times(1);
+
+  {
+    // Create a connection that won't be returned on release
+    ConnectionHandle<int> conn_handle_1 = conn_pool.get_connection(ai_1);
+    conn_handle_1.set_return_to_pool(false);
+
+    // Create a connection, let it drop out of scope so it's returned to the pool
+    {
+      ConnectionHandle<int> conn_handle_2 = conn_pool.get_connection(ai_1);
+    }
+
+    // Confirm the connection is still in the pool
+    ConnectionHandle<int> conn_handle_3 = conn_pool.get_connection(ai_1);
+    EXPECT_EQ(conn_handle_3.get_connection(), 2);
+  }
+
+  // The next connection should be new
+  ConnectionHandle<int> conn_handle_4 = conn_pool.get_connection(ai_1);
+  EXPECT_EQ(conn_handle_4.get_connection(), 3);
+
+  EXPECT_CALL(conn_pool, destroy_connection(ai_1, 3)).Times(1);
+}
