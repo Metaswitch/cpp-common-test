@@ -224,3 +224,57 @@ TEST_F(ConnectionPoolTest, MoveConnectionHandle)
   EXPECT_CALL(conn_pool, destroy_connection(ai_1, 1)).Times(1);
   EXPECT_CALL(conn_pool, destroy_connection(ai_1, 2)).Times(1);
 }
+
+// Tests that the _free_on_error property correctly destroys other connections
+// to the same target when one is not returned to the pool
+TEST_F(ConnectionPoolTest, FreeOnError)
+{
+  EXPECT_CALL(conn_pool, create_connection(ai_1)).Times(3)
+    .WillOnce(Return(1)).WillOnce(Return(2)).WillOnce(Return(3));
+
+  EXPECT_CALL(conn_pool, create_connection(ai_2)).Times(1).WillOnce(Return(11));
+
+  // Set the pool to free all connections to the same target on error
+  conn_pool.set_free_on_error(true);
+
+  {
+    // Create a connection that won't be returned on release, but don't release
+    // it yet
+    ConnectionHandle<int> conn_handle_1 = conn_pool.get_connection(ai_1);
+    conn_handle_1.set_return_to_pool(false);
+
+    // Create a connection, let it drop out of scope so it's returned to the pool
+    {
+      ConnectionHandle<int> conn_handle_2 = conn_pool.get_connection(ai_1);
+    }
+
+    // Confirm the connection is still in the pool by getting a connection; it
+    // should be the one that was just returned to the pool.
+    {
+      ConnectionHandle<int> conn_handle_3 = conn_pool.get_connection(ai_1);
+      EXPECT_EQ(conn_handle_3.get_connection(), 2);
+    }
+
+    // Create a connection to a different target, should trigger creation of
+    // connection "11"
+    ConnectionHandle<int> conn_handle_target2_1 = conn_pool.get_connection(ai_2);
+    EXPECT_EQ(conn_handle_target2_1.get_connection(), 11);
+
+    // Now connection "1" is released and not returned to the pool, which should
+    // trigger "2" to be destroyed as well
+    EXPECT_CALL(conn_pool, destroy_connection(ai_1, 1)).Times(1);
+    EXPECT_CALL(conn_pool, destroy_connection(ai_1, 2)).Times(1);
+  }
+
+  // The pool should be empty, so this call triggers creation of a new one
+  ConnectionHandle<int> conn_handle_4 = conn_pool.get_connection(ai_1);
+  EXPECT_EQ(conn_handle_4.get_connection(), 3);
+
+  // Connection "11" should still be in the pool
+  ConnectionHandle<int> conn_handle_target2_2 = conn_pool.get_connection(ai_2);
+  EXPECT_EQ(conn_handle_target2_2.get_connection(), 11);
+
+  // Check that the connections are correctly destroyed
+  EXPECT_CALL(conn_pool, destroy_connection(ai_1, 3)).Times(1);
+  EXPECT_CALL(conn_pool, destroy_connection(ai_2, 11)).Times(1);
+}
