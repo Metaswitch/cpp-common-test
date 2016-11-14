@@ -122,6 +122,25 @@ class BaseResolverTest : public ResolverTest
   }
 };
 
+// Test that basic parsing of IP addresses works
+TEST_F(BaseResolverTest, ParseIPAddresses)
+{
+  AddrInfo ai;
+  ai.port = 80;
+  ai.transport = IPPROTO_TCP;
+
+  EXPECT_TRUE(_baseresolver.parse_ip_target("1.2.3.4", ai.address));
+  EXPECT_EQ("1.2.3.4:80;transport=TCP", ResolverUtils::addrinfo_to_string(ai));
+
+  EXPECT_TRUE(_baseresolver.parse_ip_target("1:2::2", ai.address));
+  EXPECT_EQ("[1:2::2]:80;transport=TCP", ResolverUtils::addrinfo_to_string(ai));
+
+  EXPECT_TRUE(_baseresolver.parse_ip_target("[1:2::2]", ai.address));
+  EXPECT_EQ("[1:2::2]:80;transport=TCP", ResolverUtils::addrinfo_to_string(ai));
+
+  EXPECT_FALSE(_baseresolver.parse_ip_target("1.2.3.4:8888", ai.address));
+}
+
 // Test that basic IPv4 resolution works
 TEST_F(BaseResolverTest, IPv4AddressResolution)
 {
