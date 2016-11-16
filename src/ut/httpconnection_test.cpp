@@ -138,6 +138,11 @@ class HttpConnectionBlacklistTest : public BaseTest
 
     fakecurl_responses["http://3.0.0.0:80/all_failure"] = CURLE_COULDNT_RESOLVE_HOST;
     fakecurl_responses["http://3.0.0.1:80/all_failure"] = CURLE_COULDNT_RESOLVE_HOST;
+
+    std::list<std::string> retry_after_header;
+    retry_after_header.push_back("Retry-After: 30");
+    fakecurl_responses["http://3.0.0.0:80/one_503_failure"] = Response(503, retry_after_header);
+    fakecurl_responses["http://3.0.0.1:80/one_503_failure"] = "<message>success</message>";
   }
 
   ~HttpConnectionBlacklistTest()
@@ -204,6 +209,19 @@ TEST_F(HttpConnectionBlacklistTest, BlacklistTestOneFailure)
 
   string output;
   _http->send_get("/one_failure", output, "", 0);
+}
+
+TEST_F(HttpConnectionBlacklistTest, BlacklistTestOne503Failure)
+{
+  std::vector<AddrInfo> targets = create_targets(2);
+
+  EXPECT_CALL(_resolver, resolve_iter(_,_,_)).
+    WillOnce(Return(new SimpleAddrIterator(targets)));
+  EXPECT_CALL(_resolver, blacklist(targets[0])).Times(1);
+  EXPECT_CALL(_resolver, success(targets[1])).Times(1);
+
+  string output;
+  _http->send_get("/one_503_failure", output, "", 0);
 }
 
 TEST_F(HttpConnectionBlacklistTest, BlacklistTestAllFailure)

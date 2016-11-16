@@ -200,6 +200,17 @@ public:
   }
 };
 
+// AcceptHandler. Deliberately distinct from BasicHandler.
+class AcceptHandler : public HttpStack::HandlerInterface
+{
+public:
+  void process_request(HttpStack::Request &req, SAS::TrailId trail)
+  {
+    req.add_content("Accepted");
+    req.send_reply(202, trail);
+  }
+};
+
 // A handler that takes a long time to process requests (to test latency
 // stats).
 const int DELAY_MS = 2000;
@@ -271,6 +282,33 @@ TEST_F(HttpStackTest, SimpleHandler)
   rc = get("/NoHandler", status, response);
   ASSERT_EQ(CURLE_OK, rc);
   ASSERT_EQ(404, status);
+
+  stop_stack();
+}
+
+TEST_F(HttpStackTest, DefaultHandler)
+{
+  start_stack();
+
+  BasicHandler handler;
+  _stack->register_handler("^/BasicHandler$", &handler);
+
+  AcceptHandler accept_handler;
+  _stack->register_default_handler(&accept_handler);
+
+  int status;
+  std::string response;
+  int rc = get("/BasicHandler", status, response);
+  ASSERT_EQ(CURLE_OK, rc);
+  ASSERT_EQ(200, status);
+  ASSERT_EQ("OK", response);
+
+  // Check that NoHandler URL is handled by the default AcceptHandler
+  std::string default_rsp;
+  rc = get("/NoHandler", status, default_rsp);
+  ASSERT_EQ(CURLE_OK, rc);
+  ASSERT_EQ(202, status);
+  ASSERT_EQ("Accepted", default_rsp);
 
   stop_stack();
 }
