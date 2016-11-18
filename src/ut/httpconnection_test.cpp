@@ -143,6 +143,11 @@ class HttpConnectionBlacklistTest : public BaseTest
     retry_after_header.push_back("Retry-After: 30");
     fakecurl_responses["http://3.0.0.0:80/one_503_failure"] = Response(503, retry_after_header);
     fakecurl_responses["http://3.0.0.1:80/one_503_failure"] = "<message>success</message>";
+
+    std::list<std::string> date_retry_after_header;
+    date_retry_after_header.push_back("Retry-After: Fri, 07 Nov 2014 23:59:59 GMT");
+    fakecurl_responses["http://3.0.0.0:80/one_date_503_failure"] = Response(503, date_retry_after_header);
+    fakecurl_responses["http://3.0.0.1:80/one_date_503_failure"] = "<message>success</message>";
   }
 
   ~HttpConnectionBlacklistTest()
@@ -217,11 +222,25 @@ TEST_F(HttpConnectionBlacklistTest, BlacklistTestOne503Failure)
 
   EXPECT_CALL(_resolver, resolve_iter(_,_,_)).
     WillOnce(Return(new SimpleAddrIterator(targets)));
-  EXPECT_CALL(_resolver, blacklist(targets[0])).Times(1);
+  EXPECT_CALL(_resolver, blacklist(targets[0], 30)).Times(1);
   EXPECT_CALL(_resolver, success(targets[1])).Times(1);
 
   string output;
   _http->send_get("/one_503_failure", output, "", 0);
+}
+
+// Note that the current impementation ignores the date in a Retry-After header
+TEST_F(HttpConnectionBlacklistTest, BlacklistTestOneDate503Failure)
+{
+  std::vector<AddrInfo> targets = create_targets(2);
+
+  EXPECT_CALL(_resolver, resolve_iter(_,_,_)).
+    WillOnce(Return(new SimpleAddrIterator(targets)));
+  EXPECT_CALL(_resolver, blacklist(targets[0])).Times(1);
+  EXPECT_CALL(_resolver, success(targets[1])).Times(1);
+
+  string output;
+  _http->send_get("/one_date_503_failure", output, "", 0);
 }
 
 TEST_F(HttpConnectionBlacklistTest, BlacklistTestAllFailure)
