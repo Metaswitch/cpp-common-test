@@ -281,7 +281,7 @@ TEST_F(HttpConnectionTest, SimpleKeyAuthGet)
   EXPECT_EQ(200, ret);
   EXPECT_EQ("<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>", output);
 
-  Request& req = fakecurl_requests["http://10.42.42.42:80/blah/blah/blah"];
+  Request& req = fakecurl_requests["http://cyrus:80/blah/blah/blah"];
 
   EXPECT_EQ("GET", req._method);
   EXPECT_FALSE(req._httpauth & CURLAUTH_DIGEST) << req._httpauth;
@@ -299,7 +299,7 @@ TEST_F(HttpConnectionTest, GetWithHeadersAndUsername)
   EXPECT_EQ(200, ret);
   EXPECT_EQ("<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>", output);
 
-  Request& req = fakecurl_requests["http://10.42.42.42:80/blah/blah/blah"];
+  Request& req = fakecurl_requests["http://cyrus:80/blah/blah/blah"];
 
   EXPECT_EQ("GET", req._method);
   EXPECT_FALSE(req._httpauth & CURLAUTH_DIGEST) << req._httpauth;
@@ -458,7 +458,7 @@ TEST_F(HttpConnectionTest, SASCorrelationHeader)
 
   _http->send_get("/blah/blah/blah", output, "gandalf", 0);
 
-  Request& req = fakecurl_requests["http://10.42.42.42:80/blah/blah/blah"];
+  Request& req = fakecurl_requests["http://cyrus:80/blah/blah/blah"];
 
   // The CURL request should contain an X-SAS-HTTP-Branch-ID whose value is a
   // UUID.
@@ -525,10 +525,10 @@ TEST_F(HttpConnectionTest, ParseHostPortIPv6)
                        _cm);
 
   string output;
-  long ret = http2.send_get("/blah/blah/blah", output, "gandalf", 0);
+  fakecurl_responses["http://[1::1]:80/ipv6get"] = CURLE_OK;
+  long ret = http2.send_get("/ipv6get", output, "gandalf", 0);
 
   EXPECT_EQ(200, ret);
-  EXPECT_EQ("<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>", output);
 }
 
 TEST_F(HttpConnectionTest, BasicResolverTest)

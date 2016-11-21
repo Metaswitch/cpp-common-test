@@ -100,7 +100,7 @@ TEST_F(HttpClientTest, SimpleGet)
   EXPECT_EQ(200, ret);
   EXPECT_EQ("<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>", output);
 
-  Request& req = fakecurl_requests["http://10.42.42.42:80/blah/blah/blah"];
+  Request& req = fakecurl_requests["http://cyrus:80/blah/blah/blah"];
 
   EXPECT_EQ("GET", req._method);
   EXPECT_FALSE(req._httpauth & CURLAUTH_DIGEST) << req._httpauth;
@@ -126,7 +126,7 @@ TEST_F(HttpClientTest, GetWithHeaders)
   EXPECT_EQ(200, ret);
   EXPECT_EQ("<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>", output);
 
-  Request& req = fakecurl_requests["http://10.42.42.42:80/blah/blah/blah"];
+  Request& req = fakecurl_requests["http://cyrus:80/blah/blah/blah"];
 
   // The CURL request should contain an "HttpClientTest" header whose value is
   // "true".
