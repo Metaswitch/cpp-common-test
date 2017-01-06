@@ -61,6 +61,7 @@ using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::StrictMock;
 using ::testing::Return;
+using ::testing::StrEq;
 
 /// Fixture for test.
 class HttpConnectionTest : public BaseTest
