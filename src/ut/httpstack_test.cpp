@@ -385,7 +385,7 @@ TEST_F(HttpStackTest, RealIPHeader)
   mock_sas_collect_messages(false);
 }
 
-// Check that the ProxiedSasLogger picks logs real IPs if X-Real-Ip header is missing
+// Check that the ProxiedSasLogger logs real IPs if X-Real-Ip header is missing
 TEST_F(HttpStackTest, NoRealIPHeader)
 {
   mock_sas_collect_messages(true);
