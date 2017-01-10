@@ -385,7 +385,7 @@ TEST_F(HttpStackTest, RealIPHeader)
   mock_sas_collect_messages(false);
 }
 
-// Check that the ProxiedSasLogger picks logs real IPs if not X-Real-Ip header is present
+// Check that the ProxiedSasLogger picks logs real IPs if X-Real-Ip header is missing
 TEST_F(HttpStackTest, NoRealIPHeader)
 {
   mock_sas_collect_messages(true);
@@ -406,6 +406,64 @@ TEST_F(HttpStackTest, NoRealIPHeader)
   MockSASMessage* message = mock_sas_find_event(SASEvent::RX_HTTP_REQ);
   EXPECT_TRUE(message != NULL);
   EXPECT_EQ(message->var_params[0], "127.0.0.1");
+
+  stop_stack();
+  mock_sas_collect_messages(false);
+}
+
+// Incorrectly formatted X-Real-Port header is handled safely
+TEST_F(HttpStackTest, BadRealPortHeader)
+{
+  mock_sas_collect_messages(true);
+  start_stack();
+
+  ProxiedHandler handler;
+  _stack->register_handler("^/ProxiedHandler$", &handler);
+
+  int status;
+  std::string response;
+  std::list<std::string> hdrs;
+  hdrs.push_back("X-Real-Ip: 12.34.56.78");
+  hdrs.push_back("X-Real-Port: hello");
+
+  int rc = get("/ProxiedHandler", status, response, &hdrs);
+  ASSERT_EQ(CURLE_OK, rc);
+  ASSERT_EQ(200, status);
+  ASSERT_EQ("OK", response);
+
+  MockSASMessage* message = mock_sas_find_event(SASEvent::RX_HTTP_REQ);
+  EXPECT_TRUE(message != NULL);
+  EXPECT_EQ(message->var_params[0], "12.34.56.78");
+  EXPECT_EQ(message->static_params[0], 0);
+
+  stop_stack();
+  mock_sas_collect_messages(false);
+}
+
+// Overflowing X-Real-Port header causes port = 0
+TEST_F(HttpStackTest, OverflowRealPortHeader)
+{
+  mock_sas_collect_messages(true);
+  start_stack();
+
+  ProxiedHandler handler;
+  _stack->register_handler("^/ProxiedHandler$", &handler);
+
+  int status;
+  std::string response;
+  std::list<std::string> hdrs;
+  hdrs.push_back("X-Real-Ip: 12.34.56.78");
+  hdrs.push_back("X-Real-Port: 999999999999999999999999999999");
+
+  int rc = get("/ProxiedHandler", status, response, &hdrs);
+  ASSERT_EQ(CURLE_OK, rc);
+  ASSERT_EQ(200, status);
+  ASSERT_EQ("OK", response);
+
+  MockSASMessage* message = mock_sas_find_event(SASEvent::RX_HTTP_REQ);
+  EXPECT_TRUE(message != NULL);
+  EXPECT_EQ(message->var_params[0], "12.34.56.78");
+  EXPECT_EQ(message->static_params[0], 0);
 
   stop_stack();
   mock_sas_collect_messages(false);
