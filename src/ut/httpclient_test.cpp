@@ -61,8 +61,6 @@ using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::StrictMock;
 
-const std::string BODY_OMITTED = "\r\n\r\n<Body present but not logged>";
-
 /// Fixture for test.
 /// Note that most of HttpClient's function is tested through the
 /// HttpConnection tests.

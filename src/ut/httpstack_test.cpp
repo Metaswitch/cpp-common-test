@@ -520,7 +520,6 @@ TEST_F(HttpStackTest, SasOmitBody)
   MockSASMessage* message = mock_sas_find_event(SASEvent::RX_HTTP_REQ);
   EXPECT_TRUE(message != NULL);
 
-  TRC_DEBUG("%s", message->var_params[3].c_str());
   bool req_body_omitted = (message->var_params[3].find(BODY_OMITTED) != std::string::npos);
   EXPECT_TRUE(req_body_omitted);
 
