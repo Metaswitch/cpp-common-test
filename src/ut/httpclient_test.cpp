@@ -159,6 +159,7 @@ TEST_F(HttpClientTest, SasOmitBody)
 {
   mock_sas_collect_messages(true);
   MockSASMessage* req_event;
+  MockSASMessage* rsp_event;
 
   std::map<std::string, std::string> headers;
   headers["HttpClientTest"] =  "true";
@@ -172,6 +173,12 @@ TEST_F(HttpClientTest, SasOmitBody)
 
   bool body_omitted = (req_event->var_params[2].find(BODY_OMITTED) != string::npos);
   EXPECT_TRUE(body_omitted);
+
+  rsp_event = mock_sas_find_event(SASEvent::RX_HTTP_RSP);
+  EXPECT_TRUE(req_event != NULL);
+
+  bool rsp_body_omitted = (rsp_event->var_params[2].find(BODY_OMITTED) != string::npos);
+  EXPECT_TRUE(rsp_body_omitted);
 
   mock_sas_collect_messages(false);
 }
