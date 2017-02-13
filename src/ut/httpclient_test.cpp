@@ -61,6 +61,8 @@ using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::StrictMock;
 
+const std::string BODY_OMITTED = "\r\n\r\n<Body present but not logged>";
+
 /// Fixture for test.
 /// Note that most of HttpClient's function is tested through the
 /// HttpConnection tests.
@@ -70,6 +72,7 @@ class HttpClientTest : public BaseTest
   AlarmManager* _am = new AlarmManager();
   NiceMock<MockCommunicationMonitor>* _cm = new NiceMock<MockCommunicationMonitor>(_am);
   HttpClient* _http;
+  HttpClient* _private_http;
   HttpClientTest() :
     _resolver("10.42.42.42")
   {
@@ -77,6 +80,14 @@ class HttpClientTest : public BaseTest
                            &_resolver,
                            SASEvent::HttpLogLevel::PROTOCOL,
                            _cm);
+
+    _private_http = new HttpClient(true,
+                                   &_resolver,
+                                   NULL,
+                                   NULL,
+                                   SASEvent::HttpLogLevel::PROTOCOL,
+                                   _cm,
+                                   true);
 
     fakecurl_responses.clear();
     fakecurl_responses["http://10.42.42.42:80/blah/blah/blah"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>";
@@ -87,6 +98,7 @@ class HttpClientTest : public BaseTest
     fakecurl_responses.clear();
     fakecurl_requests.clear();
     delete _http; _http = NULL;
+    delete _private_http; _private_http = NULL;
     delete _cm; _cm = NULL;
     delete _am; _am = NULL;
   }
@@ -142,4 +154,33 @@ TEST_F(HttpClientTest, GetWithHeaders)
   }
 
   EXPECT_TRUE(found_header);
+}
+
+// Check that the option to omit bodies from SAS logs works.
+TEST_F(HttpClientTest, SasOmitBody)
+{
+  mock_sas_collect_messages(true);
+  MockSASMessage* req_event;
+  MockSASMessage* rsp_event;
+
+  std::map<std::string, std::string> headers;
+  headers["HttpClientTest"] =  "true";
+  string test_body = "test body";
+
+  string output;
+  _private_http->send_post("http://cyrus/blah/blah/blah", headers, test_body, 0, "gandalf");
+
+  req_event = mock_sas_find_event(SASEvent::TX_HTTP_REQ);
+  EXPECT_TRUE(req_event != NULL);
+
+  bool body_omitted = (req_event->var_params[3].find(BODY_OMITTED) != string::npos);
+  EXPECT_TRUE(body_omitted);
+
+  rsp_event = mock_sas_find_event(SASEvent::RX_HTTP_RSP);
+  EXPECT_TRUE(rsp_event != NULL);
+
+  bool rsp_body_omitted = (rsp_event->var_params[3].find(BODY_OMITTED) != string::npos);
+  EXPECT_TRUE(rsp_body_omitted);
+
+  mock_sas_collect_messages(false);
 }

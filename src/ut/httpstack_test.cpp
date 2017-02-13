@@ -54,6 +54,7 @@ using ::testing::_;
 using ::testing::Gt;
 
 const SAS::TrailId FAKE_TRAIL_ID = 0x12345678;
+const std::string BODY_OMITTED = "\r\n\r\n<Body present but not logged>";
 
 /// Fixture for HttpStackTest.
 class HttpStackTest : public testing::Test
@@ -100,7 +101,8 @@ public:
   int get(const std::string& path,
           int& status,
           std::string& response,
-          std::list<std::string>* headers=NULL)
+          std::list<std::string>* headers=NULL,
+          bool add_body = false)
   {
     std::string url = _url_prefix + path;
     struct curl_slist *extra_headers = NULL;
@@ -114,6 +116,11 @@ public:
     proxy_curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &string_store);
     proxy_curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     proxy_curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+
+    if (add_body)
+    {
+      proxy_curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "test_body");
+    }
 
     if (headers && headers->size() > 0)
     {
@@ -149,6 +156,18 @@ public:
     curl_global_cleanup();
 
     return (int)rc;
+  }
+
+  int post(const std::string& path,
+           int& status,
+           std::string& response,
+           std::list<std::string>* headers=NULL)
+  {
+    return get(path,
+               status,
+               response,
+               NULL,
+               true);
   }
 
   HttpStack* _stack;
@@ -248,7 +267,22 @@ class ProxiedHandler : public HttpStack::HandlerInterface
 
   HttpStack::SasLogger* sas_logger(HttpStack::Request& req)
   {
-    return &HttpStack::PROXIED_SAS_LOGGER;
+    return &HttpStack::PROXIED_PRIVATE_SAS_LOGGER;
+  }
+};
+
+// A handler which sits behind an nginx reverse proxy and doesn't add anything
+// to the response body.
+class ProxiedNoBodyHandler : public HttpStack::HandlerInterface
+{
+  void process_request(HttpStack::Request &req, SAS::TrailId trail)
+  {
+    req.send_reply(200, trail);
+  }
+
+  HttpStack::SasLogger* sas_logger(HttpStack::Request& req)
+  {
+    return &HttpStack::PROXIED_PRIVATE_SAS_LOGGER;
   }
 };
 
@@ -356,7 +390,7 @@ TEST_F(HttpStackTest, SASCorrelationHeader)
   mock_sas_collect_messages(false);
 }
 
-// Check that the ProxiedSasLogger picks up X-Real-IP and X-Real-Port headers
+// Check that the ProxiedPrivateSasLogger picks up X-Real-IP and X-Real-Port headers
 TEST_F(HttpStackTest, RealIPHeader)
 {
   mock_sas_collect_messages(true);
@@ -464,6 +498,62 @@ TEST_F(HttpStackTest, OverflowRealPortHeader)
   EXPECT_TRUE(message != NULL);
   EXPECT_EQ(message->var_params[0], "12.34.56.78");
   EXPECT_EQ(message->static_params[0], 0);
+
+  stop_stack();
+  mock_sas_collect_messages(false);
+}
+
+// Check that the ProxiedPrivateSasLogger doesn't log bodies.
+TEST_F(HttpStackTest, SasOmitBody)
+{
+  mock_sas_collect_messages(true);
+  start_stack();
+
+  ProxiedHandler handler;
+  _stack->register_handler("^/ProxiedHandler$", &handler);
+
+  int status;
+  std::string response;
+
+  post("/ProxiedHandler", status, response);
+
+  MockSASMessage* message = mock_sas_find_event(SASEvent::RX_HTTP_REQ);
+  EXPECT_TRUE(message != NULL);
+
+  TRC_DEBUG("%s", message->var_params[3].c_str());
+  bool req_body_omitted = (message->var_params[3].find(BODY_OMITTED) != std::string::npos);
+  EXPECT_TRUE(req_body_omitted);
+
+  MockSASMessage* rsp_message = mock_sas_find_event(SASEvent::TX_HTTP_RSP);
+  EXPECT_TRUE(rsp_message != NULL);
+
+  bool rsp_body_ommitted = (rsp_message->var_params[3].find(BODY_OMITTED) != std::string::npos);
+  EXPECT_TRUE(rsp_body_ommitted);
+
+  stop_stack();
+  mock_sas_collect_messages(false);
+}
+
+// Check that the 'Body present but not logged' message doesn't
+// appear when there is no body to omit.
+TEST_F(HttpStackTest, SasNoBodyToOmit)
+{
+  mock_sas_collect_messages(true);
+  start_stack();
+
+  ProxiedNoBodyHandler handler;
+  _stack->register_handler("^/ProxiedNoBodyHandler$", &handler);
+
+  int status;
+  std::string response;
+
+  get("/ProxiedNoBodyHandler", status, response);
+
+  MockSASMessage* message = mock_sas_find_event(SASEvent::TX_HTTP_RSP);
+  EXPECT_TRUE(message != NULL);
+
+  bool body_omitted = (message->var_params[3].find(BODY_OMITTED) != std::string::npos);
+  EXPECT_FALSE(body_omitted);
 
   stop_stack();
   mock_sas_collect_messages(false);
