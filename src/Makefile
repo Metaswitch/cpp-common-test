@@ -90,7 +90,10 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 memcachedstorereview_test.cpp \
                                 realmmanager_test.cpp \
                                 timer_heap_test.cpp \
-                                utils_test.cpp
+                                utils_test.cpp \
+                                bloom_filter.cpp \
+                                siphash.cpp \
+                                bloom_filter_test.cpp
 
 cpp_common_test_test_CPPFLAGS := -Wno-write-strings \
                                  -I../usr/include \
