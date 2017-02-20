@@ -516,9 +516,8 @@ TEST_F(HttpStackTest, SasOmitBody)
 
   int status;
   std::string response;
-  std::string body = "test_body";
 
-  post("/ProxiedHandler", status, response, NULL, body);
+  post("/ProxiedHandler", status, response);
 
   MockSASMessage* message = mock_sas_find_event(SASEvent::RX_HTTP_REQ);
   EXPECT_TRUE(message != NULL);
