@@ -42,6 +42,15 @@
 using ::testing::Return;
 using ::testing::_;
 
+//
+// Bloom filter tests.
+//
+// Bloom filters are probabilistic data structures that can return incorrect
+// results (false positives), which means these tests can spuriously fail. There
+// isn't a good way around this, but the failure rate should be ~0.01%, which is
+// sufficiently low as not to be a problem.
+//
+
 TEST(BloomFilterTest, NewBloomFilterIsEmpty)
 {
   BloomFilter bf(10000, 1);
@@ -79,7 +88,7 @@ TEST(BloomFilterTest, TwoBitsPerItem)
 
 TEST(BloomFilterTest, ManyBitsPerItem)
 {
-  BloomFilter bf(10000, 10);
+  BloomFilter bf(100000, 10);
 
   bf.add("Kermit");
   bf.add("MissPiggy");
@@ -114,7 +123,7 @@ TEST(BloomFilterTest, BadConstructorArguments)
 
 TEST(BloomFilterTest, JsonSerializeDeserialize)
 {
-  BloomFilter bf(10000, 10);
+  BloomFilter bf(100000, 10);
 
   bf.add("Kermit");
   bf.add("MissPiggy");
@@ -131,7 +140,7 @@ TEST(BloomFilterTest, JsonSerializeDeserialize)
 
 TEST(BloomFilterTest, JsonSerializeDeserializeEmpty)
 {
-  BloomFilter bf(10000, 10);
+  BloomFilter bf(100000, 10);
 
   // Serialize and deserialize the bloom filter.
   BloomFilter* bf2 = BloomFilter::from_json(bf.to_json());
