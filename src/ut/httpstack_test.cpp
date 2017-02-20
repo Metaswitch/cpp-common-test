@@ -102,7 +102,7 @@ public:
           int& status,
           std::string& response,
           std::list<std::string>* headers=NULL,
-          bool add_body = false)
+          std::string body = "")
   {
     std::string url = _url_prefix + path;
     struct curl_slist *extra_headers = NULL;
@@ -117,9 +117,9 @@ public:
     proxy_curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     proxy_curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 
-    if (add_body)
+    if (body != "")
     {
-      proxy_curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "test_body");
+      proxy_curl_easy_setopt(curl, CURLOPT_POSTFIELDS, &body);
     }
 
     if (headers && headers->size() > 0)
@@ -158,16 +158,18 @@ public:
     return (int)rc;
   }
 
+  // Adds a body to the request, which turns the request into a POST.
   int post(const std::string& path,
            int& status,
            std::string& response,
-           std::list<std::string>* headers=NULL)
+           std::list<std::string>* headers=NULL,
+           std::string body = "test_body")
   {
     return get(path,
                status,
                response,
                NULL,
-               true);
+               body);
   }
 
   HttpStack* _stack;
@@ -514,8 +516,9 @@ TEST_F(HttpStackTest, SasOmitBody)
 
   int status;
   std::string response;
+  std::string body = "test_body";
 
-  post("/ProxiedHandler", status, response);
+  post("/ProxiedHandler", status, response, NULL, body);
 
   MockSASMessage* message = mock_sas_find_event(SASEvent::RX_HTTP_REQ);
   EXPECT_TRUE(message != NULL);

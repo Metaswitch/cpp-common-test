@@ -162,10 +162,9 @@ TEST_F(HttpClientTest, SasOmitBody)
   MockSASMessage* rsp_event;
 
   std::map<std::string, std::string> headers;
-  headers["HttpClientTest"] =  "true";
+  headers["HttpClientTest"] = "true";
   string test_body = "test body";
 
-  string output;
   _private_http->send_post("http://cyrus/blah/blah/blah", headers, test_body, 0, "gandalf");
 
   req_event = mock_sas_find_event(SASEvent::TX_HTTP_REQ);
@@ -179,6 +178,23 @@ TEST_F(HttpClientTest, SasOmitBody)
 
   bool rsp_body_omitted = (rsp_event->var_params[2].find(BODY_OMITTED) != string::npos);
   EXPECT_TRUE(rsp_body_omitted);
+
+  mock_sas_collect_messages(false);
+}
+
+// Check that the request is logged as normal if there is no body in the request to obscure.
+TEST_F(HttpClientTest, SasNoBodyToOmit)
+{
+  mock_sas_collect_messages(true);
+  std::map<std::string, std::string> headers;
+  headers["HttpClientTest"] = "true";
+  _private_http->send_post("http://cyrus/blah/blah/blah", headers, "", 0, "gandalf");
+
+  MockSASMessage* req_event = mock_sas_find_event(SASEvent::TX_HTTP_REQ);
+  EXPECT_TRUE(req_event != NULL);
+
+  bool body_omitted = (req_event->var_params[2].find(BODY_OMITTED) != string::npos);
+  EXPECT_FALSE(body_omitted);
 
   mock_sas_collect_messages(false);
 }
