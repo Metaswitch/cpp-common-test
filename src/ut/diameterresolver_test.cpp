@@ -283,8 +283,8 @@ TEST_F(DiameterResolverTest, SimpleAResolution)
 
 TEST_F(DiameterResolverTest, MinTtlEmptySRV)
 {
-  // Test that the correct minimum ttl is returned when multiple SRVs, one which
-  // is empty, are present.
+  // Test that the correct minimum ttl is returned when multiple SRVs, one of
+  // which is empty, are present.
   std::vector<DnsRRecord*> records;
   records.push_back(ResolverUtils::srv("_diameter._tcp.sprout.cw-ngv.com", 3600, 0, 0, 3868, "sprout-1.cw-ngv.com"));
   records.push_back(ResolverUtils::srv("_diameter._tcp.sprout.cw-ngv.com", 1200, 0, 0, 3868, "sprout-2.cw-ngv.com"));
@@ -301,8 +301,8 @@ TEST_F(DiameterResolverTest, MinTtlEmptySRV)
 
 TEST_F(DiameterResolverTest, MinTtlEmptyNAPTR)
  {
-  // Test that the correct minimum ttl is returned when multiple SRVs, one which
-  // is empty, are present.
+  // Test that the correct minimum ttl is returned when multiple NAPTRs, one of
+  // which is empty, are present.
   std::vector<DnsRRecord*> records;
   records.push_back(ResolverUtils::naptr("sprout.cw-ngv.com", 800, 0, 0, "", "AAA+D2S", "/", ""));
   records.push_back(ResolverUtils::naptr("sprout.cw-ngv.com", 3600, 0, 0, "s", "AAA+D2S", "", "_diameter._sctp.sprout-1.cw-ngv.com"));
