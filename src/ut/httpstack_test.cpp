@@ -258,8 +258,8 @@ public:
   }
 };
 
-// A handler which sits behind an nginx reverse proxy.
-class ProxiedHandler : public HttpStack::HandlerInterface
+// A handler which omits the body of requests in SAS logs.
+class PrivateHandler : public HttpStack::HandlerInterface
 {
   void process_request(HttpStack::Request &req, SAS::TrailId trail)
   {
@@ -269,16 +269,31 @@ class ProxiedHandler : public HttpStack::HandlerInterface
 
   HttpStack::SasLogger* sas_logger(HttpStack::Request& req)
   {
-    return &HttpStack::PROXIED_PRIVATE_SAS_LOGGER;
+    return &HttpStack::PRIVATE_SAS_LOGGER;
   }
 };
 
-// A handler which sits behind an nginx reverse proxy and doesn't add anything
-// to the response body.
-class ProxiedNoBodyHandler : public HttpStack::HandlerInterface
+// A handler which omits the body of requests in SAS logs and doesn't add
+// anything to the response body.
+class PrivateNoBodyHandler : public HttpStack::HandlerInterface
 {
   void process_request(HttpStack::Request &req, SAS::TrailId trail)
   {
+    req.send_reply(200, trail);
+  }
+
+  HttpStack::SasLogger* sas_logger(HttpStack::Request& req)
+  {
+    return &HttpStack::PRIVATE_SAS_LOGGER;
+  }
+};
+
+// A handler which sits behind an nginx reverse proxy.
+class ProxiedHandler : public HttpStack::HandlerInterface
+{
+  void process_request(HttpStack::Request &req, SAS::TrailId trail)
+  {
+    req.add_content("OK");
     req.send_reply(200, trail);
   }
 
@@ -505,19 +520,19 @@ TEST_F(HttpStackTest, OverflowRealPortHeader)
   mock_sas_collect_messages(false);
 }
 
-// Check that the ProxiedPrivateSasLogger doesn't log bodies.
+// Check that the PrivateSasLogger doesn't log bodies.
 TEST_F(HttpStackTest, SasOmitBody)
 {
   mock_sas_collect_messages(true);
   start_stack();
 
-  ProxiedHandler handler;
-  _stack->register_handler("^/ProxiedHandler$", &handler);
+  PrivateHandler handler;
+  _stack->register_handler("^/PrivateHandler$", &handler);
 
   int status;
   std::string response;
 
-  post("/ProxiedHandler", status, response);
+  post("/PrivateHandler", status, response);
 
   MockSASMessage* message = mock_sas_find_event(SASEvent::RX_HTTP_REQ);
   EXPECT_TRUE(message != NULL);
@@ -542,13 +557,13 @@ TEST_F(HttpStackTest, SasNoBodyToOmit)
   mock_sas_collect_messages(true);
   start_stack();
 
-  ProxiedNoBodyHandler handler;
-  _stack->register_handler("^/ProxiedNoBodyHandler$", &handler);
+  PrivateNoBodyHandler handler;
+  _stack->register_handler("^/PrivateNoBodyHandler$", &handler);
 
   int status;
   std::string response;
 
-  get("/ProxiedNoBodyHandler", status, response);
+  get("/PrivateNoBodyHandler", status, response);
 
   MockSASMessage* message = mock_sas_find_event(SASEvent::TX_HTTP_RSP);
   EXPECT_TRUE(message != NULL);
