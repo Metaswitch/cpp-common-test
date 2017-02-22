@@ -136,6 +136,8 @@ TEST(BloomFilterTest, JsonSerializeDeserialize)
   EXPECT_TRUE(bf2->check("MissPiggy"));
   EXPECT_FALSE(bf2->check("Gonzo"));
   EXPECT_FALSE(bf2->check("Animal"));
+
+  delete bf; bf = nullptr;
 }
 
 TEST(BloomFilterTest, JsonSerializeDeserializeEmpty)
@@ -150,6 +152,8 @@ TEST(BloomFilterTest, JsonSerializeDeserializeEmpty)
   EXPECT_FALSE(bf2->check("MissPiggy"));
   EXPECT_FALSE(bf2->check("Gonzo"));
   EXPECT_FALSE(bf2->check("Animal"));
+
+  delete bf; bf = nullptr;
 }
 
 TEST(BloomFilterTest, JsonDeserialize3rdParty)
@@ -169,6 +173,8 @@ TEST(BloomFilterTest, JsonDeserialize3rdParty)
   EXPECT_TRUE(bf->check("MissPiggy"));
   EXPECT_FALSE(bf->check("Gonzo"));
   EXPECT_FALSE(bf->check("Animal"));
+
+  delete bf; bf = nullptr;
 }
 
 TEST(BloomFilterTest, JsonDeserializeExtraFields)
@@ -189,6 +195,8 @@ TEST(BloomFilterTest, JsonDeserializeExtraFields)
   EXPECT_TRUE(bf->check("MissPiggy"));
   EXPECT_FALSE(bf->check("Gonzo"));
   EXPECT_FALSE(bf->check("Animal"));
+
+  delete bf; bf = nullptr;
 }
 
 TEST(BloomFilterTest, BadJson)
