@@ -137,7 +137,7 @@ TEST(BloomFilterTest, JsonSerializeDeserialize)
   EXPECT_FALSE(bf2->check("Gonzo"));
   EXPECT_FALSE(bf2->check("Animal"));
 
-  delete bf; bf = nullptr;
+  delete bf2; bf2 = nullptr;
 }
 
 TEST(BloomFilterTest, JsonSerializeDeserializeEmpty)
@@ -153,7 +153,7 @@ TEST(BloomFilterTest, JsonSerializeDeserializeEmpty)
   EXPECT_FALSE(bf2->check("Gonzo"));
   EXPECT_FALSE(bf2->check("Animal"));
 
-  delete bf; bf = nullptr;
+  delete bf2; bf2 = nullptr;
 }
 
 TEST(BloomFilterTest, JsonDeserialize3rdParty)
