@@ -43,6 +43,7 @@
 #include "diameterresolver.h"
 #include "test_utils.hpp"
 #include "resolver_utils.h"
+#include "test_interposer.hpp"
 
 using namespace std;
 
@@ -58,10 +59,12 @@ class DiameterResolverTest : public ::testing::Test
     _dnsresolver("0.0.0.0"),
     _diameterresolver(&_dnsresolver, AF_INET)
   {
+    cwtest_completely_control_time();
   }
 
   virtual ~DiameterResolverTest()
   {
+    cwtest_reset_time();
   }
 };
 
