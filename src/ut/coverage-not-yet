@@ -42,3 +42,6 @@ exception_handler.cpp
 namespace_hop.cpp
 base64.cpp
 unique.cpp
+
+# Reference implementation of the siphash algorithm - not our code.
+siphash.cpp
