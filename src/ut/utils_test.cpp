@@ -172,3 +172,103 @@ TEST_F(UtilsTest, RemoveBracketsFromBareIPv6Address)
 {
   EXPECT_EQ("::1", remove_brackets_from_ip("::1"));
 }
+
+TEST_F(UtilsTest, IsAWildcard)
+{
+  EXPECT_TRUE(is_wildcard_uri("sip:!.!*!@domain"));
+}
+
+TEST_F(UtilsTest, IsNotAWildcard)
+{
+  EXPECT_FALSE(is_wildcard_uri("sip:!.*@domain"));
+}
+
+TEST_F(UtilsTest, WildcardMatchSipURI)
+{
+  EXPECT_TRUE(uris_user_match("sip:!.*!@domain", "sip:scscf1@domain"));
+}
+
+TEST_F(UtilsTest, WildcardMatchTelURI)
+{
+  EXPECT_TRUE(uris_user_match("tel:!.*!", "tel:1234567890"));
+}
+
+TEST_F(UtilsTest, WildcardMatchTelURIWithParams)
+{
+  EXPECT_TRUE(uris_user_match("tel:!.*!", "tel:1234567890;param1;param2"));
+}
+
+TEST_F(UtilsTest, BracesWildcardMatch)
+{
+  EXPECT_TRUE(uris_user_match("tel:![4]{4}!", "tel:4444"));
+}
+
+TEST_F(UtilsTest, BracesWildcardMatchExtra)
+{
+  EXPECT_TRUE(uris_user_match("tel:![4]{4}!", "tel:44444"));
+}
+
+TEST_F(UtilsTest, BracketsWildcardMatch)
+{
+  EXPECT_TRUE(uris_user_match("tel:![0-9]+!", "tel:1234567890"));
+}
+
+TEST_F(UtilsTest, TypeWildcardMatch)
+{
+  EXPECT_TRUE(uris_user_match("sip:!^\\w+$!@domain", "sip:scscf@domain"));
+}
+
+TEST_F(UtilsTest, BraceWildcardNoMatch)
+{
+  EXPECT_FALSE(uris_user_match("tel:![4]{4}!", "tel:444"));
+}
+
+TEST_F(UtilsTest, BracketsWildcardNoMatch)
+{
+  EXPECT_FALSE(uris_user_match("tel:!^[^0]+$!", "tel:1000"));
+}
+
+TEST_F(UtilsTest, TypeWildcardNoMatch)
+{
+  EXPECT_FALSE(uris_user_match("tel:!^\\d+$!", "tel:12345notdigit"));
+}
+
+TEST_F(UtilsTest, NotAWildcard)
+{
+  EXPECT_TRUE(uris_user_match("sip:scscf@domain", "sip:scscf@domain"));
+}
+
+TEST_F(UtilsTest, NotAWildcardWithParams)
+{
+  EXPECT_TRUE(uris_user_match("sip:scscf@domain", "sip:scscf@domain;param1;param2"));
+}
+
+TEST_F(UtilsTest, NotAWildcardNoMatch)
+{
+  EXPECT_FALSE(uris_user_match("sip:scscf@domain", "sip:scscf123@domain"));
+}
+
+TEST_F(UtilsTest, WildcardNoMatchAtStart)
+{
+  EXPECT_FALSE(uris_user_match("sip:scscf!.*!@domain", "sip:icscfscscf@domain"));
+}
+
+TEST_F(UtilsTest, WildcardNoMatchAtEnd)
+{
+  EXPECT_FALSE(uris_user_match("sip:scscf!.*!@domain", "sip:scscf@newdomain"));
+}
+
+TEST_F(UtilsTest, MatchNoWildcardString)
+{
+  EXPECT_FALSE(uris_user_match("", "sip:scscf@newdomain"));
+}
+
+TEST_F(UtilsTest, WildcardNoMatchString)
+{
+  EXPECT_FALSE(uris_user_match("sip:scscf!.*!@domain", ""));
+}
+
+TEST_F(UtilsTest, WildcardNoMatchStartTooShort)
+{
+  EXPECT_FALSE(uris_user_match("sip:scscf!.*!@domain", "sip:"));
+}
