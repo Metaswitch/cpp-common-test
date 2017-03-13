@@ -93,7 +93,9 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 utils_test.cpp \
                                 bloom_filter.cpp \
                                 siphash.cpp \
-                                bloom_filter_test.cpp
+                                bloom_filter_test.cpp \
+                                wildcard_utils.cpp \
+                                wildcard_utils_test.cpp
 
 cpp_common_test_test_CPPFLAGS := -Wno-write-strings \
                                  -I../usr/include \
