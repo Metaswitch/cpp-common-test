@@ -36,7 +36,7 @@ class ChronosConnectionTest : public BaseTest
 
   ChronosConnectionTest() :
     _alarm_manager(new AlarmManager()),
-    _cm(new CommunicationMonitor(new Alarm(_alarm_manager, "sprout", AlarmDef::CPP_COMMON_FAKE_ALARM, AlarmDef::MAJOR), "sprout", "chronos"))
+    _cm(new CommunicationMonitor(new CMAlarmAdaptor(new Alarm(_alarm_manager, "sprout", AlarmDef::CPP_COMMON_FAKE_ALARM), AlarmDef::MAJOR, AlarmDef::MAJOR), "sprout", "chronos"))
   {
     _resolver._targets.push_back(FakeHttpResolver::create_target("10.42.42.42"));
     _chronos = new ChronosConnection("narcissus", "localhost:9888", &_resolver, _cm);
