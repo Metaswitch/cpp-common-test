@@ -22,7 +22,7 @@ using namespace std;
 class TestDnsCachedResolver : public  DnsCachedResolver
 {
   TestDnsCachedResolver(string filename) :
-    DnsCachedResolver({"0.0.0.0"}, filename)
+    DnsCachedResolver({"0.0.0.0"}, DnsCachedResolver::DEFAULT_TIMEOUT, filename)
   {
     reload_static_records();
     add_fake_entries_to_cache();
