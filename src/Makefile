@@ -56,6 +56,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 timer_heap.cpp \
                                 unique.cpp \
                                 utils.cpp \
+                                xml_utils.cpp \
                                 zmq_lvc.cpp \
                                 fakecurl.cpp \
                                 fakehttpconnection.cpp \
@@ -95,7 +96,8 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 siphash.cpp \
                                 bloom_filter_test.cpp \
                                 wildcard_utils.cpp \
-                                wildcard_utils_test.cpp
+                                wildcard_utils_test.cpp \
+                                xml_utils_test.cpp
 
 cpp_common_test_test_CPPFLAGS := -Wno-write-strings \
                                  -I../usr/include \
