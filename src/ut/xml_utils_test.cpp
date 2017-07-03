@@ -71,8 +71,6 @@ TEST_F(XMLUtilsTest, ParseIntegerNaN)
   }
   catch (xml_error err)
   {
-    // Ignore a shared iFC set ID which can't be parsed, and keep
-    // going with the rest.
     std::string error_msg = err.what();
     EXPECT_EQ("Can't parse TestInteger as integer", error_msg);
   }
