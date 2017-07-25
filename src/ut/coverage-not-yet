@@ -14,6 +14,7 @@ snmp_row.cpp
 snmp_ip_row.cpp
 snmp_single_count_by_node_type_table.cpp
 snmp_success_fail_count_table.cpp
+snmp_time_and_string_based_event_table.cpp
 timer_counter.cpp
 memcachedstore.cpp
 dnsparser.cpp
