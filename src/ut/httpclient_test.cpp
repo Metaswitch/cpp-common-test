@@ -100,6 +100,14 @@ TEST_F(HttpClientTest, BadURL)
   EXPECT_EQ(HTTP_BAD_REQUEST, ret);
 }
 
+TEST_F(HttpClientTest, NoTargets)
+{
+  string output;
+  _resolver._targets.clear();
+  long ret = _http->send_get("http://cyrus/blah/blah/blah", output, "gandalf", 0);
+  EXPECT_EQ(HTTP_NOT_FOUND, ret);
+}
+
 TEST_F(HttpClientTest, GetWithHeaders)
 {
   std::vector<std::string> headers;
