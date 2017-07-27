@@ -3,6 +3,7 @@ localstore.cpp
 
 # TODO - covered in clearwater-fv-test. We should have something that checks
 # coverage there before we make it OK to not cover here
+event_statistic_accumulator.cpp
 snmp_agent.cpp
 snmp_continuous_accumulator_table.cpp
 snmp_cx_counter_table.cpp
