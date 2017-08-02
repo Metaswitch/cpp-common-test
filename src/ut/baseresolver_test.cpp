@@ -73,22 +73,34 @@ class BaseResolverTest : public ResolverTest
     return targets;
   }
 
+  // Overloading 'resolve' with option for allowed host state
+  std::vector<AddrInfo> resolve(int max_targets, int allowed_host_state)
+  {
+    std::vector<AddrInfo> targets;
+    int ttl;
+    _baseresolver.a_resolve(TEST_HOST, AF_INET, TEST_PORT, TEST_TRANSPORT,
+                            max_targets, targets, ttl, 1, allowed_host_state);
+    return targets;
+  }
+
   /// Helper function calling the a_resolve_iter method of BaseResolver.
-  BaseAddrIterator* resolve_iter()
+  BaseAddrIterator* resolve_iter(int allowed_host_state=BaseResolver::ALL_LISTS)
   {
     int ttl;
     return _baseresolver.a_resolve_iter(TEST_HOST, AF_INET, TEST_PORT,
-                                        TEST_TRANSPORT, ttl, 1);
+                                        TEST_TRANSPORT, ttl, 1, allowed_host_state);
   }
 
   /// Calls srv resolve and renders the result as a string
-  std::string srv_resolve(std::string realm)
+  std::string srv_resolve(std::string realm,
+                          int allowed_host_state=BaseResolver::ALL_LISTS)
   {
     std::vector<AddrInfo> targets;
     int ttl;
     std::string output;
 
-    _baseresolver.srv_resolve(realm, AF_INET, IPPROTO_SCTP, 2, targets, ttl, 1);
+    _baseresolver.srv_resolve(
+        realm, AF_INET, IPPROTO_SCTP, 2, targets, ttl, 1, allowed_host_state);
     if (!targets.empty())
     {
       output = ResolverUtils::addrinfo_to_string(targets[0]);
@@ -96,6 +108,30 @@ class BaseResolverTest : public ResolverTest
     return output;
   }
 };
+
+// Test that allowed host states function returns the correct bools.
+TEST_F(BaseResolverTest, GetAllowedHostStates)
+{
+  int allowed_host_state = BaseResolver::ALL_LISTS;
+  bool whitelisted_allowed, blacklisted_allowed;
+
+  _baseresolver.get_allowed_host_states(
+                allowed_host_state, whitelisted_allowed, blacklisted_allowed);
+  EXPECT_TRUE(whitelisted_allowed);
+  EXPECT_TRUE(blacklisted_allowed);
+
+  allowed_host_state = BaseResolver::WHITELISTED;
+  _baseresolver.get_allowed_host_states(
+                allowed_host_state, whitelisted_allowed, blacklisted_allowed);
+  EXPECT_TRUE(whitelisted_allowed);
+  EXPECT_FALSE(blacklisted_allowed);
+
+  allowed_host_state = BaseResolver::BLACKLISTED;
+  _baseresolver.get_allowed_host_states(
+                allowed_host_state, whitelisted_allowed, blacklisted_allowed);
+  EXPECT_FALSE(whitelisted_allowed);
+  EXPECT_TRUE(blacklisted_allowed);
+}
 
 // Test that basic parsing of IP addresses works
 TEST_F(BaseResolverTest, ParseIPAddresses)
@@ -450,6 +486,55 @@ TEST_F(BaseResolverTest, ARecordLazyIteratorIsLazy)
 
   delete it_1; it_1 = nullptr;
   delete it_2; it_2 = nullptr;
+}
+
+// Test the allowed list behaviour of A-record resolution
+TEST_F(BaseResolverTest, ARecordAllowedHostStates)
+{
+  add_white_records(3);
+  AddrInfo black_record = ResolverTest::ip_to_addr_info("3.0.0.0");
+  _baseresolver.blacklist(black_record);
+  std::vector<AddrInfo> results;
+
+  // Test all lists allowed - should return all 3 records
+  results = resolve(3);
+  EXPECT_EQ(3, results.size());
+  EXPECT_EQ(black_record, results.back());
+  results.pop_back();
+  for (const AddrInfo& result : results)
+  {
+    std::string result_str = ResolverUtils::addrinfo_to_string(result);
+    EXPECT_THAT(result_str, MatchesRegex("3.0.0.[1-2]:80;transport=TCP"));
+  }
+
+  // Now allow the whitelist only, and ensure we only receive whitelisted
+  // results
+  results = resolve(3, BaseResolver::WHITELISTED);
+  EXPECT_EQ(2, results.size());
+  for (const AddrInfo& result : results)
+  {
+    std::string result_str = ResolverUtils::addrinfo_to_string(result);
+    EXPECT_THAT(result_str, MatchesRegex("3.0.0.[1-2]:80;transport=TCP"));
+  }
+
+  // Now allow the blacklist only, and ensure we only receive the blacklisted
+  // result
+  results = resolve(3, BaseResolver::BLACKLISTED);
+  EXPECT_EQ(1, results.size());
+  EXPECT_EQ(black_record, results.back());
+
+  // Now advance time to graylist the record. It should still be returned
+  // as the only non-whitelisted result.
+  cwtest_advance_time_ms(31000);
+  results = resolve(3, BaseResolver::BLACKLISTED);
+  EXPECT_EQ(1, results.size());
+  EXPECT_EQ(black_record, results.back());
+
+  // It should be returned as the only result if we ask for a single
+  // whitelisted result.
+  results = resolve(1, BaseResolver::WHITELISTED);
+  EXPECT_EQ(1, results.size());
+  EXPECT_EQ(black_record, results.back());
 }
 
 // Test that blacklisted SRV records aren't chosen
