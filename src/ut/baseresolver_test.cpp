@@ -82,22 +82,6 @@ class BaseResolverTest : public ResolverTest
                                         TEST_TRANSPORT, ttl, 1, allowed_host_state);
   }
 
-  /// Calls srv resolve and renders the result as a string
-  //std::string srv_resolve(std::string realm)
-  //{
-  //  std::vector<AddrInfo> targets;
-  //  int ttl = 0;
-  //  std::string output;
-//
-  //  _baseresolver.srv_resolve(
-  //    realm, AF_INET, IPPROTO_SCTP, 2, targets, ttl, 1, BaseResolver::ALL_LISTS);
-  //  if (!targets.empty())
-  //  {
-  //    output = ResolverUtils::addrinfo_to_string(targets[0]);
-  //  }
-  //  return output;
-  //}
-
   // Calls srv resolve and renders the result as a vector
   std::vector<AddrInfo> srv_resolve(std::string realm,
                                     int retries=2,
@@ -112,6 +96,8 @@ class BaseResolverTest : public ResolverTest
     return targets;
   }
 
+  // Calls srv resolve, returning the first result as a string (if there is
+  // a result)
   std::string first_result_from_srv(std::string realm)
   {
     std::vector<AddrInfo> targets = srv_resolve(realm);
