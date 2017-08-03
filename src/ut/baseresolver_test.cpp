@@ -122,30 +122,6 @@ class BaseResolverTest : public ResolverTest
   }
 };
 
-// Test that allowed host states function returns the correct bools.
-TEST_F(BaseResolverTest, GetAllowedHostStates)
-{
-  int allowed_host_state = BaseResolver::ALL_LISTS;
-  bool whitelisted_allowed, blacklisted_allowed;
-
-  _baseresolver.get_allowed_host_states(
-                allowed_host_state, whitelisted_allowed, blacklisted_allowed);
-  EXPECT_TRUE(whitelisted_allowed);
-  EXPECT_TRUE(blacklisted_allowed);
-
-  allowed_host_state = BaseResolver::WHITELISTED;
-  _baseresolver.get_allowed_host_states(
-                allowed_host_state, whitelisted_allowed, blacklisted_allowed);
-  EXPECT_TRUE(whitelisted_allowed);
-  EXPECT_FALSE(blacklisted_allowed);
-
-  allowed_host_state = BaseResolver::BLACKLISTED;
-  _baseresolver.get_allowed_host_states(
-                allowed_host_state, whitelisted_allowed, blacklisted_allowed);
-  EXPECT_FALSE(whitelisted_allowed);
-  EXPECT_TRUE(blacklisted_allowed);
-}
-
 // Test that basic parsing of IP addresses works
 TEST_F(BaseResolverTest, ParseIPAddresses)
 {
