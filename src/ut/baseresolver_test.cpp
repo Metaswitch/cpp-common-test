@@ -95,7 +95,7 @@ class BaseResolverTest : public ResolverTest
   std::string srv_resolve(std::string realm)
   {
     std::vector<AddrInfo> targets;
-    int ttl;
+    int ttl = 0;
     std::string output;
 
     _baseresolver.srv_resolve(
@@ -113,7 +113,7 @@ class BaseResolverTest : public ResolverTest
                                     int allowed_host_state)
   {
     std::vector<AddrInfo> targets;
-    int ttl;
+    int ttl = 0;
 
     _baseresolver.srv_resolve(
       realm, AF_INET, IPPROTO_SCTP, retries, targets, ttl, 1, allowed_host_state);
