@@ -64,17 +64,8 @@ class BaseResolverTest : public ResolverTest
   }
 
   /// Helper function calling the a_resolve method of BaseResolver.
-  std::vector<AddrInfo> resolve(int max_targets) override
-  {
-    std::vector<AddrInfo> targets;
-    int ttl;
-    _baseresolver.a_resolve(TEST_HOST, AF_INET, TEST_PORT, TEST_TRANSPORT,
-                            max_targets, targets, ttl, 1);
-    return targets;
-  }
-
-  // Overloading 'resolve' with option for allowed host state
-  std::vector<AddrInfo> resolve(int max_targets, int allowed_host_state)
+  std::vector<AddrInfo> resolve(
+      int max_targets, int allowed_host_state=BaseResolver::ALL_LISTS) override
   {
     std::vector<AddrInfo> targets;
     int ttl;
@@ -92,25 +83,25 @@ class BaseResolverTest : public ResolverTest
   }
 
   /// Calls srv resolve and renders the result as a string
-  std::string srv_resolve(std::string realm)
-  {
-    std::vector<AddrInfo> targets;
-    int ttl = 0;
-    std::string output;
-
-    _baseresolver.srv_resolve(
-      realm, AF_INET, IPPROTO_SCTP, 2, targets, ttl, 1, BaseResolver::ALL_LISTS);
-    if (!targets.empty())
-    {
-      output = ResolverUtils::addrinfo_to_string(targets[0]);
-    }
-    return output;
-  }
+  //std::string srv_resolve(std::string realm)
+  //{
+  //  std::vector<AddrInfo> targets;
+  //  int ttl = 0;
+  //  std::string output;
+//
+  //  _baseresolver.srv_resolve(
+  //    realm, AF_INET, IPPROTO_SCTP, 2, targets, ttl, 1, BaseResolver::ALL_LISTS);
+  //  if (!targets.empty())
+  //  {
+  //    output = ResolverUtils::addrinfo_to_string(targets[0]);
+  //  }
+  //  return output;
+  //}
 
   // Calls srv resolve and renders the result as a vector
   std::vector<AddrInfo> srv_resolve(std::string realm,
-                                    int retries,
-                                    int allowed_host_state)
+                                    int retries=2,
+                                    int allowed_host_state=BaseResolver::ALL_LISTS)
   {
     std::vector<AddrInfo> targets;
     int ttl = 0;
@@ -119,6 +110,19 @@ class BaseResolverTest : public ResolverTest
       realm, AF_INET, IPPROTO_SCTP, retries, targets, ttl, 1, allowed_host_state);
 
     return targets;
+  }
+
+  std::string first_result_from_srv(std::string realm)
+  {
+    std::vector<AddrInfo> targets = srv_resolve(realm);
+    std::string output;
+
+    if (! targets.empty())
+    {
+      output = ResolverUtils::addrinfo_to_string(targets[0]);
+    }
+
+    return output;
   }
 };
 
@@ -550,7 +554,8 @@ TEST_F(BaseResolverTest, SRVRecordResolutionWithBlacklist)
   ai.address = _baseresolver.to_ip46(bl);
   _baseresolver.blacklist((const AddrInfo)ai);
 
-  EXPECT_EQ("3.0.0.2:3868;transport=SCTP", srv_resolve("_diameter._sctp.cpp-common-test.cw-ngv.com"));
+  EXPECT_EQ("3.0.0.2:3868;transport=SCTP",
+            first_result_from_srv("_diameter._sctp.cpp-common-test.cw-ngv.com"));
 
   delete bl;
   _baseresolver.clear_blacklist();
@@ -575,14 +580,15 @@ TEST_F(BaseResolverTest, SRVRecordResolutionManyTargets)
   records.push_back(ResolverUtils::a("cpp-common-test-2.cw-ngv.com", 3600, "3.0.0.21"));
   records.push_back(ResolverUtils::a("cpp-common-test-2.cw-ngv.com", 3600, "3.0.0.22"));
   _dnsresolver.add_to_cache("cpp-common-test-2.cw-ngv.com", ns_t_a, records);
-  std::string resolve = srv_resolve("_diameter._sctp.cpp-common-test.cw-ngv.com");
+
+  std::string resolve = first_result_from_srv("_diameter._sctp.cpp-common-test.cw-ngv.com");
   EXPECT_THAT(resolve, MatchesRegex("3.0.0.[0-9]{2}:3868;transport=SCTP"));
 }
 
 // Test that a failed SRV lookup returns empty
 TEST_F(BaseResolverTest, SRVRecordFailedResolution)
 {
-  EXPECT_EQ("", srv_resolve("_diameter._sctp.cpp-common-test.cw-ngv.com"));
+  EXPECT_EQ("", first_result_from_srv("_diameter._sctp.cpp-common-test.cw-ngv.com"));
 }
 
 // Test that allowed host state processing works correctly for SRV resolution
