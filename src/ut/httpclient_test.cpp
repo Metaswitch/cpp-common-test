@@ -60,7 +60,8 @@ class HttpClientTest : public BaseTest
                                    NULL,
                                    SASEvent::HttpLogLevel::PROTOCOL,
                                    _cm,
-                                   true);
+                                   true,
+                                   1000);
 
     fakecurl_responses.clear();
     fakecurl_responses["http://10.42.42.42:80/blah/blah/blah"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>";
