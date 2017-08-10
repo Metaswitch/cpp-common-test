@@ -64,35 +64,50 @@ class BaseResolverTest : public ResolverTest
   }
 
   /// Helper function calling the a_resolve method of BaseResolver.
-  std::vector<AddrInfo> resolve(int max_targets) override
+  std::vector<AddrInfo> resolve(
+      int max_targets, int allowed_host_state=BaseResolver::ALL_LISTS) override
   {
     std::vector<AddrInfo> targets;
     int ttl;
     _baseresolver.a_resolve(TEST_HOST, AF_INET, TEST_PORT, TEST_TRANSPORT,
-                            max_targets, targets, ttl, 1);
+                            max_targets, targets, ttl, 1, allowed_host_state);
     return targets;
   }
 
   /// Helper function calling the a_resolve_iter method of BaseResolver.
-  BaseAddrIterator* resolve_iter()
+  BaseAddrIterator* resolve_iter(int allowed_host_state=BaseResolver::ALL_LISTS)
   {
     int ttl;
     return _baseresolver.a_resolve_iter(TEST_HOST, AF_INET, TEST_PORT,
-                                        TEST_TRANSPORT, ttl, 1);
+                                        TEST_TRANSPORT, ttl, 1, allowed_host_state);
   }
 
-  /// Calls srv resolve and renders the result as a string
-  std::string srv_resolve(std::string realm)
+  // Calls srv resolve and renders the result as a vector
+  std::vector<AddrInfo> srv_resolve(std::string realm,
+                                    int retries=2,
+                                    int allowed_host_state=BaseResolver::ALL_LISTS)
   {
     std::vector<AddrInfo> targets;
-    int ttl;
+    int ttl = 0;
+
+    _baseresolver.srv_resolve(
+      realm, AF_INET, IPPROTO_SCTP, retries, targets, ttl, 1, allowed_host_state);
+
+    return targets;
+  }
+
+  // Calls srv resolve, returning the first result as a string (if there is
+  // a result)
+  std::string first_result_from_srv(std::string realm)
+  {
+    std::vector<AddrInfo> targets = srv_resolve(realm);
     std::string output;
 
-    _baseresolver.srv_resolve(realm, AF_INET, IPPROTO_SCTP, 2, targets, ttl, 1);
-    if (!targets.empty())
+    if (! targets.empty())
     {
       output = ResolverUtils::addrinfo_to_string(targets[0]);
     }
+
     return output;
   }
 };
@@ -452,6 +467,55 @@ TEST_F(BaseResolverTest, ARecordLazyIteratorIsLazy)
   delete it_2; it_2 = nullptr;
 }
 
+// Test the allowed list behaviour of A-record resolution
+TEST_F(BaseResolverTest, ARecordAllowedHostStates)
+{
+  add_white_records(3);
+  AddrInfo black_record = ResolverTest::ip_to_addr_info("3.0.0.0");
+  _baseresolver.blacklist(black_record);
+  std::vector<AddrInfo> results;
+
+  // Test all lists allowed - should return all 3 records
+  results = resolve(3);
+  EXPECT_EQ(3, results.size());
+  EXPECT_EQ(black_record, results.back());
+  results.pop_back();
+  for (const AddrInfo& result : results)
+  {
+    std::string result_str = ResolverUtils::addrinfo_to_string(result);
+    EXPECT_THAT(result_str, MatchesRegex("3.0.0.[1-2]:80;transport=TCP"));
+  }
+
+  // Now allow the whitelist only, and ensure we only receive whitelisted
+  // results
+  results = resolve(3, BaseResolver::WHITELISTED);
+  EXPECT_EQ(2, results.size());
+  for (const AddrInfo& result : results)
+  {
+    std::string result_str = ResolverUtils::addrinfo_to_string(result);
+    EXPECT_THAT(result_str, MatchesRegex("3.0.0.[1-2]:80;transport=TCP"));
+  }
+
+  // Now allow the blacklist only, and ensure we only receive the blacklisted
+  // result
+  results = resolve(3, BaseResolver::BLACKLISTED);
+  EXPECT_EQ(1, results.size());
+  EXPECT_EQ(black_record, results.back());
+
+  // Now advance time to graylist the record. It should still be returned
+  // as the only non-whitelisted result.
+  cwtest_advance_time_ms(31000);
+  results = resolve(3, BaseResolver::BLACKLISTED);
+  EXPECT_EQ(1, results.size());
+  EXPECT_EQ(black_record, results.back());
+
+  // It should be returned as the only result if we ask for a single
+  // whitelisted result.
+  results = resolve(1, BaseResolver::WHITELISTED);
+  EXPECT_EQ(1, results.size());
+  EXPECT_EQ(black_record, results.back());
+}
+
 // Test that blacklisted SRV records aren't chosen
 TEST_F(BaseResolverTest, SRVRecordResolutionWithBlacklist)
 {
@@ -476,7 +540,8 @@ TEST_F(BaseResolverTest, SRVRecordResolutionWithBlacklist)
   ai.address = _baseresolver.to_ip46(bl);
   _baseresolver.blacklist((const AddrInfo)ai);
 
-  EXPECT_EQ("3.0.0.2:3868;transport=SCTP", srv_resolve("_diameter._sctp.cpp-common-test.cw-ngv.com"));
+  EXPECT_EQ("3.0.0.2:3868;transport=SCTP",
+            first_result_from_srv("_diameter._sctp.cpp-common-test.cw-ngv.com"));
 
   delete bl;
   _baseresolver.clear_blacklist();
@@ -501,14 +566,87 @@ TEST_F(BaseResolverTest, SRVRecordResolutionManyTargets)
   records.push_back(ResolverUtils::a("cpp-common-test-2.cw-ngv.com", 3600, "3.0.0.21"));
   records.push_back(ResolverUtils::a("cpp-common-test-2.cw-ngv.com", 3600, "3.0.0.22"));
   _dnsresolver.add_to_cache("cpp-common-test-2.cw-ngv.com", ns_t_a, records);
-  std::string resolve = srv_resolve("_diameter._sctp.cpp-common-test.cw-ngv.com");
+
+  std::string resolve = first_result_from_srv("_diameter._sctp.cpp-common-test.cw-ngv.com");
   EXPECT_THAT(resolve, MatchesRegex("3.0.0.[0-9]{2}:3868;transport=SCTP"));
 }
 
 // Test that a failed SRV lookup returns empty
 TEST_F(BaseResolverTest, SRVRecordFailedResolution)
 {
-  EXPECT_EQ("", srv_resolve("_diameter._sctp.cpp-common-test.cw-ngv.com"));
+  EXPECT_EQ("", first_result_from_srv("_diameter._sctp.cpp-common-test.cw-ngv.com"));
+}
+
+// Test that allowed host state processing works correctly for SRV resolution
+TEST_F(BaseResolverTest, SRVRecordAllowedHostStates)
+{
+  // Clear the blacklist to start
+  _baseresolver.clear_blacklist();
+
+  std::vector<DnsRRecord*> records;
+  records.push_back(ResolverUtils::srv("_diameter._sctp.cpp-common-test.cw-ngv.com", 3600, 1, 0, 3868, "cpp-common-test-1.cw-ngv.com"));
+  records.push_back(ResolverUtils::srv("_diameter._sctp.cpp-common-test.cw-ngv.com", 3600, 2, 0, 3868, "cpp-common-test-2.cw-ngv.com"));
+  _dnsresolver.add_to_cache("_diameter._sctp.cpp-common-test.cw-ngv.com", ns_t_srv, records);
+
+  records.push_back(ResolverUtils::a("cpp-common-test-1.cw-ngv.com", 3600, "3.0.0.10"));
+  records.push_back(ResolverUtils::a("cpp-common-test-1.cw-ngv.com", 3600, "3.0.0.11"));
+  records.push_back(ResolverUtils::a("cpp-common-test-1.cw-ngv.com", 3600, "3.0.0.12"));
+  _dnsresolver.add_to_cache("cpp-common-test-1.cw-ngv.com", ns_t_a, records);
+  records.push_back(ResolverUtils::a("cpp-common-test-2.cw-ngv.com", 3600, "3.0.0.20"));
+  records.push_back(ResolverUtils::a("cpp-common-test-2.cw-ngv.com", 3600, "3.0.0.21"));
+  records.push_back(ResolverUtils::a("cpp-common-test-2.cw-ngv.com", 3600, "3.0.0.22"));
+  _dnsresolver.add_to_cache("cpp-common-test-2.cw-ngv.com", ns_t_a, records);
+
+  // Blacklist some entries
+  _baseresolver.blacklist(ResolverTest::ip_to_addr_info("3.0.0.12", 3868, IPPROTO_SCTP));
+  _baseresolver.blacklist(ResolverTest::ip_to_addr_info("3.0.0.21", 3868, IPPROTO_SCTP));
+  _baseresolver.blacklist(ResolverTest::ip_to_addr_info("3.0.0.22", 3868, IPPROTO_SCTP));
+
+  std::string whitelist_regex = "3.0.0.(1[0-1]|20):3868;transport=SCTP";
+  std::string blacklist_regex = "3.0.0.(12|2[1-2]):3868;transport=SCTP";
+
+  std::vector<AddrInfo> results;
+
+  // Resolve with 3 'retries' and specifying all_lists - we should skip all
+  // the blacklisted entries
+  results = srv_resolve(
+    "_diameter._sctp.cpp-common-test.cw-ngv.com", 3, BaseResolver::ALL_LISTS);
+  EXPECT_EQ(3, results.size());
+  for (AddrInfo& result : results)
+  {
+    std::string result_str = ResolverUtils::addrinfo_to_string(result);
+    EXPECT_THAT(result_str, MatchesRegex(whitelist_regex));
+  }
+
+  // Now ask for 4 results; the last result should be the highest priority
+  // blacklisted address.
+  results = srv_resolve(
+    "_diameter._sctp.cpp-common-test.cw-ngv.com", 4, BaseResolver::ALL_LISTS);
+  EXPECT_EQ(4, results.size());
+  EXPECT_EQ(ResolverTest::ip_to_addr_info("3.0.0.12", 3868, IPPROTO_SCTP),
+            results.back());
+
+  // Ask for 4 results again, but specify whitelisted results only. We should
+  // only get the 3 whitelisted results.
+  results = srv_resolve(
+    "_diameter._sctp.cpp-common-test.cw-ngv.com", 4, BaseResolver::WHITELISTED);
+  EXPECT_EQ(3, results.size());
+  for (AddrInfo& result : results)
+  {
+    std::string result_str = ResolverUtils::addrinfo_to_string(result);
+    EXPECT_THAT(result_str, MatchesRegex(whitelist_regex));
+  }
+
+  // Ask for 4 results again, but specify blacklisted results only. We should
+  // only get the 3 blacklisted results.
+  results = srv_resolve(
+    "_diameter._sctp.cpp-common-test.cw-ngv.com", 4, BaseResolver::BLACKLISTED);
+  EXPECT_EQ(3, results.size());
+  for (AddrInfo& result : results)
+  {
+    std::string result_str = ResolverUtils::addrinfo_to_string(result);
+    EXPECT_THAT(result_str, MatchesRegex(blacklist_regex));
+  }
 }
 
 // Test that SimpleAddrIterator's next method works correctly

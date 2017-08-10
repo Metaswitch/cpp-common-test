@@ -46,7 +46,8 @@ class HttpResolverTest : public ResolverTest
     return targets;
   }
 
-  std::vector<AddrInfo> resolve(int max_targets)
+  std::vector<AddrInfo> resolve(
+              int max_targets, int allowed_host_state=BaseResolver::ALL_LISTS)
   {
     return resolve(max_targets, TEST_HOST, TEST_PORT);
   }
