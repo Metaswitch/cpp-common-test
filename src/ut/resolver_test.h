@@ -35,7 +35,8 @@ public:
 
   /// Pure virtual method - subclasses define how they interact with the
   /// resolver under test.
-  virtual std::vector<AddrInfo> resolve(int max_targets) = 0;
+  virtual std::vector<AddrInfo> resolve(
+          int max_targets, int allowed_host_state=BaseResolver::ALL_LISTS) = 0;
 
   /// Creates and returns an AddrInfo object with the given data.
   static AddrInfo ip_to_addr_info(std::string address_str,
