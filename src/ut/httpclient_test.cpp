@@ -61,6 +61,7 @@ class HttpClientTest : public BaseTest
                                    SASEvent::HttpLogLevel::PROTOCOL,
                                    _cm,
                                    true,
+                                   false,
                                    // Override the default timeout for this client
                                    1000);
 
@@ -91,8 +92,8 @@ TEST_F(HttpClientTest, SimpleGet)
 
   EXPECT_EQ("GET", req._method);
   EXPECT_FALSE(req._httpauth & CURLAUTH_DIGEST) << req._httpauth;
-  // This client will be using the default timeout (500)
-  EXPECT_EQ(500, req._timeout_ms);
+  // This client will be using the default timeout (550)
+  EXPECT_EQ(550, req._timeout_ms);
   EXPECT_EQ("", req._username);
   EXPECT_EQ("", req._password);
 }
