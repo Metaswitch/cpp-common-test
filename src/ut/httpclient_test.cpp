@@ -156,7 +156,9 @@ TEST_F(HttpClientTest, SasOmitBody)
 
     // This client will be using the override timeout (1000)
   Request& req = fakecurl_requests["http://cyrus:80/blah/blah/blah"];
-  EXPECT_EQ(1000, req._timeout_ms);req_event = mock_sas_find_event(SASEvent::TX_HTTP_REQ);
+  EXPECT_EQ(1000, req._timeout_ms);
+
+  req_event = mock_sas_find_event(SASEvent::TX_HTTP_REQ);
 
   EXPECT_TRUE(req_event != NULL);
 
