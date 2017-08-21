@@ -60,7 +60,10 @@ class HttpClientTest : public BaseTest
                                    NULL,
                                    SASEvent::HttpLogLevel::PROTOCOL,
                                    _cm,
-                                   true);
+                                   true,
+                                   false,
+                                   // Override the default timeout for this client
+                                   1000);
 
     fakecurl_responses.clear();
     fakecurl_responses["http://10.42.42.42:80/blah/blah/blah"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>";
@@ -89,6 +92,8 @@ TEST_F(HttpClientTest, SimpleGet)
 
   EXPECT_EQ("GET", req._method);
   EXPECT_FALSE(req._httpauth & CURLAUTH_DIGEST) << req._httpauth;
+  // This client will be using the default timeout (550)
+  EXPECT_EQ(550, req._timeout_ms);
   EXPECT_EQ("", req._username);
   EXPECT_EQ("", req._password);
 }
@@ -150,7 +155,12 @@ TEST_F(HttpClientTest, SasOmitBody)
 
   _private_http->send_post("http://cyrus/blah/blah/blah", headers, test_body, 0, "gandalf");
 
+    // This client will be using the override timeout (1000)
+  Request& req = fakecurl_requests["http://cyrus:80/blah/blah/blah"];
+  EXPECT_EQ(1000, req._timeout_ms);
+
   req_event = mock_sas_find_event(SASEvent::TX_HTTP_REQ);
+
   EXPECT_TRUE(req_event != NULL);
 
   bool body_omitted = (req_event->var_params[2].find(BODY_OMITTED) != string::npos);
