@@ -162,7 +162,7 @@ TEST_F(HttpConnectionBlacklistTest, BlacklistTestHttpSuccess)
 {
   std::vector<AddrInfo> targets = create_targets(2);
 
-  EXPECT_CALL(_resolver, resolve_iter(_,_,_)).
+  EXPECT_CALL(_resolver, resolve_iter(_,_,_,_)).
     WillOnce(Return(new SimpleAddrIterator(targets)));
   EXPECT_CALL(_resolver, success(targets[0])).Times(1);
 
@@ -174,7 +174,7 @@ TEST_F(HttpConnectionBlacklistTest, BlacklistTestTcpSuccess)
 {
   std::vector<AddrInfo> targets = create_targets(2);
 
-  EXPECT_CALL(_resolver, resolve_iter(_,_,_)).
+  EXPECT_CALL(_resolver, resolve_iter(_,_,_,_)).
     WillOnce(Return(new SimpleAddrIterator(targets)));
   EXPECT_CALL(_resolver, success(targets[0])).Times(1);
 
@@ -186,7 +186,7 @@ TEST_F(HttpConnectionBlacklistTest, BlacklistTestOneFailure)
 {
   std::vector<AddrInfo> targets = create_targets(2);
 
-  EXPECT_CALL(_resolver, resolve_iter(_,_,_)).
+  EXPECT_CALL(_resolver, resolve_iter(_,_,_,_)).
     WillOnce(Return(new SimpleAddrIterator(targets)));
   EXPECT_CALL(_resolver, blacklist(targets[0])).Times(1);
   EXPECT_CALL(_resolver, success(targets[1])).Times(1);
@@ -199,7 +199,7 @@ TEST_F(HttpConnectionBlacklistTest, BlacklistTestOne503Failure)
 {
   std::vector<AddrInfo> targets = create_targets(2);
 
-  EXPECT_CALL(_resolver, resolve_iter(_,_,_)).
+  EXPECT_CALL(_resolver, resolve_iter(_,_,_,_)).
     WillOnce(Return(new SimpleAddrIterator(targets)));
   EXPECT_CALL(_resolver, blacklist(targets[0], 30)).Times(1);
   EXPECT_CALL(_resolver, success(targets[1])).Times(1);
@@ -213,7 +213,7 @@ TEST_F(HttpConnectionBlacklistTest, BlacklistTestOneDate503Failure)
 {
   std::vector<AddrInfo> targets = create_targets(2);
 
-  EXPECT_CALL(_resolver, resolve_iter(_,_,_)).
+  EXPECT_CALL(_resolver, resolve_iter(_,_,_,_)).
     WillOnce(Return(new SimpleAddrIterator(targets)));
   EXPECT_CALL(_resolver, success(targets[0])).Times(1);
   EXPECT_CALL(_resolver, success(targets[1])).Times(1);
@@ -227,7 +227,7 @@ TEST_F(HttpConnectionBlacklistTest, BlacklistTestOne503FailureNoRetryAfter)
 {
   std::vector<AddrInfo> targets = create_targets(2);
 
-  EXPECT_CALL(_resolver, resolve_iter(_,_,_)).
+  EXPECT_CALL(_resolver, resolve_iter(_,_,_,_)).
     WillOnce(Return(new SimpleAddrIterator(targets)));
   EXPECT_CALL(_resolver, success(targets[0])).Times(1);
   EXPECT_CALL(_resolver, success(targets[1])).Times(1);
@@ -240,7 +240,7 @@ TEST_F(HttpConnectionBlacklistTest, BlacklistTestAllFailure)
 {
   std::vector<AddrInfo> targets = create_targets(2);
 
-  EXPECT_CALL(_resolver, resolve_iter(_,_,_)).
+  EXPECT_CALL(_resolver, resolve_iter(_,_,_,_)).
     WillOnce(Return(new SimpleAddrIterator(targets)));
   EXPECT_CALL(_resolver, blacklist(targets[0])).Times(1);
   EXPECT_CALL(_resolver, blacklist(targets[1])).Times(1);
