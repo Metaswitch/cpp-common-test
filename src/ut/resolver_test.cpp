@@ -102,3 +102,66 @@ bool ResolverTest::is_white(std::string address_str, int count, int repetitions)
   }
   return false;
 }
+
+/// Creates SRV records, all at the same priority level, and populates them
+/// with A Records
+void ResolverTest::add_white_srv_records(int priority = 1,
+                                         int num_srv = 1,
+                                         int num_a = 1)
+{
+  std::vector<DnsRRecord*> records;
+  for (int ii_srv = 0; ii_srv < num_srv; ++ii_srv)
+  {
+    std::stringstream os;
+    os<<"cpp-common-test-"<<priority<<"-"<<ii_srv<<".cw-ngv.com";
+    records.push_back(ResolverUtils::srv("_diameter._sctp.cpp-common-test.cw-ngv.com", 3600, priority, 0, 3868, os.str()));
+  }
+  _dnsresolver.add_to_cache("_diameter._sctp.cpp-common-test.cw-ngv.com", ns_t_srv, records);
+  for (int ii_srv = 0; ii_srv < num_srv; ++ii_srv)
+  {
+    std::stringstream os2;
+    os2<<"cpp-common-test-"<<priority<<"-"<<ii_srv<<".cw-ngv.com";
+    for (int jj_a = 0; jj_a < num_a; ++jj_a)
+    {
+      std::stringstream os;
+      os<<"3."<<priority<<"."<<ii_srv<<"."<<jj_a;
+      records.push_back(ResolverUtils::a(os2.str(), 3600, os.str()));
+    }
+    _dnsresolver.add_to_cache(os2.str(), ns_t_a, records);
+
+  }
+}
+
+/// For each priority level from 0 to num_priority-1, creates num_srv SRV's and
+/// populates each with num_a A Records
+void ResolverTest::add_white_srv_records_priorities(int num_priority = 1,
+                                                    int num_srv = 1,
+                                                    int num_a = 1)
+{
+  std::vector<DnsRRecord*> records;
+  for (int priority = 0; priority < num_priority; ++priority)
+  {
+    for (int ii_srv = 0; ii_srv < num_srv; ++ii_srv)
+    {
+      std::stringstream os;
+      os<<"cpp-common-test-"<<priority<<"-"<<ii_srv<<".cw-ngv.com";
+      records.push_back(ResolverUtils::srv("_diameter._sctp.cpp-common-test.cw-ngv.com", 3600, priority, 0, 3868, os.str()));
+    }
+  }
+  _dnsresolver.add_to_cache("_diameter._sctp.cpp-common-test.cw-ngv.com", ns_t_srv, records);
+  for (int priority = 0; priority < num_priority; ++priority)
+  {
+    for (int ii_srv = 0; ii_srv < num_srv; ++ii_srv)
+    {
+      std::stringstream os2;
+      os2<<"cpp-common-test-"<<priority<<"-"<<ii_srv<<".cw-ngv.com";
+      for (int jj_a = 0; jj_a < num_a; ++jj_a)
+      {
+        std::stringstream os;
+        os<<"3."<<priority<<"."<<ii_srv<<"."<<jj_a;
+        records.push_back(ResolverUtils::a(os2.str(), 3600, os.str()));
+      }
+      _dnsresolver.add_to_cache(os2.str(), ns_t_a, records);
+    }
+  }
+}

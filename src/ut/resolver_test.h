@@ -47,6 +47,15 @@ public:
   /// 'host', beginning at 3.0.0.0 and incrementing by one each time.
   void add_white_records(int count, std::string host = TEST_HOST);
 
+  /// At the given priority level, add 'num_srv' SRV's and give each 'num_a' A
+  /// Records, with IP addresses 3.0."SRV number"."a record number", each
+  /// starting from 0 and with "a record number" reset for each new SRV
+  void add_white_srv_records(int priority, int num_srv, int num_a);
+
+  /// At 'num_priorities' different priority levels add 'num_srv' SRV's and
+  /// populate each with 'num_a' A Records
+  void add_white_srv_records_priorities(int num_priority, int num_srv, int num_a);
+
   /// Calls resolve with the given parameters, and returns true if the result
   /// contains ai, and false otherwise.
   bool resolution_contains(AddrInfo ai, int max_targets);
