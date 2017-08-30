@@ -29,6 +29,7 @@ using ::testing::AllOf;
 
 const int DEFAULT_COUNT = 11;
 const int DEFAULT_REPETITIONS = 15;
+const std::string DEFAULT_REALM = "_diameter._sctp.cpp-common-test.cw-ngv.com";
 
 class BaseResolverTest : public ResolverTest
 {
@@ -82,8 +83,8 @@ class BaseResolverTest : public ResolverTest
                                         TEST_TRANSPORT, ttl, 1, allowed_host_state);
   }
 
-  /// Help function calling the srv_resolve_iter method of BaseResolver
-  BaseAddrIterator* srv_resolve_iter(std::string realm="_diameter._sctp.cpp-common-test.cw-ngv.com",
+  /// Help function calling the srv_resolve_iter method of BaseResolver.
+  BaseAddrIterator* srv_resolve_iter(std::string realm,
                                     int retries=2,
                                     int allowed_host_state=BaseResolver::ALL_LISTS)
   {
@@ -93,7 +94,7 @@ class BaseResolverTest : public ResolverTest
 
   }
 
-  /// Calls srv resolve and renders the result as a vector
+  /// Calls srv resolve and renders the result as a vector.
   std::vector<AddrInfo> srv_resolve(std::string realm,
                                     int retries=2,
                                     int allowed_host_state=BaseResolver::ALL_LISTS)
@@ -105,25 +106,6 @@ class BaseResolverTest : public ResolverTest
       realm, AF_INET, IPPROTO_SCTP, retries, targets, ttl, 1, allowed_host_state);
 
     return targets;
-  }
-
-  /// Calls srv resolve iter, returning the first result as a string (if there is
-  /// a result)
-  std::string first_result_from_srv_iter(std::string realm,
-                                         int retries=2,
-                                         int allowed_host_state=BaseResolver::ALL_LISTS)
-
-  {
-    SimpleAddrIterator* targets_iter = (SimpleAddrIterator*) srv_resolve_iter(realm, retries, allowed_host_state);
-    std::vector<AddrInfo> targets = targets_iter->take(1);
-    std::string output;
-
-    if (! targets.empty())
-    {
-      output = ResolverUtils::addrinfo_to_string(targets[0]);
-    }
-
-    return output;
   }
 
   /// Calls srv resolve, returning the first result as a string (if there is
@@ -140,10 +122,9 @@ class BaseResolverTest : public ResolverTest
 
     return output;
   }
-
 };
 
-// Test that basic parsing of IP addresses works
+// Test that basic parsing of IP addresses works.
 TEST_F(BaseResolverTest, ParseIPAddresses)
 {
   AddrInfo ai;
@@ -162,7 +143,7 @@ TEST_F(BaseResolverTest, ParseIPAddresses)
   EXPECT_FALSE(_baseresolver.parse_ip_target("1.2.3.4:8888", ai.address));
 }
 
-// Test that basic IPv4 resolution works
+// Test that basic IPv4 resolution works.
 TEST_F(BaseResolverTest, IPv4AddressResolution)
 {
   add_white_records(1);
@@ -174,7 +155,7 @@ TEST_F(BaseResolverTest, IPv4AddressResolution)
   EXPECT_EQ(result, "3.0.0.0:80;transport=TCP");
 }
 
-// Test that IPv4 resolution works when there's multiple correct answers
+// Test that IPv4 resolution works when there's multiple correct answers.
 TEST_F(BaseResolverTest, IPv4AddressResolutionManyTargets)
 {
   add_white_records(7);
@@ -213,7 +194,7 @@ TEST_F(BaseResolverTest, ARecordJustOneGray)
   cwtest_advance_time_ms(31000);
   std::vector<AddrInfo> targets = resolve(DEFAULT_COUNT);
 
-  // targets should contain at most one of the two gray records
+  // targets should contain at most one of the two gray records.
   EXPECT_THAT(targets, Not(AllOf(Contains(gray_record_0), Contains(gray_record_1))));
 }
 
@@ -227,10 +208,10 @@ TEST_F(BaseResolverTest, ARecordGrayReturnedOnce)
   cwtest_advance_time_ms(31000);
   std::vector<AddrInfo> targets = resolve(1);
 
-  // targets should contain the gray record
+  // targets should contain the gray record.
   EXPECT_THAT(targets, Contains(gray_record));
 
-  // Further calls to resolve should not return the gray record
+  // Further calls to resolve should not return the gray record.
   for (int i = 0; i < DEFAULT_REPETITIONS; i++)
   {
     targets = resolve(DEFAULT_COUNT - 1);
@@ -333,7 +314,7 @@ TEST_F(BaseResolverTest, ARecordMakeUpUsedGray)
   _baseresolver.blacklist(gray_record);
   cwtest_advance_time_ms(31000);
 
-  // This call should return the gray record
+  // This call should return the gray record.
   resolve(1);
 
   std::vector<AddrInfo> targets = resolve(2);
@@ -343,7 +324,7 @@ TEST_F(BaseResolverTest, ARecordMakeUpUsedGray)
 }
 
 /// Test that the lazy target selection iterator returns true when the target
-/// has been set, and false otherwise
+/// has been set, and false otherwise.
 TEST_F(BaseResolverTest, ARecordIteratorNextReturnValue)
 {
   AddrInfo record;
@@ -364,7 +345,7 @@ TEST_F(BaseResolverTest, ARecordIteratorNextReturnValue)
 }
 
 /// Test that the lazy target selection iterator functions correctly when there
-/// are no targets
+/// are no targets.
 TEST_F(BaseResolverTest, ARecordEmptyIteratorNext)
 {
   AddrInfo record = ResolverTest::ip_to_addr_info("3.0.0.0");
@@ -380,7 +361,7 @@ TEST_F(BaseResolverTest, ARecordEmptyIteratorNext)
 }
 
 /// Test that the lazy target selection iterator functions correctly when there
-/// are no targets
+/// are no targets.
 TEST_F(BaseResolverTest, ARecordEmptyIteratorTake)
 {
   BaseAddrIterator* it = resolve_iter();
@@ -412,7 +393,7 @@ TEST_F(BaseResolverTest, ARecordIteratorTakeSome)
   std::vector<AddrInfo> results_1 = it->take(4);
   EXPECT_EQ(results_1.size(), 4);
 
-  // The second call should return the remaining result
+  // The second call should return the remaining result.
   std::vector<AddrInfo> results_2 = it->take(1);
   ASSERT_EQ(results_2.size(), 1);
   EXPECT_THAT(results_1, Not(Contains(results_2[0])));
@@ -421,7 +402,7 @@ TEST_F(BaseResolverTest, ARecordIteratorTakeSome)
 }
 
 /// Test that the lazy target selection iterator functions correctly when too
-/// many targets are requested
+/// many targets are requested.
 TEST_F(BaseResolverTest, ARecordIteratorTakeTooMany)
 {
   add_white_records(3);
@@ -434,7 +415,7 @@ TEST_F(BaseResolverTest, ARecordIteratorTakeTooMany)
 }
 
 /// Test that the lazy target selection iterator functions correctly when
-/// calling a mixture of the take and next methods
+/// calling a mixture of the take and next methods.
 TEST_F(BaseResolverTest, ARecordIteratorMixTakeAndNext)
 {
   add_white_records(5);
@@ -455,28 +436,28 @@ TEST_F(BaseResolverTest, ARecordIteratorMixTakeAndNext)
 }
 
 /// Test that the lazy target selection iterator uses the state of each Host at
-/// the time that next is called each time, i.e. acts lazily
+/// the time that next is called each time, i.e. acts lazily.
 TEST_F(BaseResolverTest, ARecordLazyIteratorIsLazy)
 {
   AddrInfo record;
   add_white_records(2);
 
-  // Blacklist a record
+  // Blacklist a record.
   AddrInfo black_to_gray_record = ResolverTest::ip_to_addr_info("3.0.0.0");
   _baseresolver.blacklist(black_to_gray_record);
 
-  // Get two iterators
+  // Get two iterators.
   BaseAddrIterator* it_1 = resolve_iter();
   BaseAddrIterator* it_2 = resolve_iter();
 
-  // The blacklisted record should not be returned
+  // The blacklisted record should not be returned.
   EXPECT_TRUE(it_1->next(record));
   EXPECT_NE(record, black_to_gray_record);
 
-  // Move the record to the graylist
+  // Move the record to the graylist.
   cwtest_advance_time_ms(31000);
 
-  // The graylisted record should be returned
+  // The graylisted record should be returned.
   EXPECT_TRUE(it_2->next(record));
   EXPECT_EQ(record, black_to_gray_record);
 
@@ -484,7 +465,7 @@ TEST_F(BaseResolverTest, ARecordLazyIteratorIsLazy)
   delete it_2; it_2 = nullptr;
 }
 
-// Test the allowed list behaviour of A-record resolution
+// Test the allowed list behaviour of A-record resolution.
 TEST_F(BaseResolverTest, ARecordAllowedHostStates)
 {
   add_white_records(3);
@@ -492,7 +473,7 @@ TEST_F(BaseResolverTest, ARecordAllowedHostStates)
   _baseresolver.blacklist(black_record);
   std::vector<AddrInfo> results;
 
-  // Test all lists allowed - should return all 3 records
+  // Test all lists allowed - should return all 3 records.
   results = resolve(3);
   EXPECT_EQ(3, results.size());
   EXPECT_EQ(black_record, results.back());
@@ -504,7 +485,7 @@ TEST_F(BaseResolverTest, ARecordAllowedHostStates)
   }
 
   // Now allow the whitelist only, and ensure we only receive whitelisted
-  // results
+  // results.
   results = resolve(3, BaseResolver::WHITELISTED);
   EXPECT_EQ(2, results.size());
   for (const AddrInfo& result : results)
@@ -514,7 +495,7 @@ TEST_F(BaseResolverTest, ARecordAllowedHostStates)
   }
 
   // Now allow the blacklist only, and ensure we only receive the blacklisted
-  // result
+  // result.
   results = resolve(3, BaseResolver::BLACKLISTED);
   EXPECT_EQ(1, results.size());
   EXPECT_EQ(black_record, results.back());
@@ -533,10 +514,10 @@ TEST_F(BaseResolverTest, ARecordAllowedHostStates)
   EXPECT_EQ(black_record, results.back());
 }
 
-// Test that blacklisted SRV records aren't chosen
+// Test that blacklisted SRV records aren't chosen.
 TEST_F(BaseResolverTest, SRVRecordResolutionWithBlacklist)
 {
-  // Clear the blacklist to start
+  // Clear the blacklist to start.
   _baseresolver.clear_blacklist();
 
   std::vector<DnsRRecord*> records;
@@ -564,10 +545,10 @@ TEST_F(BaseResolverTest, SRVRecordResolutionWithBlacklist)
   _baseresolver.clear_blacklist();
 }
 
-// Test that SRV resolution works when there's multiple correct answers
+// Test that SRV resolution works when there's multiple correct answers.
 TEST_F(BaseResolverTest, SRVRecordResolutionManyTargets)
 {
-  // Clear the blacklist to start
+  // Clear the blacklist to start.
   _baseresolver.clear_blacklist();
 
   std::vector<DnsRRecord*> records;
@@ -588,16 +569,16 @@ TEST_F(BaseResolverTest, SRVRecordResolutionManyTargets)
   EXPECT_THAT(resolve, MatchesRegex("3.0.0.[0-9]{2}:3868;transport=SCTP"));
 }
 
-// Test that a failed SRV lookup returns empty
+// Test that a failed SRV lookup returns empty.
 TEST_F(BaseResolverTest, SRVRecordFailedResolution)
 {
   EXPECT_EQ("", first_result_from_srv("_diameter._sctp.cpp-common-test.cw-ngv.com"));
 }
 
-// Test that allowed host state processing works correctly for SRV resolution
+// Test that allowed host state processing works correctly for SRV resolution.
 TEST_F(BaseResolverTest, SRVRecordAllowedHostStates)
 {
-  // Clear the blacklist to start
+  // Clear the blacklist to start.
   _baseresolver.clear_blacklist();
 
   std::vector<DnsRRecord*> records;
@@ -614,7 +595,7 @@ TEST_F(BaseResolverTest, SRVRecordAllowedHostStates)
   records.push_back(ResolverUtils::a("cpp-common-test-2.cw-ngv.com", 3600, "3.0.0.22"));
   _dnsresolver.add_to_cache("cpp-common-test-2.cw-ngv.com", ns_t_a, records);
 
-  // Blacklist some entries
+  // Blacklist some entries.
   _baseresolver.blacklist(ResolverTest::ip_to_addr_info("3.0.0.12", 3868, IPPROTO_SCTP));
   _baseresolver.blacklist(ResolverTest::ip_to_addr_info("3.0.0.21", 3868, IPPROTO_SCTP));
   _baseresolver.blacklist(ResolverTest::ip_to_addr_info("3.0.0.22", 3868, IPPROTO_SCTP));
@@ -625,7 +606,7 @@ TEST_F(BaseResolverTest, SRVRecordAllowedHostStates)
   std::vector<AddrInfo> results;
 
   // Resolve with 3 'retries' and specifying all_lists - we should skip all
-  // the blacklisted entries
+  // the blacklisted entries.
   results = srv_resolve(
     "_diameter._sctp.cpp-common-test.cw-ngv.com", 3, BaseResolver::ALL_LISTS);
   EXPECT_EQ(3, results.size());
@@ -666,7 +647,7 @@ TEST_F(BaseResolverTest, SRVRecordAllowedHostStates)
   }
 }
 
-// Test that SimpleAddrIterator's next method works correctly
+// Test that SimpleAddrIterator's next method works correctly.
 TEST(SimpleAddrIterator, NextMethod)
 {
   std::vector<AddrInfo> targets;
@@ -686,7 +667,7 @@ TEST(SimpleAddrIterator, NextMethod)
   EXPECT_EQ(target, ai);
 }
 
-// Test that SimpleAddrIterator returns elements of its target vector in order
+// Test that SimpleAddrIterator returns elements of its target vector in order.
 TEST(SimpleAddrIterator, ReturnsInOrder)
 {
   std::vector<AddrInfo> targets;
@@ -706,7 +687,7 @@ TEST(SimpleAddrIterator, ReturnsInOrder)
 }
 
 // Test that SimpleAddrIterator functions correctly when too many targets are
-// requested
+// requested.
 TEST(SimpleAddrIterator, TooManyTargetsRequested)
 {
   std::vector<AddrInfo> targets_in;
@@ -721,10 +702,10 @@ TEST(SimpleAddrIterator, TooManyTargetsRequested)
 }
 
 /// Test that the SRV resolution iterator functions correctly when there are no
-/// targets
+/// targets.
 TEST_F(BaseResolverTest, SRVResolutionTakeEmpty)
 {
-  BaseAddrIterator* it = srv_resolve_iter();
+  BaseAddrIterator* it = srv_resolve_iter(DEFAULT_REALM);
   std::vector<AddrInfo> results = it->take(1);
   EXPECT_EQ(results.size(), 0);
 
@@ -732,11 +713,11 @@ TEST_F(BaseResolverTest, SRVResolutionTakeEmpty)
 }
 
 /// Test that the SRV resolution iterator functions correctly when too many
-/// targets are requested
+/// targets are requested.
 TEST_F(BaseResolverTest, SRVResolutionTakeTooMany)
 {
   add_white_srv_records(1, 3, 1);
-  BaseAddrIterator* it = srv_resolve_iter("_diameter._sctp.cpp-common-test.cw-ngv.com", 5);
+  BaseAddrIterator* it = srv_resolve_iter(DEFAULT_REALM, 5);
 
   std::vector<AddrInfo> results = it->take(5);
   EXPECT_EQ(results.size(), 3);
@@ -745,33 +726,33 @@ TEST_F(BaseResolverTest, SRVResolutionTakeTooMany)
 }
 
 /// Test that the SRV resolution will only probe each graylisted target with a
-/// single call
+/// single call.
 TEST_F(BaseResolverTest, SRVResolutionOnlyProbesGrayTargetOnce)
 {
   AddrInfo record;
-  add_white_srv_records(0, 2, 1);
+  add_white_srv_records(1, 2, 1);
 
-  // Blacklist a record
+  // Blacklist a record.
   AddrInfo gray_record = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
   AddrInfo white_record = ResolverTest::ip_to_addr_info("3.0.1.0", 3868, IPPROTO_SCTP);
   _baseresolver.blacklist(gray_record);
 
-  // Move the record to the graylist
+  // Move the record to the graylist.
   cwtest_advance_time_ms(31000);
 
-  // Get an iterator
-  BaseAddrIterator* it_1 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_1 = srv_resolve_iter(DEFAULT_REALM);
 
   // The graylisted record should be returned, as it should be being probed by
-  // this call
+  // this call.
   EXPECT_TRUE(it_1->next(record));
   EXPECT_EQ(record, gray_record);
 
-  // Get a new iterator
-  BaseAddrIterator* it_2 = srv_resolve_iter();
+  // Get a new iterator.
+  BaseAddrIterator* it_2 = srv_resolve_iter(DEFAULT_REALM);
 
   // The graylisted target is now being probed and so the target should be the
-  // whitelisted one
+  // whitelisted one.
   EXPECT_TRUE(it_2->next(record));
   EXPECT_EQ(record, white_record);
 
@@ -781,31 +762,31 @@ TEST_F(BaseResolverTest, SRVResolutionOnlyProbesGrayTargetOnce)
 
 /// Test that the SRV resolution will not probe blacklisted targets, but once
 /// the target is graylisted SRV resolution will prioritise probing it over
-/// going to a whitelisted target at the same priority level
+/// going to a whitelisted target at the same priority level.
 TEST_F(BaseResolverTest, SRVResolutionProbesGrayOverWhite)
 {
   AddrInfo record;
-  add_white_srv_records(0, 2, 1);
+  add_white_srv_records(1, 2, 1);
 
-  // Blacklist a record
+  // Blacklist a record.
   AddrInfo black_to_gray_record = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
   AddrInfo white_record = ResolverTest::ip_to_addr_info("3.0.1.0", 3868, IPPROTO_SCTP);
   _baseresolver.blacklist(black_to_gray_record);
 
-  // Get an iterator
-  BaseAddrIterator* it_1 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_1 = srv_resolve_iter(DEFAULT_REALM);
 
-  // The blacklisted record should not be returned
+  // The blacklisted record should not be returned.
   EXPECT_TRUE(it_1->next(record));
   EXPECT_EQ(record, white_record);
 
-  // Move the record to the graylist
+  // Move the record to the graylist.
   cwtest_advance_time_ms(31000);
 
-  // Get a new iterator
-  BaseAddrIterator* it_2 = srv_resolve_iter();
+  // Get a new iterator.
+  BaseAddrIterator* it_2 = srv_resolve_iter(DEFAULT_REALM);
 
-  // The graylisted record should be returned
+  // The graylisted record should be returned.
   EXPECT_TRUE(it_2->next(record));
   EXPECT_EQ(record, black_to_gray_record);
 
@@ -814,61 +795,62 @@ TEST_F(BaseResolverTest, SRVResolutionProbesGrayOverWhite)
 }
 
 /// Test that the SRV resolution will only probe a single graylisted target per
-/// call, even if the only whitelisted targets are of lower priority levels
+/// call, even if the only whitelisted targets are of lower priority levels.
 TEST_F(BaseResolverTest, SRVResolutionOnlyProbesGrayOncePerCall)
 {
   // Creates 4 records, 2 at priority 0 and 2 at priority 1
-  add_white_srv_records_priorities(2, 2, 1);
+  add_white_srv_records(2, 2, 1);
 
   AddrInfo gray_record_1 = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
   AddrInfo gray_record_2 = ResolverTest::ip_to_addr_info("3.0.1.0", 3868, IPPROTO_SCTP);
   AddrInfo white_record = ResolverTest::ip_to_addr_info("3.1.0.0", 3868, IPPROTO_SCTP);
   AddrInfo gray_record_3 = ResolverTest::ip_to_addr_info("3.1.1.0", 3868, IPPROTO_SCTP);
-  // Blacklists 3 records
+
+  // Blacklists 3 records.
   _baseresolver.blacklist(gray_record_1);
   _baseresolver.blacklist(gray_record_2);
   _baseresolver.blacklist(gray_record_3);
 
-  // Move the records to the graylist
+  // Move the records to the graylist.
   cwtest_advance_time_ms(31000);
 
-  // Get an iterator to 2 targets
-  BaseAddrIterator* it_1 = srv_resolve_iter();
+  // Get an iterator to 2 targets.
+  BaseAddrIterator* it_1 = srv_resolve_iter(DEFAULT_REALM);
   std::vector<AddrInfo> results = it_1->take(2);
   EXPECT_EQ(results.size(), 2);
 
-  // One of the 2 priority 0 graylisted targets is returned first
+  // One of the 2 priority 0 graylisted targets is returned first.
   std::string graylist_regex = "3.0.[0-1].0:3868;transport=SCTP";
   std::string result_str = ResolverUtils::addrinfo_to_string(results[0]);
   EXPECT_THAT(result_str, MatchesRegex(graylist_regex));
 
   // The second target should be the white target, despite being a lower
-  // priority
+  // priority.
   EXPECT_EQ(results[1], white_record);
 
   delete it_1; it_1 = nullptr;
 }
 
 /// Test that the SRV resolution does not probe a blacklisted target without
-/// waiting the full 30 seconds for it to be graylisted
+/// waiting the full 30 seconds for it to be graylisted.
 TEST_F(BaseResolverTest, SRVResolutionOnlyProbesBlackAfterWaiting)
 {
   AddrInfo record;
-  add_white_srv_records(0, 2, 1);
+  add_white_srv_records(1, 2, 1);
 
-  // Blacklist 2 records
+  // Blacklist 2 records.
   AddrInfo black_record = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
   AddrInfo white_record = ResolverTest::ip_to_addr_info("3.0.1.0", 3868, IPPROTO_SCTP);
   _baseresolver.blacklist(black_record);
 
-  // Wait just under the time taken for the record to move to the blacklist
+  // Wait just under the time taken for the record to move to the blacklist.
   cwtest_advance_time_ms(29000);
 
-  // Get an iterator
-  BaseAddrIterator* it_1 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_1 = srv_resolve_iter(DEFAULT_REALM);
 
   // The first record should still be on the blacklist, so the whitelisted
-  // record should be returned
+  // record should be returned.
   EXPECT_TRUE(it_1->next(record));
   EXPECT_EQ(record, white_record);
 
@@ -880,25 +862,25 @@ TEST_F(BaseResolverTest, SRVResolutionOnlyProbesBlackAfterWaiting)
 TEST_F(BaseResolverTest, SRVResolutionPrioritisesGrayProbingIfHighestLevelUnavailable)
 {
   AddrInfo record;
-  add_white_srv_records_priorities(2, 2, 1);
+  add_white_srv_records(2, 2, 1);
 
-  // Blacklist a record
+  // Blacklist a record.
   AddrInfo gray_record = ResolverTest::ip_to_addr_info("3.1.1.0", 3868, IPPROTO_SCTP);
   _baseresolver.blacklist(gray_record);
 
-  // Move the record to the graylist
+  // Move the record to the graylist.
   cwtest_advance_time_ms(31000);
 
-  // Blacklist the records on the highest priority level
+  // Blacklist the records on the highest priority level.
   AddrInfo black_record_1 = ResolverTest::ip_to_addr_info("3.0.1.0", 3868, IPPROTO_SCTP);
   AddrInfo black_record_2 = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
   _baseresolver.blacklist(black_record_1);
   _baseresolver.blacklist(black_record_2);
 
-  // Get an iterator
-  BaseAddrIterator* it_1 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_1 = srv_resolve_iter(DEFAULT_REALM);
 
-  // The graylisted record should be returned, as it should be probed first
+  // The graylisted record should be returned, as it should be probed first.
   EXPECT_TRUE(it_1->next(record));
   EXPECT_EQ(record, gray_record);
 
@@ -906,28 +888,28 @@ TEST_F(BaseResolverTest, SRVResolutionPrioritisesGrayProbingIfHighestLevelUnavai
 }
 
 /// Tests that a graylisted target will not be probed if whitelisted targets
-/// exist of a higher priority
+/// exist of a higher priority.
 TEST_F(BaseResolverTest, SRVResolutionOnlyProbesGrayAtHighestAvailablePriority)
 {
   // Creates 4 records, 2 at priority 0 and 2 at priority 1
-  add_white_srv_records_priorities(2, 2, 1);
+  add_white_srv_records(2, 2, 1);
 
   AddrInfo gray_record_1 = ResolverTest::ip_to_addr_info("3.1.0.0", 3868, IPPROTO_SCTP);
   AddrInfo gray_record_2 = ResolverTest::ip_to_addr_info("3.1.1.0", 3868, IPPROTO_SCTP);
 
-  // Blacklists 2 records
+  // Blacklists 2 records.
   _baseresolver.blacklist(gray_record_1);
   _baseresolver.blacklist(gray_record_2);
 
-  // Move the records to the graylist
+  // Move the records to the graylist.
   cwtest_advance_time_ms(31000);
 
-  // Get an iterator
-  BaseAddrIterator* it_1 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_1 = srv_resolve_iter(DEFAULT_REALM);
   std::vector<AddrInfo> results = it_1->take(2);
   EXPECT_EQ(results.size(), 2);
 
-  // The two priority 0 whitelisted targets will be returned in some order
+  // The two priority 0 whitelisted targets will be returned in some order.
   std::string whitelist_regex = "3.0.[0-1].0:3868;transport=SCTP";
   std::string result_str_1 = ResolverUtils::addrinfo_to_string(results[0]);
   EXPECT_THAT(result_str_1, MatchesRegex(whitelist_regex));
@@ -935,30 +917,30 @@ TEST_F(BaseResolverTest, SRVResolutionOnlyProbesGrayAtHighestAvailablePriority)
   std::string result_str_2 = ResolverUtils::addrinfo_to_string(results[1]);
   EXPECT_THAT(result_str_2, MatchesRegex(whitelist_regex));
 
-  // Verifies that the same target wasn't returned twice
+  // Verifies that the same target wasn't returned twice.
   EXPECT_NE(result_str_1, result_str_2);
 
   delete it_1; it_1 = nullptr;
 }
 
-/// Tests that after 60s a blacklisted target returns to the whitelist
+/// Tests that after 60s a blacklisted target returns to the whitelist.
 TEST_F(BaseResolverTest, SRVResolutionReturnsBlackToWhiteAfterTimeOut)
 {
   // Creates 2 records, 1 at priority 0 and 1 at priority 1
-  add_white_srv_records_priorities(2, 1, 1);
+  add_white_srv_records(2, 1, 1);
 
   AddrInfo black_to_white_record = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
   AddrInfo white_record = ResolverTest::ip_to_addr_info("3.1.0.0", 3868, IPPROTO_SCTP);
 
-  // Blacklists the higher priority record
+  // Blacklists the higher priority record.
   _baseresolver.blacklist(black_to_white_record);
 
-  // Get an iterator
+  // Get an iterator.
   AddrInfo record;
-  BaseAddrIterator* it_1 = srv_resolve_iter();
+  BaseAddrIterator* it_1 = srv_resolve_iter(DEFAULT_REALM);
 
   // The blacklisted record should be skipped and the whitelisted record
-  // returned
+  // returned.
   EXPECT_TRUE(it_1->next(record));
   EXPECT_EQ(record, white_record);
 
@@ -966,11 +948,11 @@ TEST_F(BaseResolverTest, SRVResolutionReturnsBlackToWhiteAfterTimeOut)
   // for each)
   cwtest_advance_time_ms(61000);
 
-  // Get an iterator
-  BaseAddrIterator* it_2 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_2 = srv_resolve_iter(DEFAULT_REALM);
 
   // The highest priority record should have returned to the whitelist and
-  // should now be returned
+  // should now be returned.
   EXPECT_TRUE(it_2->next(record));
   EXPECT_EQ(record, black_to_white_record);
 
@@ -979,47 +961,47 @@ TEST_F(BaseResolverTest, SRVResolutionReturnsBlackToWhiteAfterTimeOut)
 }
 
 /// Tests that if a graylisted record is being probed it still leaves the
-/// graylist after 30s
+/// graylist after 30s.
 TEST_F(BaseResolverTest, SRVResolutionGrayTimesOutIfProbing)
 {
   AddrInfo record;
 
   // Creates 2 records, 1 at priority 0 and 1 at priority 1
-  add_white_srv_records_priorities(2, 1, 1);
+  add_white_srv_records(2, 1, 1);
 
   AddrInfo gray_record = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
   AddrInfo white_record = ResolverTest::ip_to_addr_info("3.1.0.0", 3868, IPPROTO_SCTP);
 
-  // Blacklists the higher priority record
+  // Blacklists the higher priority record.
   _baseresolver.blacklist(gray_record);
 
-  // Move it to the graylist
+  // Move it to the graylist.
   cwtest_advance_time_ms(31000);
 
-  // Get an iterator
-  BaseAddrIterator* it_1 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_1 = srv_resolve_iter(DEFAULT_REALM);
 
-  // This request is probing the graylisted record
+  // This request is probing the graylisted record.
   EXPECT_TRUE(it_1->next(record));
   EXPECT_EQ(record, gray_record);
 
-  // Get an iterator
-  BaseAddrIterator* it_2 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_2 = srv_resolve_iter(DEFAULT_REALM);
 
   // The graylisted record is being probed so the whitelisted record is targeted
-  // instead
+  // instead.
   EXPECT_TRUE(it_2->next(record));
   EXPECT_EQ(record, white_record);
 
   // Despite nothing being returned by the first request, the target should still
-  // time out of the graylist
+  // time out of the graylist.
   cwtest_advance_time_ms(31000);
 
-  // Get an iterator
-  BaseAddrIterator* it_3 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_3 = srv_resolve_iter(DEFAULT_REALM);
 
   // The highest priority record should have returned to the whitelist and
-  // should now be returned
+  // should now be returned.
   EXPECT_TRUE(it_3->next(record));
   EXPECT_EQ(record, gray_record);
 
@@ -1029,47 +1011,47 @@ TEST_F(BaseResolverTest, SRVResolutionGrayTimesOutIfProbing)
 }
 
 /// Tests that if a graylisted target times out while being probed and is added
-/// back to the graylist, it is not still thought to be being probed
+/// back to the graylist, it is not still thought to be being probed.
 TEST_F(BaseResolverTest, SRVResolutionGrayProbingResetAfterTimeOut)
 {
   AddrInfo record;
 
   // Creates 2 records, 1 at priority 0 and 1 at priority 1
-  add_white_srv_records_priorities(2, 1, 1);
+  add_white_srv_records(2, 1, 1);
 
   AddrInfo gray_record = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
   AddrInfo white_record = ResolverTest::ip_to_addr_info("3.1.0.0", 3868, IPPROTO_SCTP);
 
-  // Blacklists the higher priority record
+  // Blacklists the higher priority record.
   _baseresolver.blacklist(gray_record);
 
-  // Move it to the graylist
+  // Move it to the graylist.
   cwtest_advance_time_ms(31000);
 
-  // Get an iterator
-  BaseAddrIterator* it_1 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_1 = srv_resolve_iter(DEFAULT_REALM);
 
-  // This request is probing the graylisted record
+  // This request is probing the graylisted record.
   EXPECT_TRUE(it_1->next(record));
   EXPECT_EQ(record, gray_record);
 
-  // Get an iterator
-  BaseAddrIterator* it_2 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_2 = srv_resolve_iter(DEFAULT_REALM);
 
   // The graylisted record is being probed so the whitelisted record is targeted
-  // instead
+  // instead.
   EXPECT_TRUE(it_2->next(record));
   EXPECT_EQ(record, white_record);
 
   // Despite nothing being returned by the first request, the target should still
-  // time out of the graylist
+  // time out of the graylist.
   cwtest_advance_time_ms(31000);
 
-  // Get an iterator
-  BaseAddrIterator* it_3 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_3 = srv_resolve_iter(DEFAULT_REALM);
 
   // The highest priority record should have returned to the whitelist and
-  // should now be returned
+  // should now be returned.
   EXPECT_TRUE(it_3->next(record));
   EXPECT_EQ(record, gray_record);
 
@@ -1079,46 +1061,46 @@ TEST_F(BaseResolverTest, SRVResolutionGrayProbingResetAfterTimeOut)
 }
 
 /// Tests that if a graylisted target is successfully probed it returns to the
-/// whitelist, so it is probed ahead of a lower priority whitelisted target
+/// whitelist, so it is probed ahead of a lower priority whitelisted target.
 TEST_F(BaseResolverTest, SRVResolutionGrayProbingSuccessMakesWhite)
 {
   AddrInfo record;
 
   // Creates 2 records, 1 at priority 0 and 1 at priority 1
-  add_white_srv_records_priorities(2, 1, 1);
+  add_white_srv_records(2, 1, 1);
 
   AddrInfo gray_record = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
   AddrInfo white_record = ResolverTest::ip_to_addr_info("3.1.0.0", 3868, IPPROTO_SCTP);
 
-  // Blacklists the higher priority record
+  // Blacklists the higher priority record.
   _baseresolver.blacklist(gray_record);
 
-  // Move it to the graylist
+  // Move it to the graylist.
   cwtest_advance_time_ms(31000);
 
-  // Get an iterator
-  BaseAddrIterator* it_1 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_1 = srv_resolve_iter(DEFAULT_REALM);
 
-  // This request is probing the graylisted record
+  // This request is probing the graylisted record.
   EXPECT_TRUE(it_1->next(record));
   EXPECT_EQ(record, gray_record);
 
-  // Get an iterator
-  BaseAddrIterator* it_2 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_2 = srv_resolve_iter(DEFAULT_REALM);
 
   // The graylisted record is being probed so the whitelisted record is targeted
-  // instead
+  // instead.
   EXPECT_TRUE(it_2->next(record));
   EXPECT_EQ(record, white_record);
 
-  // Return success on the graylisted target
+  // Return success on the graylisted target.
   _baseresolver.success(gray_record);
 
-  // Get an iterator
-  BaseAddrIterator* it_3 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_3 = srv_resolve_iter(DEFAULT_REALM);
 
   // The highest priority record should have returned to the whitelist and
-  // should now be returned
+  // should now be returned.
   EXPECT_TRUE(it_3->next(record));
   EXPECT_EQ(record, gray_record);
 
@@ -1128,38 +1110,38 @@ TEST_F(BaseResolverTest, SRVResolutionGrayProbingSuccessMakesWhite)
 }
 
 /// Tests that if a graylisted target is unsuccessfully probed it returns to the
-/// blacklist, so a low priority whitelisted target is targetted before it
+/// blacklist, so a low priority whitelisted target is targetted before it.
 TEST_F(BaseResolverTest, SRVResolutionGrayProbingFailureMakesBlack)
 {
   AddrInfo record;
 
   // Creates 2 records, 1 at priority 0 and 1 at priority 1
-  add_white_srv_records_priorities(2, 1, 1);
+  add_white_srv_records(2, 1, 1);
 
   AddrInfo gray_record = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
   AddrInfo white_record = ResolverTest::ip_to_addr_info("3.1.0.0", 3868, IPPROTO_SCTP);
 
-  // Blacklists the higher priority record
+  // Blacklists the higher priority record.
   _baseresolver.blacklist(gray_record);
 
-  // Move it to the graylist
+  // Move it to the graylist.
   cwtest_advance_time_ms(31000);
 
-  // Get an iterator
-  BaseAddrIterator* it_1 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_1 = srv_resolve_iter(DEFAULT_REALM);
 
-  // This request is probing the graylisted record
+  // This request is probing the graylisted record.
   EXPECT_TRUE(it_1->next(record));
   EXPECT_EQ(record, gray_record);
 
-  // Return failure on the probe
+  // Return failure on the probe.
   _baseresolver.blacklist(gray_record);
 
-  // Get an iterator
-  BaseAddrIterator* it_2 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_2 = srv_resolve_iter(DEFAULT_REALM);
 
   // The gray record is now blacklisted so the lower priority whitelisted record
-  // is targeted instead
+  // is targeted instead.
   EXPECT_TRUE(it_2->next(record));
   EXPECT_EQ(record, white_record);
 
@@ -1168,52 +1150,52 @@ TEST_F(BaseResolverTest, SRVResolutionGrayProbingFailureMakesBlack)
 }
 
 /// Tests that if a graylisted target is unsuccessfully probed it takes 30s
-/// before it can be probed again
+/// before it can be probed again.
 TEST_F(BaseResolverTest, SRVResolutionGrayProbingFailurePreventsMoreProbes)
 {
   AddrInfo record;
 
   // Creates 2 records, 1 at priority 0 and 1 at priority 1
-  add_white_srv_records_priorities(2, 1, 1);
+  add_white_srv_records(2, 1, 1);
 
   AddrInfo gray_record = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
   AddrInfo white_record = ResolverTest::ip_to_addr_info("3.1.0.0", 3868, IPPROTO_SCTP);
 
-  // Blacklists the higher priority record
+  // Blacklists the higher priority record.
   _baseresolver.blacklist(gray_record);
 
-  // Move it to the graylist
+  // Move it to the graylist.
   cwtest_advance_time_ms(31000);
 
-  // Get an iterator
-  BaseAddrIterator* it_1 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_1 = srv_resolve_iter(DEFAULT_REALM);
 
-  // This request is probing the graylisted record
+  // This request is probing the graylisted record.
   EXPECT_TRUE(it_1->next(record));
   EXPECT_EQ(record, gray_record);
 
-  // Return failure on the probe
+  // Return failure on the probe.
   _baseresolver.blacklist(gray_record);
 
-  // Get an iterator
-  BaseAddrIterator* it_2 = srv_resolve_iter();
+  // Get an iterator.
+  BaseAddrIterator* it_2 = srv_resolve_iter(DEFAULT_REALM);
 
   // The gray record is now blacklisted so the lower priority whitelisted record
-  // is targeted instead
+  // is targeted instead.
   EXPECT_TRUE(it_2->next(record));
   EXPECT_EQ(record, white_record);
 
-  // Move it to the graylist again
+  // Move it to the graylist again.
   cwtest_advance_time_ms(31000);
 
-  // This request probes the graylist record again
-  BaseAddrIterator* it_3 = srv_resolve_iter();
+  // This request probes the graylist record again.
+  BaseAddrIterator* it_3 = srv_resolve_iter(DEFAULT_REALM);
   EXPECT_TRUE(it_3->next(record));
   EXPECT_EQ(record, gray_record);
 
   // This request will target the whitelisted record since the graylisted record
-  // is being probed
-  BaseAddrIterator* it_4 = srv_resolve_iter();
+  // is being probed.
+  BaseAddrIterator* it_4 = srv_resolve_iter(DEFAULT_REALM);
   EXPECT_TRUE(it_4->next(record));
   EXPECT_EQ(record, white_record);
 
@@ -1221,39 +1203,38 @@ TEST_F(BaseResolverTest, SRVResolutionGrayProbingFailurePreventsMoreProbes)
   delete it_2; it_2 = nullptr;
   delete it_3; it_3 = nullptr;
   delete it_4; it_4 = nullptr;
-
 }
 
 /// Tests that if a request would probe a graylisted target, it only does this
-/// when whitelisted targets are allowed
+/// when whitelisted targets are allowed.
 TEST_F(BaseResolverTest, SRVResolutionGrayNotProbingIsWhite)
 {
   AddrInfo record;
 
   // Creates 2 record at priority 0
-  add_white_srv_records_priorities(1, 2, 1);
+  add_white_srv_records(1, 2, 1);
 
   AddrInfo gray_record = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
   AddrInfo black_record = ResolverTest::ip_to_addr_info("3.0.1.0", 3868, IPPROTO_SCTP);
 
-  // Blacklists the first record and wait for it to move to the graylist
+  // Blacklists the first record and wait for it to move to the graylist.
   _baseresolver.blacklist(gray_record);
   cwtest_advance_time_ms(31000);
 
-  // Blacklists the second record
+  // Blacklists the second record.
   _baseresolver.blacklist(black_record);
 
   // When only blacklisted targets are allowed, a graylisted target is not
-  // probed
-  BaseAddrIterator* it_1 = srv_resolve_iter("_diameter._sctp.cpp-common-test.cw-ngv.com",
+  // probed.
+  BaseAddrIterator* it_1 = srv_resolve_iter(DEFAULT_REALM,
                                             1,
                                             BaseResolver::BLACKLISTED);
   EXPECT_TRUE(it_1->next(record));
   EXPECT_EQ(record, black_record);
 
   // When only whitelisted targets are allowed, the graylisted target is allowed
-  // to be probed
-  BaseAddrIterator* it_2 = srv_resolve_iter("_diameter._sctp.cpp-common-test.cw-ngv.com",
+  // to be probed.
+  BaseAddrIterator* it_2 = srv_resolve_iter(DEFAULT_REALM,
                                             1,
                                             BaseResolver::WHITELISTED);
   EXPECT_TRUE(it_2->next(record));
@@ -1264,37 +1245,37 @@ TEST_F(BaseResolverTest, SRVResolutionGrayNotProbingIsWhite)
 }
 
 /// Tests that if a graylisted target is already being probed, it is only
-/// targeted when blacklisted targets are allowed
+/// targeted when blacklisted targets are allowed.
 TEST_F(BaseResolverTest, SRVResolutionGrayAlreadyProbingIsBlack)
 {
   AddrInfo record;
 
-  // Creates 2 record at priority 0
-  add_white_srv_records_priorities(1, 2, 1);
+// Creates 2 record at priority 0
+  add_white_srv_records(1, 2, 1);
 
   AddrInfo gray_record = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
   AddrInfo white_record = ResolverTest::ip_to_addr_info("3.0.1.0", 3868, IPPROTO_SCTP);
 
-  // Blacklists the first record and wait for it to move to the graylist
+  // Blacklists the first record and wait for it to move to the graylist.
   _baseresolver.blacklist(gray_record);
   cwtest_advance_time_ms(31000);
 
-  // First request probes the graylisted target
-  BaseAddrIterator* it_1 = srv_resolve_iter();
+  // First request probes the graylisted target.
+  BaseAddrIterator* it_1 = srv_resolve_iter(DEFAULT_REALM);
   EXPECT_TRUE(it_1->next(record));
   EXPECT_EQ(record, gray_record);
 
   // When only whitelisted targets are allowed, the whitelisted target is
-  // targeted, instead of the graylisted one currently being probed
-  BaseAddrIterator* it_2 = srv_resolve_iter("_diameter._sctp.cpp-common-test.cw-ngv.com",
+  // targeted, instead of the graylisted one currently being probed.
+  BaseAddrIterator* it_2 = srv_resolve_iter(DEFAULT_REALM,
                                             1,
                                             BaseResolver::WHITELISTED);
   EXPECT_TRUE(it_2->next(record));
   EXPECT_EQ(record, white_record);
 
   // When only blacklisted targets are allowed, the graylisted target is allowed
-  // to be targeted
-  BaseAddrIterator* it_3 = srv_resolve_iter("_diameter._sctp.cpp-common-test.cw-ngv.com",
+  // to be targeted.
+  BaseAddrIterator* it_3 = srv_resolve_iter(DEFAULT_REALM,
                                             1,
                                             BaseResolver::BLACKLISTED);
   EXPECT_TRUE(it_3->next(record));
