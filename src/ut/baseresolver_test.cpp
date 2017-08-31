@@ -1205,52 +1205,13 @@ TEST_F(BaseResolverTest, SRVResolutionGrayProbingFailurePreventsMoreProbes)
   delete it_4; it_4 = nullptr;
 }
 
-/// Tests that if a request would probe a graylisted target, it only does this
-/// when whitelisted targets are allowed.
-TEST_F(BaseResolverTest, SRVResolutionGrayNotProbingIsWhite)
-{
-  AddrInfo record;
-
-  // Creates 2 record at priority 0
-  add_white_srv_records(1, 2, 1);
-
-  AddrInfo gray_record = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
-  AddrInfo black_record = ResolverTest::ip_to_addr_info("3.0.1.0", 3868, IPPROTO_SCTP);
-
-  // Blacklists the first record and wait for it to move to the graylist.
-  _baseresolver.blacklist(gray_record);
-  cwtest_advance_time_ms(31000);
-
-  // Blacklists the second record.
-  _baseresolver.blacklist(black_record);
-
-  // When only blacklisted targets are allowed, a graylisted target is not
-  // probed.
-  BaseAddrIterator* it_1 = srv_resolve_iter(DEFAULT_REALM,
-                                            1,
-                                            BaseResolver::BLACKLISTED);
-  EXPECT_TRUE(it_1->next(record));
-  EXPECT_EQ(record, black_record);
-
-  // When only whitelisted targets are allowed, the graylisted target is allowed
-  // to be probed.
-  BaseAddrIterator* it_2 = srv_resolve_iter(DEFAULT_REALM,
-                                            1,
-                                            BaseResolver::WHITELISTED);
-  EXPECT_TRUE(it_2->next(record));
-  EXPECT_EQ(record, gray_record);
-
-  delete it_1; it_1 = nullptr;
-  delete it_2; it_2 = nullptr;
-}
-
 /// Tests that if a graylisted target is already being probed, it is only
 /// targeted when blacklisted targets are allowed.
 TEST_F(BaseResolverTest, SRVResolutionGrayAlreadyProbingIsBlack)
 {
   AddrInfo record;
 
-// Creates 2 record at priority 0
+  // Creates 2 record at priority 0
   add_white_srv_records(1, 2, 1);
 
   AddrInfo gray_record = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
@@ -1280,6 +1241,53 @@ TEST_F(BaseResolverTest, SRVResolutionGrayAlreadyProbingIsBlack)
                                             BaseResolver::BLACKLISTED);
   EXPECT_TRUE(it_3->next(record));
   EXPECT_EQ(record, gray_record);
+
+  delete it_1; it_1 = nullptr;
+  delete it_2; it_2 = nullptr;
+  delete it_3; it_3 = nullptr;
+}
+
+/// Tests that if a graylisted address is not being probed, it will be selected
+/// by a request that only allows blacklisted targets and that this will not
+/// change its state to probing. Also tests that the same address can be
+/// targeted by a whitelisted only request and that this will change its state
+/// to probing
+TEST_F(BaseResolverTest, SRVResolutionGrayNotProbingIsBlackOrWhite)
+{
+  AddrInfo record;
+
+  // Creates 2 record at priority 0
+  add_white_srv_records(1, 2, 1);
+
+  AddrInfo gray_record = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
+  AddrInfo white_record = ResolverTest::ip_to_addr_info("3.0.1.0", 3868, IPPROTO_SCTP);
+
+  // Blacklists the first record and wait for it to move to the graylist.
+  _baseresolver.blacklist(gray_record);
+  cwtest_advance_time_ms(31000);
+
+  // First request probes the graylisted target, since it can only probe black
+  // or graylisted targets. Note that this does not change the state of the
+  // graylisted target to probing
+  BaseAddrIterator* it_1 = srv_resolve_iter(DEFAULT_REALM,
+                                            2,
+                                            BaseResolver::BLACKLISTED);
+  EXPECT_TRUE(it_1->next(record));
+  EXPECT_EQ(record, gray_record);
+
+  // When only whitelisted targets are allowed, the graylisted target is probed
+  // and so treated as whitelisted, taking priority over the white record
+  BaseAddrIterator* it_2 = srv_resolve_iter(DEFAULT_REALM,
+                                            2,
+                                            BaseResolver::WHITELISTED);
+  EXPECT_TRUE(it_2->next(record));
+  EXPECT_EQ(record, gray_record);
+
+  // The whitelisting only call should have changed the state of the gray record
+  // to probing, so a normal call will prioritise the white record
+  BaseAddrIterator* it_3 = srv_resolve_iter(DEFAULT_REALM);
+  EXPECT_TRUE(it_3->next(record));
+  EXPECT_EQ(record, white_record);
 
   delete it_1; it_1 = nullptr;
   delete it_2; it_2 = nullptr;
