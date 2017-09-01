@@ -20,36 +20,6 @@ using namespace std;
 
 namespace ResolverUtils
 {
-inline std::string addrinfo_to_string(const AddrInfo& ai)
-{
-  ostringstream oss;
-  char buf[100];
-  if (ai.address.af == AF_INET6)
-  {
-    oss << "[";
-  }
-  oss << inet_ntop(ai.address.af, &ai.address.addr, buf, sizeof(buf));
-  if (ai.address.af == AF_INET6)
-  {
-    oss << "]";
-  }
-  oss << ":" << ai.port;
-  oss << ";transport=";
-  if (ai.transport == IPPROTO_SCTP)
-  {
-    oss << "SCTP";
-  }
-  else if (ai.transport == IPPROTO_TCP)
-  {
-    oss << "TCP";
-  }
-  else
-  {
-    oss << "Unknown (" << ai.transport << ")";
-  }
-  return oss.str();
-}
-
 inline DnsRRecord* a(const std::string& name,
                      int ttl,
                      const std::string& address)

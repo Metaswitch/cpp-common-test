@@ -150,7 +150,7 @@ class HttpConnectionBlacklistTest : public BaseTest
     for (int i = 0; i < count; ++i)
     {
       os << "3.0.0." << i;
-      BaseResolver::parse_ip_target(os.str(), ai.address);
+      Utils::parse_ip_target(os.str(), ai.address);
       targets.push_back(ai);
       os.str(std::string());
     }
