@@ -63,7 +63,11 @@ class HttpClientTest : public BaseTest
                                    true,
                                    false,
                                    // Override the default timeout for this client
-                                   1000);
+                                   1000,
+                                   // Specify a server name for this client
+                                   true,
+                                   "a_test_server"
+                                   );
 
     fakecurl_responses.clear();
     fakecurl_responses["http://10.42.42.42:80/blah/blah/blah"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>";
