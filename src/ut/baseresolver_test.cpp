@@ -725,6 +725,21 @@ TEST_F(BaseResolverTest, SRVResolutionTakeTooMany)
   delete it; it = nullptr;
 }
 
+/// Test that when all records are whitelisted and only blacklisted records are
+/// requested this is handled correctly and an empty iterator is returned.
+TEST_F(BaseResolverTest, SRVResolutionTakeBlackWhenAllWhite)
+{
+  add_white_srv_records(1, 3, 1);
+  BaseAddrIterator* it = srv_resolve_iter(DEFAULT_REALM,
+                                          3,
+                                          BaseResolver::BLACKLISTED);
+
+  std::vector<AddrInfo> results = it->take(3);
+  EXPECT_EQ(results.size(), 0);
+
+  delete it; it = nullptr;
+}
+
 /// Test that the SRV resolution will only probe each graylisted target with a
 /// single call.
 TEST_F(BaseResolverTest, SRVResolutionOnlyProbesGrayTargetOnce)
@@ -1284,7 +1299,8 @@ TEST_F(BaseResolverTest, SRVResolutionGrayNotProbingIsBlackOrWhite)
   EXPECT_EQ(record, gray_record);
 
   // The whitelisting only call should have changed the state of the gray record
-  // to probing, so a normal call will prioritise the white record
+  // to probing, so a call that requests both address types will prioritise the
+  // white record
   BaseAddrIterator* it_3 = srv_resolve_iter(DEFAULT_REALM);
   EXPECT_TRUE(it_3->next(record));
   EXPECT_EQ(record, white_record);
