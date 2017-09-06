@@ -78,7 +78,7 @@ public:
     if (!targets.empty())
     {
       // Successful, so render AddrInfo as a string.
-      output = ResolverUtils::addrinfo_to_string(targets[0]);
+      output = targets[0].to_string();
     }
 
     EXPECT_EQ(expected_output, output);

@@ -29,7 +29,7 @@ ResolverTest::~ResolverTest()
 AddrInfo ResolverTest::ip_to_addr_info(std::string address_str, int port, int transport)
 {
   AddrInfo ai;
-  BaseResolver::parse_ip_target(address_str, ai.address);
+  Utils::parse_ip_target(address_str, ai.address);
   ai.port = port;
   ai.transport = transport;
   return ai;

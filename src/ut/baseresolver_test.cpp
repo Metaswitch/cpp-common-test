@@ -105,31 +105,12 @@ class BaseResolverTest : public ResolverTest
 
     if (! targets.empty())
     {
-      output = ResolverUtils::addrinfo_to_string(targets[0]);
+      output = targets[0].to_string();
     }
 
     return output;
   }
 };
-
-// Test that basic parsing of IP addresses works
-TEST_F(BaseResolverTest, ParseIPAddresses)
-{
-  AddrInfo ai;
-  ai.port = 80;
-  ai.transport = IPPROTO_TCP;
-
-  EXPECT_TRUE(_baseresolver.parse_ip_target("1.2.3.4", ai.address));
-  EXPECT_EQ("1.2.3.4:80;transport=TCP", ResolverUtils::addrinfo_to_string(ai));
-
-  EXPECT_TRUE(_baseresolver.parse_ip_target("1:2::2", ai.address));
-  EXPECT_EQ("[1:2::2]:80;transport=TCP", ResolverUtils::addrinfo_to_string(ai));
-
-  EXPECT_TRUE(_baseresolver.parse_ip_target("[1:2::2]", ai.address));
-  EXPECT_EQ("[1:2::2]:80;transport=TCP", ResolverUtils::addrinfo_to_string(ai));
-
-  EXPECT_FALSE(_baseresolver.parse_ip_target("1.2.3.4:8888", ai.address));
-}
 
 // Test that basic IPv4 resolution works
 TEST_F(BaseResolverTest, IPv4AddressResolution)
@@ -139,7 +120,7 @@ TEST_F(BaseResolverTest, IPv4AddressResolution)
   std::vector<AddrInfo> targets = resolve(1);
   ASSERT_GT(targets.size(), 0);
 
-  std::string result = ResolverUtils::addrinfo_to_string(resolve(1)[0]);
+  std::string result = resolve(1)[0].to_string();
   EXPECT_EQ(result, "3.0.0.0:80;transport=TCP");
 }
 
@@ -151,7 +132,7 @@ TEST_F(BaseResolverTest, IPv4AddressResolutionManyTargets)
   std::vector<AddrInfo> targets = resolve(1);
   ASSERT_GT(targets.size(), 0);
 
-  std::string result = ResolverUtils::addrinfo_to_string(resolve(1)[0]);
+  std::string result = resolve(1)[0].to_string();
   EXPECT_THAT(result, MatchesRegex("3.0.0.[0-6]:80;transport=TCP"));
 }
 
@@ -482,7 +463,7 @@ TEST_F(BaseResolverTest, ARecordAllowedHostStates)
   results.pop_back();
   for (const AddrInfo& result : results)
   {
-    std::string result_str = ResolverUtils::addrinfo_to_string(result);
+    std::string result_str = result.to_string();
     EXPECT_THAT(result_str, MatchesRegex("3.0.0.[1-2]:80;transport=TCP"));
   }
 
@@ -492,7 +473,7 @@ TEST_F(BaseResolverTest, ARecordAllowedHostStates)
   EXPECT_EQ(2, results.size());
   for (const AddrInfo& result : results)
   {
-    std::string result_str = ResolverUtils::addrinfo_to_string(result);
+    std::string result_str = result.to_string();
     EXPECT_THAT(result_str, MatchesRegex("3.0.0.[1-2]:80;transport=TCP"));
   }
 
@@ -614,7 +595,7 @@ TEST_F(BaseResolverTest, SRVRecordAllowedHostStates)
   EXPECT_EQ(3, results.size());
   for (AddrInfo& result : results)
   {
-    std::string result_str = ResolverUtils::addrinfo_to_string(result);
+    std::string result_str = result.to_string();
     EXPECT_THAT(result_str, MatchesRegex(whitelist_regex));
   }
 
@@ -633,7 +614,7 @@ TEST_F(BaseResolverTest, SRVRecordAllowedHostStates)
   EXPECT_EQ(3, results.size());
   for (AddrInfo& result : results)
   {
-    std::string result_str = ResolverUtils::addrinfo_to_string(result);
+    std::string result_str = result.to_string();
     EXPECT_THAT(result_str, MatchesRegex(whitelist_regex));
   }
 
@@ -644,7 +625,7 @@ TEST_F(BaseResolverTest, SRVRecordAllowedHostStates)
   EXPECT_EQ(3, results.size());
   for (AddrInfo& result : results)
   {
-    std::string result_str = ResolverUtils::addrinfo_to_string(result);
+    std::string result_str = result.to_string();
     EXPECT_THAT(result_str, MatchesRegex(blacklist_regex));
   }
 }
