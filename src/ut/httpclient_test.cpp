@@ -46,8 +46,11 @@ class HttpClientTest : public BaseTest
   NiceMock<MockCommunicationMonitor>* _cm = new NiceMock<MockCommunicationMonitor>(_am);
   HttpClient* _http;
   HttpClient* _private_http;
+  string _server_display_name;
+
   HttpClientTest() :
-    _resolver("10.42.42.42")
+    _resolver("10.42.42.42"),
+    _server_display_name("a_test_server")
   {
     _http = new HttpClient(true,
                            &_resolver,
@@ -63,7 +66,11 @@ class HttpClientTest : public BaseTest
                                    true,
                                    false,
                                    // Override the default timeout for this client
-                                   1000);
+                                   1000,
+                                   // Specify a server name for this client
+                                   true,
+                                   _server_display_name
+                                   );
 
     fakecurl_responses.clear();
     fakecurl_responses["http://10.42.42.42:80/blah/blah/blah"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>";
@@ -188,6 +195,24 @@ TEST_F(HttpClientTest, SasNoBodyToOmit)
 
   bool body_omitted = (req_event->var_params[2].find(BODY_OMITTED) != string::npos);
   EXPECT_FALSE(body_omitted);
+
+  mock_sas_collect_messages(false);
+}
+
+// Check that we correctly apply the specified display name.
+TEST_F(HttpClientTest, SasDisplayName)
+{
+  mock_sas_collect_messages(true);
+  std::map<std::string, std::string> headers;
+  headers["HttpClientTest"] = "true";
+  _private_http->send_post("http://cyrus/blah/blah/blah", headers, "", 0, "gandalf");
+
+  MockSASMessage* req_event = mock_sas_find_event(SASEvent::TX_HTTP_REQ);
+  EXPECT_TRUE(req_event != NULL);
+
+  // Ensure that display name added to SAS event matches the name we passed
+  // to the HttpClient constructor
+  EXPECT_EQ(req_event->var_params[0], _server_display_name);
 
   mock_sas_collect_messages(false);
 }

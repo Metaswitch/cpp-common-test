@@ -381,6 +381,15 @@ TEST_F(HttpConnectionTest, SimplePutWithResponse)
   EXPECT_EQ("response", response);
 }
 
+TEST_F(HttpConnectionTest, PutWithUsername)
+{
+  EXPECT_CALL(*_cm, inform_success(_));
+  std::string username = "";
+  long ret = _http->send_put("/put_id", "", 0, username);
+
+  EXPECT_EQ(200, ret);
+}
+
 TEST_F(HttpConnectionTest, PutWithHeadersAndUsername)
 {
   EXPECT_CALL(*_cm, inform_success(_));
