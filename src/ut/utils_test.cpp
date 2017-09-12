@@ -28,6 +28,37 @@ class UtilsTest : public BaseTest
   }
 };
 
+TEST_F(UtilsTest, StripURIScheme)
+{
+  std::string before = "sip:alice@example.com";
+  std::string after = "alice@example.com";
+  EXPECT_EQ(after, strip_uri_scheme(before));
+}
+
+TEST_F(UtilsTest, StripURISchemeNoScheme)
+{
+  std::string before = "bob@example.com";
+  std::string after = "bob@example.com";
+  EXPECT_EQ(after, strip_uri_scheme(before));
+}
+
+TEST_F(UtilsTest, RemoveVisualSeparators)
+{
+  std::string before = "(123)456-789.1234";
+  std::string after = "1234567891234";
+  EXPECT_EQ(after, remove_visual_separators(before));
+}
+
+TEST_F(UtilsTest, IsUserNumericTrue)
+{
+  EXPECT_TRUE(is_user_numeric("+44(208)3.6.2.[3893]"));
+}
+
+TEST_F(UtilsTest, IsUserNumericFalse)
+{
+  EXPECT_FALSE(is_user_numeric("alice"));
+}
+
 TEST_F(UtilsTest, ValidIPv4Address)
 {
   EXPECT_EQ(IPAddressType::IPV4_ADDRESS, parse_ip_address("127.0.0.1"));
