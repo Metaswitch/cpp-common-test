@@ -66,6 +66,8 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 fakezmq.cpp \
                                 mock_sas.cpp \
                                 mockfreediameter.cpp \
+                                mockhttpstack.cpp \
+                                mockdiameterstack.cpp \
                                 pthread_cond_var_helper.cpp \
                                 basetest.cpp \
                                 curl_interposer.cpp \
