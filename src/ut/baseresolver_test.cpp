@@ -1630,7 +1630,7 @@ TEST_F(BaseResolverTest, SRVResolutionLazyNotReturnTwice)
   std::vector<AddrInfo> results;
   AddrInfo record;
 
-  // Creates 2 records.
+  // Creates 3 records.
   add_white_srv_records(1, 1, 3);
 
   AddrInfo white_record = ResolverTest::ip_to_addr_info("3.0.0.0", 3868, IPPROTO_SCTP);
