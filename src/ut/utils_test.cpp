@@ -28,9 +28,40 @@ class UtilsTest : public BaseTest
   }
 };
 
+TEST_F(UtilsTest, StripURIScheme)
+{
+  std::string before = "sip:alice@example.com";
+  std::string after = "alice@example.com";
+  EXPECT_EQ(after, strip_uri_scheme(before));
+}
+
+TEST_F(UtilsTest, StripURISchemeNoScheme)
+{
+  std::string before = "bob@example.com";
+  std::string after = "bob@example.com";
+  EXPECT_EQ(after, strip_uri_scheme(before));
+}
+
+TEST_F(UtilsTest, RemoveVisualSeparators)
+{
+  std::string before = "(123)456-789.1234";
+  std::string after = "1234567891234";
+  EXPECT_EQ(after, remove_visual_separators(before));
+}
+
+TEST_F(UtilsTest, IsUserNumericTrue)
+{
+  EXPECT_TRUE(is_user_numeric("+44(208)3.6.2.[3893]"));
+}
+
+TEST_F(UtilsTest, IsUserNumericFalse)
+{
+  EXPECT_FALSE(is_user_numeric("alice"));
+}
+
 TEST_F(UtilsTest, ValidIPv4Address)
 {
-  EXPECT_EQ(IPAddressType::IPV4_ADDRESS, parse_ip_address("127.0.0.1")); 
+  EXPECT_EQ(IPAddressType::IPV4_ADDRESS, parse_ip_address("127.0.0.1"));
 }
 
 TEST_F(UtilsTest, ValidIPv4AddressWithPort)
@@ -147,3 +178,23 @@ TEST_F(UtilsTest, RemoveBracketsFromBareIPv6Address)
 {
   EXPECT_EQ("::1", remove_brackets_from_ip("::1"));
 }
+
+// Test that basic parsing of IP addresses works
+TEST_F(UtilsTest, ParseIPAddresses)
+{
+  AddrInfo ai;
+  ai.port = 80;
+  ai.transport = IPPROTO_TCP;
+
+  EXPECT_TRUE(parse_ip_target("1.2.3.4", ai.address));
+  EXPECT_EQ("1.2.3.4:80;transport=TCP", ai.to_string());
+
+  EXPECT_TRUE(parse_ip_target("1:2::2", ai.address));
+  EXPECT_EQ("[1:2::2]:80;transport=TCP", ai.to_string());
+
+  EXPECT_TRUE(parse_ip_target("[1:2::2]", ai.address));
+  EXPECT_EQ("[1:2::2]:80;transport=TCP", ai.to_string());
+
+  EXPECT_FALSE(parse_ip_target("1.2.3.4:8888", ai.address));
+}
+

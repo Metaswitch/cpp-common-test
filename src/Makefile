@@ -66,6 +66,8 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 fakezmq.cpp \
                                 mock_sas.cpp \
                                 mockfreediameter.cpp \
+                                mockhttpstack.cpp \
+                                mockdiameterstack.cpp \
                                 pthread_cond_var_helper.cpp \
                                 basetest.cpp \
                                 curl_interposer.cpp \
@@ -98,7 +100,9 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 bloom_filter_test.cpp \
                                 wildcard_utils.cpp \
                                 wildcard_utils_test.cpp \
-                                xml_utils_test.cpp
+                                xml_utils_test.cpp \
+                                test_interposer.cpp \
+                                curl_interposer.cpp
 
 cpp_common_test_test_CPPFLAGS := -Wno-write-strings \
                                  -I../usr/include \
@@ -130,16 +134,3 @@ cpp_common_test_test_VALGRIND_ARGS := --suppressions=ut/cpp_common_test.supp
 
 VPATH += ../modules/cpp-common/src ../modules/cpp-common/test_utils ut
 include ../build-infra/cpp.mk
-
-# Special extra objects for cpp_common_test
-${BUILD_DIR}/bin/cpp_common_test_test : ${cpp_common_test_test_OBJECT_DIR}/test_interposer.so ${cpp_common_test_test_OBJECT_DIR}/curl_interposer.so
-
-# Build rule for our interposer.
-${cpp_common_test_test_OBJECT_DIR}/test_interposer.so : ../modules/cpp-common/test_utils/test_interposer.cpp ../modules/cpp-common/test_utils/test_interposer.hpp
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(cpp_common_test_test_CPPFLAGS) -shared -fPIC -ldl $< -o $@
-CLEANS += ${cpp_common_test_test_OBJECT_DIR}/test_interposer.so
-
-# Build rule for the CURL interposer.
-${cpp_common_test_test_OBJECT_DIR}/curl_interposer.so : ../modules/cpp-common/test_utils/curl_interposer.cpp ../modules/cpp-common/test_utils/curl_interposer.hpp
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(cpp_common_test_test_CPPFLAGS) -shared -fPIC -ldl $< -o $@
-CLEANS += ${cpp_common_test_test_OBJECT_DIR}/curl_interposer.so
