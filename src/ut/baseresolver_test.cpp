@@ -815,7 +815,7 @@ TEST_F(BaseResolverTest, SRVResolutionOnlyProbesGrayOncePerCall)
 
   // One of the 2 priority 0 graylisted targets is returned first.
   std::string graylist_regex = "3.0.[0-1].0:3868;transport=SCTP";
-  std::string result_str = ResolverUtils::addrinfo_to_string(results[0]);
+  std::string result_str = results[0].to_string();
   EXPECT_THAT(result_str, MatchesRegex(graylist_regex));
 
   // The second target should be the white target, despite being a lower
@@ -905,10 +905,10 @@ TEST_F(BaseResolverTest, SRVResolutionOnlyProbesGrayAtHighestAvailablePriority)
 
   // The two priority 0 whitelisted targets will be returned in some order.
   std::string whitelist_regex = "3.0.[0-1].0:3868;transport=SCTP";
-  std::string result_str_1 = ResolverUtils::addrinfo_to_string(results[0]);
+  std::string result_str_1 = results[0].to_string();
   EXPECT_THAT(result_str_1, MatchesRegex(whitelist_regex));
 
-  std::string result_str_2 = ResolverUtils::addrinfo_to_string(results[1]);
+  std::string result_str_2 = results[1].to_string();
   EXPECT_THAT(result_str_2, MatchesRegex(whitelist_regex));
 
   // Verifies that the same target wasn't returned twice.
@@ -1339,7 +1339,7 @@ TEST_F(BaseResolverTest, SRVResolutionLazyNoticeIfBlackHighPriority)
   EXPECT_TRUE(it_1->next(record));
 
   // Check that it is one of the records at the top priority level.
-  std::string result_str_1 = ResolverUtils::addrinfo_to_string(record);
+  std::string result_str_1 = record.to_string();
   EXPECT_THAT(result_str_1, MatchesRegex("3.0.0.[0-1]:3868;transport=SCTP"));
 
   // Blacklists both of the top priority records.
@@ -1351,7 +1351,7 @@ TEST_F(BaseResolverTest, SRVResolutionLazyNoticeIfBlackHighPriority)
 
   // Check that it is one of the records from the second priority level, since
   // now the entire top priority level is blacklisted.
-  std::string result_str_2 = ResolverUtils::addrinfo_to_string(record);
+  std::string result_str_2 = record.to_string();
   EXPECT_THAT(result_str_2, MatchesRegex("3.1.0.[0-1]:3868;transport=SCTP"));
 
   delete it_1; it_1 = nullptr;
@@ -1384,7 +1384,7 @@ TEST_F(BaseResolverTest, SRVResolutionLazyNoticeIfWhiteBlackOnly)
   EXPECT_TRUE(it_1->next(record));
 
   // Check that it is one of the records at the top priority level.
-  std::string result_str_1 = ResolverUtils::addrinfo_to_string(record);
+  std::string result_str_1 = record.to_string();
   EXPECT_THAT(result_str_1, MatchesRegex("3.0.0.[0-1]:3868;transport=SCTP"));
 
   // Waits for all records to leave the blacklist and then leave the graylist.
@@ -1399,7 +1399,7 @@ TEST_F(BaseResolverTest, SRVResolutionLazyNoticeIfWhiteBlackOnly)
 
   // Check that it is one of the records from the second priority level, since
   // now the entire top priority level is whitelisted.
-  std::string result_str_2 = ResolverUtils::addrinfo_to_string(record);
+  std::string result_str_2 = record.to_string();
   EXPECT_THAT(result_str_2, MatchesRegex("3.1.0.[0-1]:3868;transport=SCTP"));
 
   delete it_1; it_1 = nullptr;
@@ -1424,7 +1424,7 @@ TEST_F(BaseResolverTest, SRVResolutionLazyNoticeIfBlackWhiteOnly)
   EXPECT_TRUE(it_1->next(record));
 
   // Check that it is one of the records at the top priority level.
-  std::string result_str_1 = ResolverUtils::addrinfo_to_string(record);
+  std::string result_str_1 = record.to_string();
   EXPECT_THAT(result_str_1, MatchesRegex("3.0.0.[0-1]:3868;transport=SCTP"));
 
   // Blacklists the two highest priority records.
@@ -1436,7 +1436,7 @@ TEST_F(BaseResolverTest, SRVResolutionLazyNoticeIfBlackWhiteOnly)
 
   // Check that it is one of the records from the second priority level, since
   // now the entire top priority level is blacklisted.
-  std::string result_str_2 = ResolverUtils::addrinfo_to_string(record);
+  std::string result_str_2 = record.to_string();
   EXPECT_THAT(result_str_2, MatchesRegex("3.1.0.[0-1]:3868;transport=SCTP"));
 
   delete it_1; it_1 = nullptr;
@@ -1462,7 +1462,7 @@ TEST_F(BaseResolverTest, SRVResolutionLazyWillNotProbeIfFirstTargetWhite)
   EXPECT_TRUE(it_1->next(record));
 
   // Check that it is one of the records at the top priority level.
-  std::string result_str_1 = ResolverUtils::addrinfo_to_string(record);
+  std::string result_str_1 = record.to_string();
   EXPECT_THAT(result_str_1, MatchesRegex("3.0.[0-1].0:3868;transport=SCTP"));
 
   // Blacklists both of the top priority records and waits for them to move to
@@ -1476,7 +1476,7 @@ TEST_F(BaseResolverTest, SRVResolutionLazyWillNotProbeIfFirstTargetWhite)
 
   // Check that it is one of the records from the second priority level, since
   // now the entire top priority level is graylisted and unprobed.
-  std::string result_str_2 = ResolverUtils::addrinfo_to_string(record);
+  std::string result_str_2 = record.to_string();
   EXPECT_THAT(result_str_2, MatchesRegex("3.1.[0-1].0:3868;transport=SCTP"));
 
   delete it_1; it_1 = nullptr;
@@ -1548,7 +1548,7 @@ TEST_F(BaseResolverTest, SRVResolutionLazyNotProbeSubsequentCalls)
   // Check that it is one of the graylisted records at the top priority level,
   // since the first time the iterator is called it will search for a top
   // priority graylisted address to probe.
-  std::string result_str_1 = ResolverUtils::addrinfo_to_string(record);
+  std::string result_str_1 = record.to_string();
   EXPECT_THAT(result_str_1, MatchesRegex("3.0.0.[0-1]:3868;transport=SCTP"));
 
   // Get the second record.
@@ -1556,7 +1556,7 @@ TEST_F(BaseResolverTest, SRVResolutionLazyNotProbeSubsequentCalls)
 
   // Check that the second record is on the second priority level, the request
   // does not probe a graylisted target twice.
-  std::string result_str_2 = ResolverUtils::addrinfo_to_string(record);
+  std::string result_str_2 = record.to_string();
   EXPECT_THAT(result_str_2, MatchesRegex("3.1.0.[0-1]:3868;transport=SCTP"));
 
   delete it_1; it_1 = nullptr;
@@ -1634,12 +1634,12 @@ TEST_F(BaseResolverTest, SRVResolutionLazyNotReturnTwice)
   // Get the second record and check that it is a black record.
   results = it_1->take(1);
   EXPECT_EQ(results.size(), 1);
-  std::string result_str_1 = ResolverUtils::addrinfo_to_string(results[0]);
+  std::string result_str_1 = results[0].to_string();
   EXPECT_THAT(result_str_1, MatchesRegex("3.0.0.[1-2]:3868;transport=SCTP"));
 
   // Get the third record and check that it is the other black record.
   EXPECT_TRUE(it_1->next(record));
-  std::string result_str_2 = ResolverUtils::addrinfo_to_string(record);
+  std::string result_str_2 = record.to_string();
   EXPECT_THAT(result_str_2, MatchesRegex("3.0.0.[1-2]:3868;transport=SCTP"));
   EXPECT_NE(results[0], record);
 
@@ -1670,7 +1670,7 @@ TEST_F(BaseResolverTest, SRVResolutionLazyIfTurnsBlackStillReturnedEventually)
   EXPECT_TRUE(it_1->next(record));
 
   // Check that it is one of the records at the top priority level.
-  std::string result_str_1 = ResolverUtils::addrinfo_to_string(record);
+  std::string result_str_1 = record.to_string();
   EXPECT_THAT(result_str_1, MatchesRegex("3.0.0.[0-1]:3868;transport=SCTP"));
 
   // Blacklists both of the top priority records.
@@ -1682,14 +1682,14 @@ TEST_F(BaseResolverTest, SRVResolutionLazyIfTurnsBlackStillReturnedEventually)
 
   // Check that it is one of the records from the second priority level, since
   // now the entire top priority level is blacklisted.
-  std::string result_str_2 = ResolverUtils::addrinfo_to_string(record);
+  std::string result_str_2 = record.to_string();
   EXPECT_THAT(result_str_2, MatchesRegex("3.1.0.[0-1]:3868;transport=SCTP"));
 
   // Get the third record.
   EXPECT_TRUE(it_1->next(record));
 
   // Check that it is the other record from the second priority level.
-  std::string result_str_3 = ResolverUtils::addrinfo_to_string(record);
+  std::string result_str_3 = record.to_string();
   EXPECT_THAT(result_str_3, MatchesRegex("3.1.0.[0-1]:3868;transport=SCTP"));
   EXPECT_NE(result_str_3, result_str_2);
 
@@ -1699,7 +1699,7 @@ TEST_F(BaseResolverTest, SRVResolutionLazyIfTurnsBlackStillReturnedEventually)
   // Check that it is the other record from the top priority level, despite
   // being blacklisted it is returned now as there are no whitelisted records
   // left.
-  std::string result_str_4 = ResolverUtils::addrinfo_to_string(record);
+  std::string result_str_4 = record.to_string();
   EXPECT_THAT(result_str_4, MatchesRegex("3.0.0.[0-1]:3868;transport=SCTP"));
   EXPECT_NE(result_str_4, result_str_1);
 
