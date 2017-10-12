@@ -10,6 +10,8 @@
  */
 
 #include <string>
+#include <atomic>
+#include <thread>
 #include "gtest/gtest.h"
 #include "basetest.hpp"
 #include "utils.h"
@@ -503,6 +505,146 @@ TEST_F(UtilsTest, ParseStoresArg)
   EXPECT_TRUE(ret);
   EXPECT_EQ(local_store_location, "store0");
   EXPECT_EQ(remote_stores_locations.size(), 0);
+}
+
+//
+// IOHook tests
+//
+
+TEST_F(UtilsTest, IOHookMainline)
+{
+  std::string reason1;
+  std::string reason2;
+
+  // Create an IO hook that just stores the reason off.
+  IOHook hook([&reason1](const std::string& reason) { reason1 = reason; },
+              [&reason2](const std::string& reason) { reason2 = reason; });
+
+  CW_IO_STARTS("Kermit")
+  {
+    // Would normally do some blocking IO here.
+  }
+  CW_IO_COMPLETES();
+
+  EXPECT_EQ(reason1, "Kermit");
+  EXPECT_EQ(reason2, "Kermit");
+}
+
+TEST_F(UtilsTest, IOHookJustStartCallback)
+{
+  int count = 0;
+
+  // Create an IO hook that only acts when IO starts.
+  IOHook hook([&count](const std::string& _) { count++; },
+              IOHook::NOOP_ON_COMPLETE);
+
+  CW_IO_STARTS("Kermit")
+  {
+    // Would normally do some blocking IO here.
+  }
+  CW_IO_COMPLETES();
+
+  EXPECT_EQ(count, 1);
+}
+
+TEST_F(UtilsTest, IOHookJustCompletesCallback)
+{
+  int count = 0;
+
+  // Create an IO hook that only acts when IO starts.
+  IOHook hook(IOHook::NOOP_ON_START,
+              [&count](const std::string& reason) { count++; });
+
+  CW_IO_STARTS("Kermit")
+  {
+    // Would normally do some blocking IO here.
+  }
+  CW_IO_COMPLETES();
+
+  EXPECT_EQ(count, 1);
+}
+
+TEST_F(UtilsTest, MultipleIOHooks)
+{
+  int x = 0;
+
+  // Create two hooks that do different operations on count.
+  IOHook hook1(IOHook::NOOP_ON_START,
+               [&x](const std::string& reason) { x += 1; });
+  IOHook hook2(IOHook::NOOP_ON_START,
+               [&x](const std::string& reason) { x *= 3; });
+
+  CW_IO_STARTS("Kermit")
+  {
+    // Would normally do some blocking IO here.
+  }
+  CW_IO_COMPLETES();
+
+  // Hooks form a stack so the last hook is invoked first. This means that the
+  // result of the calculation should be ((0*3)+1) == 1
+  EXPECT_EQ(x, 1);
+}
+
+TEST_F(UtilsTest, IOHooksGetCleanedUp)
+{
+  int x = 0;
+
+  IOHook hook1(IOHook::NOOP_ON_START,
+               [&x](const std::string& reason) { x += 2; });
+
+  // Create a new scope with a hook. No IO is done in this scope so only the
+  // first hook gets invoked.
+  {
+    IOHook hoo2k(IOHook::NOOP_ON_START,
+                 [&x](const std::string& reason) { x += 3; });
+  }
+
+  CW_IO_STARTS("Kermit")
+  {
+    // Would normally do some blocking IO here.
+  }
+  CW_IO_COMPLETES();
+
+  // Only the first hook gets triggered so x should be 2.
+  EXPECT_EQ(x, 2);
+}
+
+TEST_F(UtilsTest, IOHooksMultipleIOOperations)
+{
+  int count = 0;
+
+  IOHook hook(IOHook::NOOP_ON_START,
+              [&count](const std::string& reason) { count++; });
+
+  CW_IO_STARTS("One") { } CW_IO_COMPLETES();
+  CW_IO_STARTS("Two") { } CW_IO_COMPLETES();
+  CW_IO_STARTS("Three") { } CW_IO_COMPLETES();
+
+  // Only the first hook gets triggered so x should be 2.
+  EXPECT_EQ(count, 3);
+}
+
+TEST_F(UtilsTest, IOHooksArePerThread)
+{
+  int count = 0;
+  std::atomic_bool terminate(false);
+
+  std::thread t1([&count, &terminate] () {
+    IOHook hook(IOHook::NOOP_ON_START,
+                [&count](const std::string& reason) { count++; });
+
+    while (!terminate.load()) { sleep(1); }
+  });
+
+  CW_IO_STARTS("One") { } CW_IO_COMPLETES();
+  CW_IO_STARTS("Two") { } CW_IO_COMPLETES();
+  CW_IO_STARTS("Three") { } CW_IO_COMPLETES();
+
+  // The hook does not get triggered so the count should be 0
+  EXPECT_EQ(count, 0);
+
+  terminate.store(true);
+  t1.join();
 }
 
 class StopWatchTest : public ::testing::Test
