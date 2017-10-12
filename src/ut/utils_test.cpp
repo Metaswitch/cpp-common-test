@@ -561,3 +561,43 @@ TEST_F(StopWatchTest, ReadGetsLatestValueWhenNotStopped)
   // The returned value is greater on the second read.
   EXPECT_EQ(ms_to_us(22), elapsed_us);
 }
+
+TEST_F(StopWatchTest, StopStartNotIncludedInReading)
+{
+  EXPECT_TRUE(_sw.start());
+  cwtest_advance_time_ms(11);
+
+  // Stop and restart the stopwatch a few times. The time increases in between
+  // should not be included in the final value read.
+  EXPECT_TRUE(_sw.stop());
+  cwtest_advance_time_ms(11);
+  EXPECT_TRUE(_sw.start());
+
+  EXPECT_TRUE(_sw.stop());
+  cwtest_advance_time_ms(11);
+  EXPECT_TRUE(_sw.start());
+
+  cwtest_advance_time_ms(11);
+  EXPECT_TRUE(_sw.stop());
+
+  unsigned long elapsed_us;
+  EXPECT_TRUE(_sw.read(elapsed_us));
+  EXPECT_EQ(ms_to_us(22), elapsed_us);
+}
+
+TEST_F(StopWatchTest, StopStartThenRead)
+{
+  EXPECT_TRUE(_sw.start());
+  cwtest_advance_time_ms(11);
+
+  // Stop and restart the stopwatch. The time increase in between should not be
+  // included in the final value read.
+  EXPECT_TRUE(_sw.stop());
+  cwtest_advance_time_ms(11);
+  EXPECT_TRUE(_sw.start());
+
+  cwtest_advance_time_ms(11);
+  unsigned long elapsed_us;
+  EXPECT_TRUE(_sw.read(elapsed_us));
+  EXPECT_EQ(ms_to_us(22), elapsed_us);
+}
