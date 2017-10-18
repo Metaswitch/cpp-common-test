@@ -120,6 +120,28 @@ class BaseResolverTest : public ResolverTest
 
     return output;
   }
+
+  AddrInfo ip_to_addrinfo(const std::string ip)
+  {
+    AddrInfo ai;
+    ai.port = 80;
+    ai.transport = IPPROTO_TCP;
+    EXPECT_TRUE(Utils::parse_ip_target(ip, ai.address));
+
+    return ai;
+  }
+
+  void add_ip_to_blacklist(const std::string ip)
+  {
+    _baseresolver.blacklist(ip_to_addrinfo(ip));
+  }
+
+  bool ip_allowed(const std::string ip, int allowed_host_state)
+  {
+    return _baseresolver.select_address(ip_to_addrinfo(ip),
+                                        SAS::TrailId(1),
+                                        allowed_host_state);
+  }
 };
 
 
@@ -1759,4 +1781,75 @@ TEST_F(BaseResolverTest, SRVResolutionLazyMixTakeAndNext)
   EXPECT_EQ(results_2[4], gray_record);
 
   delete it_1; it_1 = nullptr;
+}
+
+// Test the behaviour of the BaseResolver's IP address allowed host state
+// verification
+TEST_F(BaseResolverTest, AllowedHostStateForIPAddr)
+{
+  add_ip_to_blacklist("192.0.2.11");
+  add_ip_to_blacklist("192.0.2.12");
+  add_ip_to_blacklist("[2001:db8::1]");
+
+  // Test that ALL_LISTS behaves correctly.
+  EXPECT_TRUE(ip_allowed("192.0.2.1", BaseResolver::ALL_LISTS));
+  EXPECT_TRUE(ip_allowed("192.0.2.11", BaseResolver::ALL_LISTS));
+
+  // Allow whitelisted addresses only, and ensure that blacklisted addresses
+  // are not returned.
+  EXPECT_TRUE(ip_allowed("192.0.2.2", BaseResolver::WHITELISTED));
+  EXPECT_FALSE(ip_allowed("192.0.2.12", BaseResolver::WHITELISTED));
+
+  // Allow blacklisted addresses only, and ensure that whitelisted addresses
+  // are not returned. Throw in IPv6 for flavour.
+  EXPECT_FALSE(ip_allowed("[2001:db8::]", BaseResolver::BLACKLISTED));
+  EXPECT_TRUE(ip_allowed("[2001:db8::1]", BaseResolver::BLACKLISTED));
+}
+
+// Test the behaviour of the BaseResolver's IP address allowed host state
+// verification for graylisted addresses.
+TEST_F(BaseResolverTest, AllowedHostStateForGraylistedIPAddr)
+{
+  // Create 3 blacklisted addresses.
+  add_ip_to_blacklist("192.0.2.1"); // Only resolve this using ALL_LISTS
+  add_ip_to_blacklist("192.0.2.2"); // Only resolve this using WHITELISTED
+  add_ip_to_blacklist("192.0.2.3"); // Only resolve this using BLACKLISTED
+
+  // Resolving the address with different allowed host states does what you
+  // would expect, and is also repeatable (gives the same answer each time).
+  EXPECT_TRUE(ip_allowed("192.0.2.1", BaseResolver::ALL_LISTS));
+  EXPECT_FALSE(ip_allowed("192.0.2.2", BaseResolver::WHITELISTED));
+  EXPECT_TRUE(ip_allowed("192.0.2.3", BaseResolver::BLACKLISTED));
+
+  EXPECT_TRUE(ip_allowed("192.0.2.1", BaseResolver::ALL_LISTS));
+  EXPECT_FALSE(ip_allowed("192.0.2.2", BaseResolver::WHITELISTED));
+  EXPECT_TRUE(ip_allowed("192.0.2.3", BaseResolver::BLACKLISTED));
+
+  // Advance time so the addresses become graylisted.
+  cwtest_advance_time_ms(32000);
+
+  // Now, an address is treated as whitelisted until it is selected, at which
+  // point is starts to behave as though it's been blacklisted.
+  EXPECT_TRUE(ip_allowed("192.0.2.1", BaseResolver::ALL_LISTS));
+  EXPECT_TRUE(ip_allowed("192.0.2.2", BaseResolver::WHITELISTED));
+  EXPECT_FALSE(ip_allowed("192.0.2.3", BaseResolver::BLACKLISTED));
+
+  EXPECT_TRUE(ip_allowed("192.0.2.1", BaseResolver::ALL_LISTS));
+  EXPECT_FALSE(ip_allowed("192.0.2.2", BaseResolver::WHITELISTED));
+  EXPECT_FALSE(ip_allowed("192.0.2.3", BaseResolver::BLACKLISTED));
+
+  // Make the addresses whitelisted again.
+  _baseresolver.success(ip_to_addrinfo("192.0.2.1"));
+  _baseresolver.success(ip_to_addrinfo("192.0.2.2"));
+  _baseresolver.success(ip_to_addrinfo("192.0.2.3"));
+
+  // Resolving the address with different allowed host states does what you
+  // would expect, and is also repeatable.
+  EXPECT_TRUE(ip_allowed("192.0.2.1", BaseResolver::ALL_LISTS));
+  EXPECT_TRUE(ip_allowed("192.0.2.2", BaseResolver::WHITELISTED));
+  EXPECT_FALSE(ip_allowed("192.0.2.3", BaseResolver::BLACKLISTED));
+
+  EXPECT_TRUE(ip_allowed("192.0.2.1", BaseResolver::ALL_LISTS));
+  EXPECT_TRUE(ip_allowed("192.0.2.2", BaseResolver::WHITELISTED));
+  EXPECT_FALSE(ip_allowed("192.0.2.3", BaseResolver::BLACKLISTED));
 }
