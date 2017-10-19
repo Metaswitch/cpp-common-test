@@ -39,10 +39,13 @@ class HttpResolverTest : public ResolverTest
   }
 
   /// Implements the resolve method using a HttpResolver
-  std::vector<AddrInfo> resolve(int max_targets, std::string host, int port)
+  std::vector<AddrInfo> resolve(int max_targets,
+                                std::string host,
+                                int port,
+                                int allowed_host_state=BaseResolver::ALL_LISTS)
   {
     std::vector<AddrInfo> targets;
-    _httpresolver.resolve(host, port, max_targets, targets, 0);
+    _httpresolver.resolve(host, port, max_targets, targets, 0, allowed_host_state);
     return targets;
   }
 
@@ -69,6 +72,14 @@ TEST_F(HttpResolverTest, IPv6AddressResolution)
 
   ASSERT_EQ(targets.size(), 1);
   EXPECT_EQ(targets[0], ip_to_addr_info("3::1", 80, IPPROTO_TCP));
+}
+
+TEST_F(HttpResolverTest, IPv4AddressResolutionWithAllowedHostState)
+{
+  // Test that a IP address is rejected if the host is not in an acceptable
+  // state.
+  std::vector<AddrInfo> targets = resolve(1, "3.0.0.1", 0, BaseResolver::BLACKLISTED);
+  ASSERT_EQ(targets.size(), 0);
 }
 
 TEST_F(HttpResolverTest, ARecordResolution)
