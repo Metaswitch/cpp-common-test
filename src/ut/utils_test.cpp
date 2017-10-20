@@ -704,6 +704,7 @@ TEST_F(StopWatchTest, ReadGetsLatestValueWhenNotStopped)
   EXPECT_EQ(ms_to_us(22), elapsed_us);
 }
 
+// Test that reading a restarted stopwatch gives the right result.
 TEST_F(StopWatchTest, StopStartNotIncludedInReading)
 {
   EXPECT_TRUE(_sw.start());
@@ -727,7 +728,9 @@ TEST_F(StopWatchTest, StopStartNotIncludedInReading)
   EXPECT_EQ(ms_to_us(22), elapsed_us);
 }
 
-TEST_F(StopWatchTest, StopStartThenRead)
+// Test that reading a restarted stopwatch gives the right result, even when the
+// read is done while the stopwatch is running.
+TEST_F(StopWatchTest, StopStartThenReadWhenRunning)
 {
   EXPECT_TRUE(_sw.start());
   cwtest_advance_time_ms(11);
