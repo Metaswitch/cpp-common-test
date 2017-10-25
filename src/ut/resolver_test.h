@@ -47,6 +47,12 @@ public:
   /// 'host', beginning at 3.0.0.0 and incrementing by one each time.
   void add_white_records(int count, std::string host = TEST_HOST);
 
+  /// At 'num_priorities' different priority levels add 'num_srv' SRV's and
+  /// populate each with 'num_a' A Records. Each A Record has the IP address
+  /// 3."priority number"."SRV number"."A Record number" with each number 0
+  /// indexed
+  void add_white_srv_records(int num_priority, int num_srv, int num_a);
+
   /// Calls resolve with the given parameters, and returns true if the result
   /// contains ai, and false otherwise.
   bool resolution_contains(AddrInfo ai, int max_targets);
@@ -61,15 +67,15 @@ public:
   // it is actually another.
 
   /// Returns true if the record is blacklisted. Has a chance of giving a false
-  /// positive, which can be decreased by increasing count or repetitions
+  /// positive, which can be decreased by increasing count or repetitions.
   bool is_black(std::string address_str, int count, int repetitions);
 
   /// Returns true if the record is graylisted. Has a chance of giving a false
-  /// positive, which can be decreased by increasing count or repetitions
+  /// positive, which can be decreased by increasing count or repetitions.
   bool is_gray(std::string address_str, int count, int repetitions);
 
   /// Returns true if the record is whitelisted. Has a chance of giving a false
-  /// negative, which can be decreased by increasing count or repetitions
+  /// negative, which can be decreased by increasing count or repetitions.
   bool is_white(std::string address_str, int count, int repetitions);
 
 protected:
