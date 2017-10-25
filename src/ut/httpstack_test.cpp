@@ -595,7 +595,7 @@ TEST_F(HttpStackStatsTest, SuccessfulRequest)
   _stack->register_handler("^/BasicHandler$", &handler);
 
   EXPECT_CALL(_load_monitor, admit_request(_)).WillOnce(Return(true));
-  EXPECT_CALL(_load_monitor, request_complete(DELAY_US)).Times(1);
+  EXPECT_CALL(_load_monitor, request_complete(DELAY_US, _)).Times(1);
 
   int status;
   std::string response;
@@ -637,7 +637,7 @@ TEST_F(HttpStackStatsTest, LatencyPenalties)
 
   EXPECT_CALL(_load_monitor, admit_request(_)).WillOnce(Return(true));
   EXPECT_CALL(_load_monitor, incr_penalties()).Times(1);
-  EXPECT_CALL(_load_monitor, request_complete(_)).Times(1);
+  EXPECT_CALL(_load_monitor, request_complete(_, _)).Times(1);
 
   int status;
   std::string response;
