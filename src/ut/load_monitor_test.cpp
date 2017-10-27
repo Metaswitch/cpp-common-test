@@ -215,7 +215,7 @@ TEST_F(TokenBucketTest, BelowMinimumRate)
   EXPECT_EQ(token_bucket.rate(), 10.0);
 }
 
-// Test that attempting to set the rate to above the minimum rate doesn't work
+// Test that attempting to set the rate to above the maximum rate doesn't work
 TEST_F(TokenBucketTest, AboveMaximumRate)
 {
   TokenBucket token_bucket(20, 10, 0.0, 10.0);
