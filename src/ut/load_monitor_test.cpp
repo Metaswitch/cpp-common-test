@@ -37,6 +37,7 @@ class LoadMonitorTest : public BaseTest
                                     20,
                                     10,
                                     10,
+                                    0,
                                     &SNMP::FAKE_CONTINUOUS_ACCUMULATOR_TABLE,
                                     &smoothed_latency,
                                     &target_latency,
@@ -54,20 +55,6 @@ class LoadMonitorTest : public BaseTest
   {
     _load_monitor->admit_request(0);
     _load_monitor->request_complete(latency, 0);
-  }
-};
-
-class TokenBucketTest : public BaseTest
-{
-  TokenBucket _token_bucket;
-
-  TokenBucketTest() :
-    _token_bucket(20, 10, 10.0)
-  {
-  }
-
-  virtual ~TokenBucketTest()
-  {
   }
 };
 
@@ -113,23 +100,19 @@ TEST_F(LoadMonitorTest, RequestComplete)
   // Bucket fill rate should have decreased due to the penalty.
   EXPECT_LT(_load_monitor->_bucket.rate(), changed_rate);
 
-}
+  changed_rate = _load_monitor->_bucket.rate();
 
-TEST_F(LoadMonitorTest, NoRateDecreaseBelowMinimum)
-{
-  float initial_rate = _load_monitor->_bucket.rate();
+  // Advance time to allow the token bucket to refill.
+  cwtest_advance_time_ms(1000);
 
+  // Increase the latency but don't incur any penalties
   for (int ii = 0; ii < 20; ii++)
   {
-    request_with_latency(100000000);
+    request_with_latency(1000000);
   }
 
-  // Move time forwards 2 seconds and inject another request.
-  cwtest_advance_time_ms(2000);
-  request_with_latency(100000000);
-
-  // Bucket fill rate should be unchanged at the minimum value.
-  EXPECT_EQ(_load_monitor->_bucket.rate(), initial_rate);
+  // Bucket fill rate should have decreased due to the latency
+  EXPECT_LT(_load_monitor->_bucket.rate(), changed_rate);
 }
 
 TEST_F(LoadMonitorTest, NoRateIncreaseWithoutGoodEvidence)
@@ -149,7 +132,6 @@ TEST_F(LoadMonitorTest, NoRateIncreaseWithoutGoodEvidence)
   EXPECT_EQ(initial_rate, _load_monitor->_bucket.rate());
 }
 
-
 TEST_F(LoadMonitorTest, AdmitRequest)
 {
   // Test that initially the load monitor admits requests, but after a large number
@@ -163,23 +145,6 @@ TEST_F(LoadMonitorTest, AdmitRequest)
 
   EXPECT_EQ(_load_monitor->admit_request(0), false);
 }
-
-TEST_F(TokenBucketTest, GetToken)
-{
-  // Test that initially the token bucket gives out tokens, but after a large number
-  // of attempts in quick succession it has run out.
-  bool got_token = _token_bucket.get_token();
-  EXPECT_EQ(got_token, true);
-
-  for (int ii = 0; ii <= 50; ii++)
-  {
-    got_token = _token_bucket.get_token();
-  }
-
-  EXPECT_EQ(got_token, false);
-
-}
-
 
 TEST_F(LoadMonitorTest, CorrectStatistics)
 {
@@ -203,3 +168,58 @@ TEST_F(LoadMonitorTest, CorrectStatistics)
   EXPECT_GT((uint32_t)_load_monitor->get_current_latency_us(), smoothed_latency.value);
 }
 
+class TokenBucketTest : public BaseTest
+{
+  TokenBucketTest()
+  {
+  }
+
+  virtual ~TokenBucketTest()
+  {
+  }
+};
+
+TEST_F(TokenBucketTest, GetToken)
+{
+  TokenBucket token_bucket(20, 10, 0.0, 0.0);
+
+  // Test that initially the token bucket gives out tokens, but after a large number
+  // of attempts in quick succession it has run out.
+  bool got_token = token_bucket.get_token();
+  EXPECT_EQ(got_token, true);
+
+  for (int ii = 0; ii <= 50; ii++)
+  {
+    got_token = token_bucket.get_token();
+  }
+
+  EXPECT_EQ(got_token, false);
+}
+
+// Test that attempting to set the rate to a valid value actually changes the
+// rate
+TEST_F(TokenBucketTest, RateChange)
+{
+  TokenBucket token_bucket(20, 10, 0.0, 0.0);
+  EXPECT_EQ(token_bucket.rate(), 10.0);
+  token_bucket.update_rate(5.0);
+  EXPECT_EQ(token_bucket.rate(), 5.0);
+}
+
+// Test that attempting to set the rate to below the minimum rate doesn't work
+TEST_F(TokenBucketTest, BelowMinimumRate)
+{
+  TokenBucket token_bucket(20, 10, 10.0, 0.0);
+  EXPECT_EQ(token_bucket.rate(), 10.0);
+  token_bucket.update_rate(5.0);
+  EXPECT_EQ(token_bucket.rate(), 10.0);
+}
+
+// Test that attempting to set the rate to above the minimum rate doesn't work
+TEST_F(TokenBucketTest, AboveMaximumRate)
+{
+  TokenBucket token_bucket(20, 10, 0.0, 10.0);
+  EXPECT_EQ(token_bucket.rate(), 10.0);
+  token_bucket.update_rate(12.0);
+  EXPECT_EQ(token_bucket.rate(), 10.0);
+}

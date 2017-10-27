@@ -616,6 +616,7 @@ TEST_F(HttpStackStatsTest, RejectOverload)
   _stack->register_handler("^/BasicHandler$", &handler);
 
   EXPECT_CALL(_load_monitor, admit_request(_)).WillOnce(Return(false));
+  EXPECT_CALL(_load_monitor, get_target_latency_us()).WillOnce(Return(100000));
 
   int status;
   std::string response;
