@@ -47,7 +47,7 @@ class HttpConnectionTest : public BaseTest
   NiceMock<MockCommunicationMonitor>* _cm = new NiceMock<MockCommunicationMonitor>(_am);
   HttpConnection* _http;
   HttpConnectionTest() :
-    _lm(100000, 20, 10, 10),
+    _lm(100000, 20, 10, 10, 0),
     _resolver("10.42.42.42")
   {
     _http = new HttpConnection("cyrus",
@@ -95,7 +95,7 @@ class HttpConnectionBlacklistTest : public BaseTest
   NiceMock<MockCommunicationMonitor>*_cm = new NiceMock<MockCommunicationMonitor>(_am);
 
   HttpConnectionBlacklistTest() :
-    _lm(100000, 20, 10, 10)
+    _lm(100000, 20, 10, 10, 0)
   {
     _http = new HttpConnection("cyrus",
                                true,
