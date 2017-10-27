@@ -223,3 +223,13 @@ TEST_F(TokenBucketTest, AboveMaximumRate)
   token_bucket.update_rate(12.0);
   EXPECT_EQ(token_bucket.rate(), 10.0);
 }
+
+// Test that attempting to set the rate to a large rate succeeds when there's no
+// maximum rate
+TEST_F(TokenBucketTest, NoMaximumRate)
+{
+  TokenBucket token_bucket(20, 10, 0.0, 0.0);
+  EXPECT_EQ(token_bucket.rate(), 10.0);
+  token_bucket.update_rate(INT_MAX);
+  EXPECT_EQ(token_bucket.rate(), INT_MAX);
+}
