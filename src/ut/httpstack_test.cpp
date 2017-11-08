@@ -382,6 +382,34 @@ TEST_F(HttpStackTest, SASCorrelationHeader)
   mock_sas_collect_messages(false);
 }
 
+// Check that the stack copes with receiving X-Span-Id
+TEST_F(HttpStackTest, SASCorrelationSpanId)
+{
+  mock_sas_collect_messages(true);
+  start_stack();
+
+  BasicHandler handler;
+  _stack->register_handler("^/BasicHandler$", &handler);
+
+  int status;
+  std::string response;
+  std::list<std::string> hdrs;
+  hdrs.push_back("X-Span-Id: 12345678-1234-1234-1234-123456789ABC");
+
+  int rc = get("/BasicHandler", status, response, &hdrs);
+  ASSERT_EQ(CURLE_OK, rc);
+  ASSERT_EQ(200, status);
+  ASSERT_EQ("OK", response);
+
+  MockSASMessage* marker = mock_sas_find_marker(MARKED_ID_GENERIC_CORRELATOR);
+  EXPECT_TRUE(marker != NULL);
+  EXPECT_EQ(marker->var_params.size(), 1u);
+  EXPECT_EQ(marker->var_params[0], "12345678-1234-1234-1234-123456789ABC");
+
+  stop_stack();
+  mock_sas_collect_messages(false);
+}
+
 // Check that the ProxiedPrivateSasLogger picks up X-Real-IP and X-Real-Port headers
 TEST_F(HttpStackTest, RealIPHeader)
 {
