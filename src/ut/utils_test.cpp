@@ -746,3 +746,31 @@ TEST_F(StopWatchTest, StopStartThenReadWhenRunning)
   EXPECT_TRUE(_sw.read(elapsed_us));
   EXPECT_EQ(ms_to_us(22), elapsed_us);
 }
+
+// Test that substracting a time from the stopwatch gives the right result
+TEST_F(StopWatchTest, SubtractTime)
+{
+  EXPECT_TRUE(_sw.start());
+  cwtest_advance_time_ms(22);
+  EXPECT_TRUE(_sw.stop());
+
+  _sw.subtract_time(ms_to_us(11));
+
+  unsigned long elapsed_us;
+  EXPECT_TRUE(_sw.read(elapsed_us));
+  EXPECT_EQ(ms_to_us(11), elapsed_us);
+}
+
+// Test that adding a time to the stopwatch gives the right result
+TEST_F(StopWatchTest, AddTime)
+{
+  EXPECT_TRUE(_sw.start());
+  cwtest_advance_time_ms(22);
+  EXPECT_TRUE(_sw.stop());
+
+  _sw.add_time(ms_to_us(11));
+
+  unsigned long elapsed_us;
+  EXPECT_TRUE(_sw.read(elapsed_us));
+  EXPECT_EQ(ms_to_us(33), elapsed_us);
+}
