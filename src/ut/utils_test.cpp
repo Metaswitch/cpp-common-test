@@ -752,7 +752,6 @@ TEST_F(StopWatchTest, SubtractTime)
 {
   EXPECT_TRUE(_sw.start());
   cwtest_advance_time_ms(22);
-  EXPECT_TRUE(_sw.stop());
 
   _sw.subtract_time(ms_to_us(11));
 
@@ -766,7 +765,6 @@ TEST_F(StopWatchTest, AddTime)
 {
   EXPECT_TRUE(_sw.start());
   cwtest_advance_time_ms(22);
-  EXPECT_TRUE(_sw.stop());
 
   _sw.add_time(ms_to_us(11));
 
