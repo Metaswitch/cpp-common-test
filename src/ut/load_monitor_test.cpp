@@ -135,7 +135,8 @@ TEST_F(LoadMonitorTest, NoRateIncreaseWithoutGoodEvidence)
 TEST_F(LoadMonitorTest, AdmitRequest)
 {
   // Test that initially the load monitor admits requests, but after a large number
-  // of attempts in quick succession it has run out.
+  // of attempts in quick succession it has run out (unless we should admit the
+  // request anyway).
   EXPECT_EQ(_load_monitor->admit_request(0), true);
 
   for (int ii = 0; ii <= 50; ii++)
@@ -144,7 +145,10 @@ TEST_F(LoadMonitorTest, AdmitRequest)
   }
 
   EXPECT_EQ(_load_monitor->admit_request(0), false);
+  EXPECT_EQ(_load_monitor->admit_request(0, true), true);
+  EXPECT_EQ(_load_monitor->admit_request(0), false);
 }
+
 
 TEST_F(LoadMonitorTest, CorrectStatistics)
 {
@@ -153,7 +157,7 @@ TEST_F(LoadMonitorTest, CorrectStatistics)
   // Observe these values are the values that the load monitor has been
   // initialised with
   EXPECT_EQ(target_latency.value, (uint32_t)100000);
-  EXPECT_EQ(smoothed_latency.value, (uint32_t)100000);
+  EXPECT_EQ(smoothed_latency.value, (uint32_t)0);
   EXPECT_EQ(penalties.value, (uint32_t)0);
   EXPECT_EQ(token_rate.value, (uint32_t)10);
 
