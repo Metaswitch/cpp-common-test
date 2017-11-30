@@ -149,7 +149,6 @@ TEST_F(LoadMonitorTest, AdmitRequest)
   EXPECT_EQ(_load_monitor->admit_request(0), false);
 }
 
-
 TEST_F(LoadMonitorTest, CorrectStatistics)
 {
   // Scalars should report values from last update, not current values.
