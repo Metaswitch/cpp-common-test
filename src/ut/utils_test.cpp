@@ -276,6 +276,18 @@ TEST_F(UtilsTest, Split)
   EXPECT_EQ(expected, tokens);
 }
 
+TEST_F(UtilsTest, Quote)
+{
+  string actual = Utils::quote_string("");
+  EXPECT_EQ("\"\"", actual);
+  
+  actual = Utils::quote_string("The quick brown fox \";'$?&=%\n\\\377");
+  EXPECT_EQ("\"The quick brown fox \\\";'$?&=%\n\\\\\377\"", actual);
+  
+  actual = Utils::quote_string("\"\\");
+  EXPECT_EQ("\"\\\"\\\\\"", actual);
+}
+
 TEST_F(UtilsTest, Escape)
 {
   string actual = Utils::url_escape("");
