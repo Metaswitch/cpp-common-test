@@ -361,6 +361,17 @@ TEST_F(HttpConnectionTest, SimplePost)
   EXPECT_EQ(200, ret);
 }
 
+TEST_F(HttpConnectionTest, SimplePostWithHeaders)
+{
+  std::map<std::string, std::string> headers_in_rsp;
+  std::vector<std::string> headers_in_req;
+  std::string response;
+
+  long ret = _http->send_post("/post_id", headers_in_rsp, "", headers_in_req, 0);
+
+  EXPECT_EQ(200, ret);
+}
+
 TEST_F(HttpConnectionTest, SimplePut)
 {
   EXPECT_CALL(*_cm, inform_success(_));
