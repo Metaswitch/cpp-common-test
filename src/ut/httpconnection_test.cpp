@@ -364,7 +364,7 @@ TEST_F(HttpConnectionTest, SimplePost)
 TEST_F(HttpConnectionTest, SimplePostWithHeaders)
 {
   std::map<std::string, std::string> headers_in_rsp;
-  std::vector<std::string> headers_in_req;
+  std::vector<std::string> headers_in_req = {"Content-Type: application/x-www-form-urlencoded"};
   std::string response;
 
   long ret = _http->send_post("/post_id", headers_in_rsp, "", headers_in_req, 0);
