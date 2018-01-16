@@ -20,7 +20,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 health_checker.cpp \
                                 http_connection_pool.cpp \
                                 httpclient.cpp \
-                                httpconnection.cpp \
+                                http_request.cpp \
                                 a_record_resolver.cpp \
                                 httpstack.cpp \
                                 httpstack_utils.cpp \
@@ -60,7 +60,6 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 xml_utils.cpp \
                                 zmq_lvc.cpp \
                                 fakecurl.cpp \
-                                fakehttpconnection.cpp \
                                 fakelogger.cpp \
                                 fakesnmp.cpp \
                                 fakezmq.cpp \

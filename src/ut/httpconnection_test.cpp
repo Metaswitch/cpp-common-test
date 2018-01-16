@@ -8,7 +8,7 @@
  * Otherwise no rights are granted except for those provided to you by
  * Metaswitch Networks in a separate written agreement.
  */
-
+/*
 #include <string>
 #include <sstream>
 #include "gmock/gmock.h"
@@ -532,3 +532,4 @@ TEST_F(HttpConnectionTest, BasicResolverTest)
   // Just check the resolver constructs/destroys correctly.
   HttpResolver resolver(NULL, AF_INET);
 }
+*/

@@ -90,7 +90,12 @@ class HttpClientTest : public BaseTest
 TEST_F(HttpClientTest, SimpleGet)
 {
   string output;
-  long ret = _http->send_get("http://cyrus/blah/blah/blah", output, "gandalf", 0);
+  string body = "";
+  std::vector<std::string> req_headers;
+  std::map<std::string, std::string> resp_headers;
+  int allowed_state = BaseResolver::ALL_LISTS;
+
+  long ret = _http->send_request(HttpClient::RequestType::GET, "http://cyrus/blah/blah/blah", body, output, "gandalf", 0, req_headers, &resp_headers, allowed_state);
 
   EXPECT_EQ(200, ret);
   EXPECT_EQ("<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>", output);
@@ -108,7 +113,12 @@ TEST_F(HttpClientTest, SimpleGet)
 TEST_F(HttpClientTest, BadURL)
 {
   string output;
-  long ret = _http->send_get("blah blah", output, "gandalf", 0);
+  string body = "";
+  std::vector<std::string> req_headers;
+  std::map<std::string, std::string> resp_headers;
+  int allowed_state = BaseResolver::ALL_LISTS;
+
+  long ret = _http->send_request(HttpClient::RequestType::GET, "blah blah", body, output, "gandalf", 0, req_headers, &resp_headers, allowed_state);
   EXPECT_EQ(HTTP_BAD_REQUEST, ret);
 }
 
@@ -116,7 +126,13 @@ TEST_F(HttpClientTest, NoTargets)
 {
   string output;
   _resolver._targets.clear();
-  long ret = _http->send_get("http://cyrus/blah/blah/blah", output, "gandalf", 0);
+
+  string body = "";
+  std::vector<std::string> req_headers;
+  std::map<std::string, std::string> resp_headers;
+  int allowed_state = BaseResolver::ALL_LISTS;
+
+  long ret = _http->send_request(HttpClient::RequestType::GET, "http://cyrus/blah/blah/blah", body, output, "gandalf", 0, req_headers, &resp_headers, allowed_state);
   EXPECT_EQ(HTTP_NOT_FOUND, ret);
 }
 
@@ -124,9 +140,13 @@ TEST_F(HttpClientTest, GetWithHeaders)
 {
   std::vector<std::string> headers;
   headers.push_back("HttpClientTest: true");
-
   std::string output;
-  long ret = _http->send_get("http://cyrus/blah/blah/blah", output, headers, 0);
+
+  string body = "";
+  std::map<std::string, std::string> resp_headers;
+  int allowed_state = BaseResolver::ALL_LISTS;
+
+  long ret = _http->send_request(HttpClient::RequestType::GET, "http://cyrus/blah/blah/blah", body, output, "gandalf", 0, headers, &resp_headers, allowed_state);
 
   EXPECT_EQ(200, ret);
   EXPECT_EQ("<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>", output);
@@ -156,11 +176,14 @@ TEST_F(HttpClientTest, SasOmitBody)
   MockSASMessage* req_event;
   MockSASMessage* rsp_event;
 
-  std::map<std::string, std::string> headers;
-  headers["HttpClientTest"] = "true";
   string test_body = "test body";
 
-  _private_http->send_post("http://cyrus/blah/blah/blah", headers, test_body, 0, "gandalf");
+  string resp_body;
+  std::vector<std::string> req_headers;
+  std::map<std::string, std::string> resp_headers;
+  int allowed_state = BaseResolver::ALL_LISTS;
+
+  _private_http->send_request(HttpClient::RequestType::POST, "http://cyrus/blah/blah/blah", test_body, resp_body, "gandalf", 0, req_headers, &resp_headers, allowed_state);
 
     // This client will be using the override timeout (1000)
   Request& req = fakecurl_requests["http://cyrus:80/blah/blah/blah"];
@@ -186,9 +209,15 @@ TEST_F(HttpClientTest, SasOmitBody)
 TEST_F(HttpClientTest, SasNoBodyToOmit)
 {
   mock_sas_collect_messages(true);
-  std::map<std::string, std::string> headers;
-  headers["HttpClientTest"] = "true";
-  _private_http->send_post("http://cyrus/blah/blah/blah", headers, "", 0, "gandalf");
+
+  string empty_body = "";
+
+  string resp_body;
+  std::vector<std::string> req_headers;
+  std::map<std::string, std::string> resp_headers;
+  int allowed_state = BaseResolver::ALL_LISTS;
+
+  _private_http->send_request(HttpClient::RequestType::POST, "http://cyrus/blah/blah/blah", empty_body, resp_body, "gandalf", 0, req_headers, &resp_headers, allowed_state);
 
   MockSASMessage* req_event = mock_sas_find_event(SASEvent::TX_HTTP_REQ);
   EXPECT_TRUE(req_event != NULL);
@@ -203,9 +232,15 @@ TEST_F(HttpClientTest, SasNoBodyToOmit)
 TEST_F(HttpClientTest, SasDisplayName)
 {
   mock_sas_collect_messages(true);
-  std::map<std::string, std::string> headers;
-  headers["HttpClientTest"] = "true";
-  _private_http->send_post("http://cyrus/blah/blah/blah", headers, "", 0, "gandalf");
+
+  string empty_body = "";
+
+  string resp_body;
+  std::vector<std::string> req_headers;
+  std::map<std::string, std::string> resp_headers;
+  int allowed_state = BaseResolver::ALL_LISTS;
+
+  _private_http->send_request(HttpClient::RequestType::POST, "http://cyrus/blah/blah/blah", empty_body, resp_body, "gandalf", 0, req_headers, &resp_headers, allowed_state);
 
   MockSASMessage* req_event = mock_sas_find_event(SASEvent::TX_HTTP_REQ);
   EXPECT_TRUE(req_event != NULL);
