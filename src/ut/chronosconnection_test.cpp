@@ -15,6 +15,7 @@
 #include "utils.h"
 #include "sas.h"
 #include "fakehttpresolver.hpp"
+//#include "httpconnection.h"
 #include "chronosconnection.h"
 #include "basetest.hpp"
 #include "curl_interposer.hpp"
@@ -32,14 +33,18 @@ class ChronosConnectionTest : public BaseTest
   FakeHttpResolver _resolver;
   AlarmManager* _alarm_manager;
   CommunicationMonitor* _cm;
+  HttpClient* _http_client;
+  HttpConnection* _http_connection;
   ChronosConnection* _chronos;
 
   ChronosConnectionTest() :
     _alarm_manager(new AlarmManager()),
-    _cm(new CommunicationMonitor(new Alarm(_alarm_manager, "sprout", AlarmDef::CPP_COMMON_FAKE_ALARM, AlarmDef::MAJOR), "sprout", "chronos"))
+    _cm(new CommunicationMonitor(new Alarm(_alarm_manager, "sprout", AlarmDef::CPP_COMMON_FAKE_ALARM, AlarmDef::MAJOR), "sprout", "chronos")),
+    _http_client(new HttpClient(false, &_resolver, SASEvent::HttpLogLevel::DETAIL, _cm)),
+    _http_connection(new HttpConnection("narcissus", _http_client))
   {
     _resolver._targets.push_back(FakeHttpResolver::create_target("10.42.42.42"));
-    _chronos = new ChronosConnection("narcissus", "localhost:9888", &_resolver, _cm);
+    _chronos = new ChronosConnection("localhost:9888", _http_connection);
     fakecurl_responses.clear();
   }
 
@@ -47,6 +52,8 @@ class ChronosConnectionTest : public BaseTest
   {
     fakecurl_responses.clear();
     delete _chronos; _chronos = NULL;
+    delete _http_connection; _http_connection = NULL;
+    delete _http_client; _http_client = NULL;
     delete _cm; _cm = NULL;
     delete _alarm_manager; _alarm_manager = NULL;
   }
