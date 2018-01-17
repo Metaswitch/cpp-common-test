@@ -66,6 +66,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 mock_sas.cpp \
                                 mockfreediameter.cpp \
                                 mockhttpstack.cpp \
+                                mock_httpclient.cpp \
                                 mockdiameterstack.cpp \
                                 pthread_cond_var_helper.cpp \
                                 basetest.cpp \
@@ -83,6 +84,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 diameterstack_test.cpp \
                                 httpclient_test.cpp \
                                 httpconnection_test.cpp \
+                                http_request_test.cpp \
                                 httpresolver_test.cpp \
                                 httpstack_test.cpp \
                                 httpstack_utils_test.cpp \
