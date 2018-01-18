@@ -17,8 +17,12 @@
 
 using ::testing::_;
 using ::testing::Return;
+using ::testing::DoAll;
 using ::testing::IsEmpty;
 using ::testing::Pointee;
+using ::testing::SetArgReferee;
+using ::testing::SetArgPointee;
+
 
 class HttpRequestTest : public ::testing::Test
 {
@@ -39,7 +43,6 @@ class HttpRequestTest : public ::testing::Test
 // Build and send a basic http request, with the default parameters
 // The send method is passed through, so we shouldn't need individual tests to
 // cover all of POST, PUT, GET, DELETE.
-// Verify that sensible defaults are set on all parameters
 TEST_F(HttpRequestTest, send_basic_request)
 {
   EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST, "http://server/testpath", _, _, _, _, _, _, _));
@@ -49,30 +52,18 @@ TEST_F(HttpRequestTest, send_basic_request)
 }
 
 
-// Chech that the HttpRequest defaults non-mandatory arguments to sensible values
-//Potentiall we want to do this with a custom matcher "IsEmptyMapOfType..."
-//Hit pain with this as the map of resp_headers is passed in as a ref, so the mock comparison
-//compares the mem location, not 'are these the same sort of thing'
-
+// Check that the HttpRequest defaults non-mandatory arguments to empty/sensible values
 TEST_F(HttpRequestTest, test_default_params)
 {
-  //  Default values we expect when not specified on a request
-  std::string req_body = "";
-  std::string resp_body = "";
-  std::string username = "";
-  uint64_t empty_sas_trail = 0;
-  std::vector<std::string> req_headers;
-  std::map<std::string, std::string> resp_headers;
-
-  EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST, "http://server/testpath", req_body, resp_body, username, empty_sas_trail, req_headers, Pointee(IsEmpty()), _));
-//                                     "http://server/testpath",       // Full req URL
-//                                     req_body,                       // req body
-//                                     resp_body,                      // resp body
-//                                     username,                       // username
-//                                     empty_sas_trail,                // SAS Trail ID 
-//                                     req_headers,                    // req headers
-//                                     &resp_headers,                   // resp headers
-//                                     BaseResolver::ALL_LISTS));      // allowed host state
+  EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST,  // Method
+                                     "http://server/testpath",       // Full req URL
+                                     IsEmpty(),                      // req body      empty string
+                                     IsEmpty(),                      // resp body     empty string&
+                                     IsEmpty(),                      // username      empty string
+                                     0L,                             // SAS Trail ID  0-ed uint64_t
+                                     IsEmpty(),                      // req headers   empty vector of strings
+                                     Pointee(IsEmpty()),             // resp headers  empty map of string-string
+                                     BaseResolver::ALL_LISTS));      // host state    default to All Lists
 
   HttpRequest req = HttpRequest("server", "http", _client, HttpClient::RequestType::POST, "/testpath");
   req.send();
@@ -93,7 +84,7 @@ TEST_F(HttpRequestTest, set_body)
   req.send();
 }
 
-// Test that the username  can be set on a request
+// Test that the username can be set on a request
 TEST_F(HttpRequestTest, set_username)
 {
   std::string username = "test_user";
@@ -110,7 +101,6 @@ TEST_F(HttpRequestTest, set_sas_trail)
   // SAS Trail IDs are a typedefed uint64_t
   uint64_t test_trail_id = 12345;
 
-  // Set up a variable to match what the send_request call should contain
   EXPECT_CALL(*_client, send_request(_, _, _, _, _, test_trail_id, _, _, _));
 
   HttpRequest req = HttpRequest("server", "http", _client, HttpClient::RequestType::POST, "/testpath");
@@ -156,7 +146,6 @@ TEST_F(HttpRequestTest, set_multiple_headers)
 // Test allowed_host_state can be changed on a request
 TEST_F(HttpRequestTest, set_allowed_host_state)
 {
-  // Set up a variable to match what the send_request call should contain
   EXPECT_CALL(*_client, send_request(_, _, _, _, _, _, _, _, BaseResolver::WHITELISTED));
 
   HttpRequest req = HttpRequest("server", "http", _client, HttpClient::RequestType::POST, "/testpath");
@@ -179,4 +168,34 @@ TEST_F(HttpRequestTest, get_return_code)
   HttpResponse resp = req.send();
 
   EXPECT_EQ(HTTP_OK, resp.get_return_code());
+}
+
+// Test HttpResponses have the returned body stored properly
+TEST_F(HttpRequestTest, get_resp_body)
+{
+  HTTPCode rc = HTTP_OK;
+  std::string test_resp_body = "Test body";
+
+  EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST, "http://server/testpath", _, _, _, _, _, _, _)).WillOnce(DoAll(SetArgReferee<3>(test_resp_body), Return(rc)));
+
+  HttpRequest req = HttpRequest("server", "http", _client, HttpClient::RequestType::POST, "/testpath");
+  HttpResponse resp = req.send();
+
+  EXPECT_EQ("Test body", resp.get_resp_body());
+}
+
+// Test HttpResponses have the returned headers stored properly
+TEST_F(HttpRequestTest, get_resp_headers)
+{
+  HTTPCode rc = HTTP_OK;
+  std::map<std::string, std::string> test_resp_headers;
+  test_resp_headers.insert(std::make_pair("Test-Header", "Test value"));
+  
+
+  EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST, "http://server/testpath", _, _, _, _, _, _, _)).WillOnce(DoAll(SetArgPointee<7>(test_resp_headers), Return(rc)));
+
+  HttpRequest req = HttpRequest("server", "http", _client, HttpClient::RequestType::POST, "/testpath");
+  HttpResponse resp = req.send();
+
+  EXPECT_EQ("Test value", resp.get_resp_headers()["Test-Header"]);
 }
