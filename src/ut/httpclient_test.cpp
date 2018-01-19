@@ -25,6 +25,7 @@
 #include "load_monitor.h"
 #include "mock_sas.h"
 #include "mockcommunicationmonitor.h"
+#include "mockloadmonitor.hpp"
 #include "fakesnmp.hpp"
 #include "curl_interposer.hpp"
 #include "fakecurl.hpp"
@@ -45,51 +46,48 @@ class HttpClientTest : public BaseTest
   FakeHttpResolver _resolver;
   AlarmManager* _am = new AlarmManager();
   NiceMock<MockCommunicationMonitor>* _cm = new NiceMock<MockCommunicationMonitor>(_am);
+  NiceMock<MockLoadMonitor>* _lm = new NiceMock<MockLoadMonitor>();
   HttpClient* _http;
-  HttpClient* _private_http;
+  HttpClient* _alt_http;
   string _server_display_name;
 
   HttpClientTest() :
     _resolver("10.42.42.42"),
     _server_display_name("a_test_server")
   {
+    // We need two HttpClients in the tests, so that we can verify different
+    // configurations, such as asserting user ID, or obscuring SAS bodies
     _http = new HttpClient(true,
                            &_resolver,
                            SASEvent::HttpLogLevel::PROTOCOL,
                            _cm);
 
-    _private_http = new HttpClient(false, // Don't assert user so we can test the header is not added
-                                   &_resolver,
-                                   NULL,
-                                   NULL,
-                                   SASEvent::HttpLogLevel::PROTOCOL,
-                                   _cm,
-                                   true,
-                                   false,
-                                   // Override the default timeout for this client
-                                   1000,
-                                   true,
-                                   // Specify a server name for this client
-                                   _server_display_name
-                                   );
+    // Alternate HttpClient for testing non-default configuration
+    _alt_http = new HttpClient(false, // Don't assert user so we can test the header is not added
+                               &_resolver,
+                               NULL,  // SNMP Stat table
+                               _lm,   // Load monitor
+                               SASEvent::HttpLogLevel::PROTOCOL, // SAS log level
+                               _cm,   // Comm Monitor
+                               true,  // should_omit_body
+                               false, // remote_connection
+                               1000,  // Override the default timeout for this client
+                               true,  // log_display_address
+                               _server_display_name // Specify a server name
+                               );
 
     // Set up responses that can be used in the tests
     fakecurl_responses.clear();
-    fakecurl_responses["http://10.42.42.42:80/blah/blah/blah"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>";
-    fakecurl_responses["http://10.42.42.42:80/blah/blah/wot"] = CURLE_REMOTE_FILE_NOT_FOUND;
-    fakecurl_responses["http://10.42.42.42:80/blah/blah/503"] = 503;
-    fakecurl_responses["http://10.42.42.42:80/blah/blah/recv_error"] = CURLE_RECV_ERROR;
-    fakecurl_responses["http://10.42.42.42:80/up/up/up"] = "<message>ok, whatever...</message>";
-    fakecurl_responses["http://10.42.42.42:80/up/up/down"] = CURLE_REMOTE_ACCESS_DENIED;
-    fakecurl_responses["http://10.42.42.42:80/down/down/down"] = "<message>WHOOOOSH!!</message>";
-    fakecurl_responses["http://10.42.42.42:80/down/down/up"] = CURLE_RECV_ERROR;
-    fakecurl_responses["http://10.42.42.42:80/down/around"] = Response(CURLE_SEND_ERROR, "<message>Gotcha!</message>");
+    fakecurl_responses["http://10.42.42.42:80/test"] = "<?xml version=\"1.0\" encoding=\"UTF-8\"><xmltag>Document</xmltag>";
+    fakecurl_responses["http://10.42.42.42:80/test/not_found"] = CURLE_REMOTE_FILE_NOT_FOUND;
+    fakecurl_responses["http://10.42.42.42:80/test/503"] = 503;
+    fakecurl_responses["http://10.42.42.42:80/test/504"] = 504;
+    fakecurl_responses["http://10.42.42.42:80/test/recv_error"] = CURLE_RECV_ERROR;
+    fakecurl_responses["http://10.42.42.42:80/test/get_with_retry"] = Response(CURLE_SEND_ERROR, "<message>Test message</message>");
     fakecurl_responses["http://10.42.42.42:80/delete_id"] = CURLE_OK;
     fakecurl_responses["http://10.42.42.42:80/put_id"] = CURLE_OK;
     fakecurl_responses["http://10.42.42.42:80/put_id_response"] = Response({"response"});
     fakecurl_responses["http://10.42.42.42:80/post_id"] = Response({"Location: test"});
-    fakecurl_responses["http://10.42.42.42:80/path"] = CURLE_OK;
-
   }
 
   virtual ~HttpClientTest()
@@ -97,7 +95,8 @@ class HttpClientTest : public BaseTest
     fakecurl_responses.clear();
     fakecurl_requests.clear();
     delete _http; _http = NULL;
-    delete _private_http; _private_http = NULL;
+    delete _alt_http; _alt_http = NULL;
+    delete _lm; _lm = NULL;
     delete _cm; _cm = NULL;
     delete _am; _am = NULL;
   }
@@ -113,13 +112,14 @@ class HttpClientTest : public BaseTest
 
 };
 
+// Basic get test. Assert the default settings etc.
 TEST_F(HttpClientTest, SimpleGet)
 {
   EXPECT_CALL(*_cm, inform_success(_));
   string output;
 
   long ret = _http->send_request(HttpClient::RequestType::GET,
-                                 "http://cyrus/blah/blah/blah",
+                                 "http://cyrus/test",
                                  default_body,
                                  output,
                                  default_username,
@@ -129,9 +129,9 @@ TEST_F(HttpClientTest, SimpleGet)
                                  default_host_state);
 
   EXPECT_EQ(200, ret);
-  EXPECT_EQ("<?xml version=\"1.0\" encoding=\"UTF-8\"><boring>Document</boring>", output);
+  EXPECT_EQ("<?xml version=\"1.0\" encoding=\"UTF-8\"><xmltag>Document</xmltag>", output);
 
-  Request& req = fakecurl_requests["http://cyrus:80/blah/blah/blah"];
+  Request& req = fakecurl_requests["http://cyrus:80/test"];
 
   EXPECT_EQ("GET", req._method);
   EXPECT_FALSE(req._httpauth & CURLAUTH_DIGEST) << req._httpauth;
@@ -141,6 +141,7 @@ TEST_F(HttpClientTest, SimpleGet)
   EXPECT_EQ("", req._password);
 }
 
+// Test that calling with headers results in them being sent
 TEST_F(HttpClientTest, GetWithHeaders)
 {
   EXPECT_CALL(*_cm, inform_success(_));
@@ -148,7 +149,7 @@ TEST_F(HttpClientTest, GetWithHeaders)
   headers.push_back("HttpClientTest: true");
 
   long ret = _http->send_request(HttpClient::RequestType::GET,
-                                 "http://cyrus/blah/blah/blah",
+                                 "http://cyrus/test",
                                  default_body,
                                  default_response,
                                  default_username,
@@ -158,7 +159,7 @@ TEST_F(HttpClientTest, GetWithHeaders)
                                  default_host_state);
 
   EXPECT_EQ(200, ret);
-  Request& req = fakecurl_requests["http://cyrus:80/blah/blah/blah"];
+  Request& req = fakecurl_requests["http://cyrus:80/test"];
 
   // The CURL request should contain an "HttpClientTest" header whose value is
   // "true".
@@ -184,7 +185,7 @@ TEST_F(HttpClientTest, GetWithUsername)
   std::string username = "Gandalf";
 
   long ret = _http->send_request(HttpClient::RequestType::GET,
-                                 "http://cyrus/blah/blah/blah",
+                                 "http://cyrus/test",
                                  default_body,
                                  default_response,
                                  username,
@@ -194,7 +195,7 @@ TEST_F(HttpClientTest, GetWithUsername)
                                  default_host_state);
 
   EXPECT_EQ(200, ret);
-  Request& req = fakecurl_requests["http://cyrus:80/blah/blah/blah"];
+  Request& req = fakecurl_requests["http://cyrus:80/test"];
 
   // The CURL request should contain an "X-XCAP-Asserted-Identity:" header,
   // whose value is the username - "Gandalf"
@@ -220,18 +221,18 @@ TEST_F(HttpClientTest, GetWithUsername_NoAssertUser)
   EXPECT_CALL(*_cm, inform_success(_));
   std::string username = "Gandalf";
 
-  long ret = _private_http->send_request(HttpClient::RequestType::GET,
-                                         "http://cyrus/blah/blah/blah",
-                                         default_body,
-                                         default_response,
-                                         username,
-                                         default_sas_trail,
-                                         default_req_headers,
-                                         &default_resp_headers,
-                                         default_host_state);
+  long ret = _alt_http->send_request(HttpClient::RequestType::GET,
+                                     "http://cyrus/test",
+                                     default_body,
+                                     default_response,
+                                     username,
+                                     default_sas_trail,
+                                     default_req_headers,
+                                     &default_resp_headers,
+                                     default_host_state);
 
   EXPECT_EQ(200, ret);
-  Request& req = fakecurl_requests["http://cyrus:80/blah/blah/blah"];
+  Request& req = fakecurl_requests["http://cyrus:80/test"];
 
   // The CURL request should NOT contain an "X-XCAP-Asserted-Identity:" header,
   // whose value is the username - "Gandalf"
@@ -249,6 +250,7 @@ TEST_F(HttpClientTest, GetWithUsername_NoAssertUser)
   EXPECT_FALSE(found_header);
 }
 
+// Test IPv6 basic functionality
 TEST_F(HttpClientTest, IPv6Get)
 {
   EXPECT_CALL(*_cm, inform_success(_));
@@ -273,7 +275,7 @@ TEST_F(HttpClientTest, GetFailureNotFound)
   EXPECT_CALL(*_cm, inform_failure(_)).Times(1);
 
   long ret = _http->send_request(HttpClient::RequestType::GET,
-                                 "http://cyrus:80/blah/blah/wot",
+                                 "http://cyrus:80/test/not_found",
                                  default_body,
                                  default_response,
                                  default_username,
@@ -285,19 +287,21 @@ TEST_F(HttpClientTest, GetFailureNotFound)
   EXPECT_EQ(404, ret);
 }
 
+// Test we inform failure and incur penalty on a request that gets 503s back
 TEST_F(HttpClientTest, GetFailure503)
 {
   EXPECT_CALL(*_cm, inform_failure(_)).Times(1);
+  EXPECT_CALL(*_lm, incr_penalties()).Times(1);
 
-  long ret = _http->send_request(HttpClient::RequestType::GET,
-                                 "http://cyrus:80/blah/blah/503",
-                                 default_body,
-                                 default_response,
-                                 default_username,
-                                 default_sas_trail,
-                                 default_req_headers,
-                                 &default_resp_headers,
-                                 default_host_state);
+  long ret = _alt_http->send_request(HttpClient::RequestType::GET,
+                                     "http://cyrus:80/test/503",
+                                     default_body,
+                                     default_response,
+                                     default_username,
+                                     default_sas_trail,
+                                     default_req_headers,
+                                     &default_resp_headers,
+                                     default_host_state);
 
   EXPECT_EQ(503, ret);
 }
@@ -306,11 +310,13 @@ TEST_F(HttpClientTest, GetFailure503)
 TEST_F(HttpClientTest, SimpleGetRetry)
 {
   EXPECT_CALL(*_cm, inform_success(_));
+  // If we hit an error, and it isn't a 504, we shouldn't incur a penalty
+  EXPECT_CALL(*_lm, incr_penalties()).Times(0);
   std::string response;
 
   // Get a failure on the connection and retry it.
   long ret = _http->send_request(HttpClient::RequestType::GET,
-                                 "http://cyrus:80/down/around",
+                                 "http://cyrus:80/test/get_with_retry",
                                  default_body,
                                  response,
                                  default_username,
@@ -320,15 +326,38 @@ TEST_F(HttpClientTest, SimpleGetRetry)
                                  default_host_state);
 
   EXPECT_EQ(200, ret);
-  EXPECT_EQ("<message>Gotcha!</message>", response);
+  EXPECT_EQ("<message>Test message</message>", response);
 }
 
+// Test that we incur a penalty for a single 504, and do not retry
+TEST_F(HttpClientTest, Get504)
+{
+  EXPECT_CALL(*_cm, inform_success(_));
+  EXPECT_CALL(*_lm, incr_penalties()).Times(1);
+
+  std::string response;
+
+  // Get the 504 failure on the connection with the mock load monitor
+  long ret = _alt_http->send_request(HttpClient::RequestType::GET,
+                                     "http://cyrus:80/test/504",
+                                     default_body,
+                                     response,
+                                     default_username,
+                                     default_sas_trail,
+                                     default_req_headers,
+                                     &default_resp_headers,
+                                     default_host_state);
+
+  EXPECT_EQ(504, ret);
+}
+
+// Test that a receive error properly informs the communication monitor
 TEST_F(HttpClientTest, ReceiveError)
 {
-  EXPECT_CALL(*_cm, inform_failure(_));
+  EXPECT_CALL(*_cm, inform_failure(_)).Times(1);
 
   long ret = _http->send_request(HttpClient::RequestType::GET,
-                                 "http://cyrus:80/blah/blah/recv_error",
+                                 "http://cyrus:80/test/recv_error",
                                  default_body,
                                  default_response,
                                  default_username,
@@ -361,6 +390,7 @@ TEST_F(HttpClientTest, SimplePost)
   EXPECT_EQ("", req._body);
 }
 
+// Test that the message body is built and sent correctly
 TEST_F(HttpClientTest, SimplePostWithBody)
 {
   std::string test_body = "Test body";
@@ -383,6 +413,7 @@ TEST_F(HttpClientTest, SimplePostWithBody)
   EXPECT_EQ("Test body", req._body);
 }
 
+// Test a post with multiple headers to send actually sends them all
 TEST_F(HttpClientTest, SimplePostWithHeaders)
 {
   std::vector<std::string> req_headers;
@@ -462,7 +493,7 @@ TEST_F(HttpClientTest, SimplePutWithResponse)
 TEST_F(HttpClientTest, SimpleDelete)
 {
   EXPECT_CALL(*_cm, inform_success(_));
-  long ret = _http->send_request(HttpClient::RequestType::PUT,
+  long ret = _http->send_request(HttpClient::RequestType::DELETE,
                                  "http://cyrus:80/delete_id",
                                  default_body,
                                  default_response,
@@ -475,6 +506,7 @@ TEST_F(HttpClientTest, SimpleDelete)
   EXPECT_EQ(200, ret);
 }
 
+// Test that we correctly create and send SAS correlation headers
 TEST_F(HttpClientTest, SASCorrelationHeader)
 {
   mock_sas_collect_messages(true);
@@ -482,7 +514,7 @@ TEST_F(HttpClientTest, SASCorrelationHeader)
   std::string uuid;
 
   long ret = _http->send_request(HttpClient::RequestType::GET,
-                                 "http://cyrus:80/blah/blah/blah",
+                                 "http://cyrus:80/test",
                                  default_body,
                                  default_response,
                                  default_username,
@@ -492,7 +524,7 @@ TEST_F(HttpClientTest, SASCorrelationHeader)
                                  default_host_state);
 
   EXPECT_EQ(200, ret);
-  Request& req = fakecurl_requests["http://cyrus:80/blah/blah/blah"];
+  Request& req = fakecurl_requests["http://cyrus:80/test"];
 
   // The CURL request should contain an X-SAS-HTTP-Branch-ID whose value is a
   // UUID.
@@ -606,6 +638,7 @@ TEST_F(HttpClientTest, ParseNoPortIPv6)
   EXPECT_EQ(200, ret);
 }
 
+// Test a non-resolvable URL gives us a BAD REQUEST error
 TEST_F(HttpClientTest, BadURL)
 {
   long ret = _http->send_request(HttpClient::RequestType::GET,
@@ -621,12 +654,13 @@ TEST_F(HttpClientTest, BadURL)
   EXPECT_EQ(HTTP_BAD_REQUEST, ret);
 }
 
+// Test we get an HTTP NOT FOUND back if there are no resolvable targets
 TEST_F(HttpClientTest, NoTargets)
 {
   _resolver._targets.clear();
 
   long ret = _http->send_request(HttpClient::RequestType::GET,
-                                 "http://cyrus/blah/blah/blah",
+                                 "http://cyrus/test",
                                  default_body,
                                  default_response,
                                  default_username,
@@ -638,7 +672,22 @@ TEST_F(HttpClientTest, NoTargets)
   EXPECT_EQ(HTTP_NOT_FOUND, ret);
 }
 
+// Send request takes in a pointer to a map to store response headers in. This
+// can be passed in as NULL, and an internal map is created.
+TEST_F(HttpClientTest, TestNullHeaderMap)
+{
+  long ret = _http->send_request(HttpClient::RequestType::GET,
+                                 "http://cyrus/test",
+                                 default_body,
+                                 default_response,
+                                 default_username,
+                                 default_sas_trail,
+                                 default_req_headers,
+                                 NULL,
+                                 default_host_state);
 
+  EXPECT_EQ(HTTP_OK, ret);
+}
 
 // Check that the option to omit bodies from SAS logs works.
 TEST_F(HttpClientTest, SasOmitBody)
@@ -649,18 +698,18 @@ TEST_F(HttpClientTest, SasOmitBody)
 
   string test_body = "test body";
 
-  _private_http->send_request(HttpClient::RequestType::POST,
-                              "http://cyrus/blah/blah/blah",
-                              test_body,
-                              default_response,
-                              default_username,
-                              default_sas_trail,
-                              default_req_headers,
-                              &default_resp_headers,
-                              default_host_state);
+  _alt_http->send_request(HttpClient::RequestType::POST,
+                          "http://cyrus/test",
+                          test_body,
+                          default_response,
+                          default_username,
+                          default_sas_trail,
+                          default_req_headers,
+                          &default_resp_headers,
+                          default_host_state);
 
     // This client will be using the override timeout (1000)
-  Request& req = fakecurl_requests["http://cyrus:80/blah/blah/blah"];
+  Request& req = fakecurl_requests["http://cyrus:80/test"];
   EXPECT_EQ(1000, req._timeout_ms);
 
   req_event = mock_sas_find_event(SASEvent::TX_HTTP_REQ);
@@ -686,15 +735,15 @@ TEST_F(HttpClientTest, SasNoBodyToOmit)
 
   string empty_body = "";
 
-  _private_http->send_request(HttpClient::RequestType::POST,
-                              "http://cyrus/blah/blah/blah",
-                              empty_body,
-                              default_response,
-                              default_username,
-                              default_sas_trail,
-                              default_req_headers,
-                              &default_resp_headers,
-                              default_host_state);
+  _alt_http->send_request(HttpClient::RequestType::POST,
+                          "http://cyrus/test",
+                          empty_body,
+                          default_response,
+                          default_username,
+                          default_sas_trail,
+                          default_req_headers,
+                          &default_resp_headers,
+                          default_host_state);
 
   MockSASMessage* req_event = mock_sas_find_event(SASEvent::TX_HTTP_REQ);
   EXPECT_TRUE(req_event != NULL);
@@ -710,15 +759,15 @@ TEST_F(HttpClientTest, SasDisplayName)
 {
   mock_sas_collect_messages(true);
 
-  _private_http->send_request(HttpClient::RequestType::POST,
-                              "http://cyrus/blah/blah/blah",
-                              default_body,
-                              default_response,
-                              default_username,
-                              default_sas_trail,
-                              default_req_headers,
-                              &default_resp_headers,
-                              default_host_state);
+  _alt_http->send_request(HttpClient::RequestType::POST,
+                          "http://cyrus/test",
+                          default_body,
+                          default_response,
+                          default_username,
+                          default_sas_trail,
+                          default_req_headers,
+                          &default_resp_headers,
+                          default_host_state);
 
   MockSASMessage* req_event = mock_sas_find_event(SASEvent::TX_HTTP_REQ);
   EXPECT_TRUE(req_event != NULL);
@@ -730,17 +779,12 @@ TEST_F(HttpClientTest, SasDisplayName)
   mock_sas_collect_messages(false);
 }
 
-
-// Honestly, this test feels unnecessary, but porting for legacy
+// Test creation and destruction of the basic http resolver
 TEST_F(HttpClientTest, BasicResolverTest)
 {
   // Just check the resolver constructs/destroys correctly.
   HttpResolver resolver(NULL, AF_INET);
 }
-
-
-
-
 
 /// Fixture for blacklist tests
 class HttpClientBlacklistTest : public BaseTest
@@ -963,16 +1007,3 @@ TEST_F(HttpClientBlacklistTest, BlacklistTestAllFailure)
                       default_host_state);
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
