@@ -111,3 +111,16 @@ TEST_F(StaticDnsCacheTest, ARecordLookup)
   const char* address2 = inet_ntoa(second_result_a->address());
   EXPECT_EQ(address2, "10.0.0.2");
 }
+
+
+// The lack of a dns.json file shouldn't break things.
+TEST_F(StaticDnsCacheTest, CopesWithNoJSONFile)
+{
+  StaticDnsCache cache("dns_json/this_file_does_not_exist.json");
+
+  std::string translated = cache.get_canonical_name("not.in.the.file");
+  EXPECT_EQ(translated, "not.in.the.file");
+
+  std::vector<DnsResult> entries = cache.get_entries("not.in.the.file", ns_t_a);
+  EXPECT_EQ(entries.size(), 0);
+}
