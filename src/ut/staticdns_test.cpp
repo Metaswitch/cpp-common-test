@@ -51,6 +51,18 @@ TEST_F(StaticDnsCacheTest, CNAMELookupOnARecord)
 }
 
 
+// If we try and do a CNAME lookup for a name with a CNAME record in the
+// dns.json file, it should be translated.
+TEST_F(StaticDnsCacheTest, CNAMELookup)
+{
+  StaticDnsCache cache("dns_json/a_records.json");
+
+  std::string translated = cache.get_canonical_name("one.extra.domain");
+
+  EXPECT_EQ(translated, "one.made.up.domain");
+}
+
+
 // If we try and do an A lookup for a name not in the dns.json file, it should
 // return an empty result.
 TEST_F(StaticDnsCacheTest, ARecordLookupNoEntries)
