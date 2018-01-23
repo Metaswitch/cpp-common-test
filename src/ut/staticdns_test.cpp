@@ -49,3 +49,15 @@ TEST_F(StaticDnsCacheTest, CNAMELookupOnARecord)
 
   EXPECT_EQ(translated, "a.records.domain");
 }
+
+
+// If we try and do a CNAME lookup for a name with only an A record, not a
+// CNAME record, in the dns.json file, it should be untranslated.
+TEST_F(StaticDnsCacheTest, ARecordLookupNoEntries)
+{
+  StaticDnsCache cache("dns_json/a_records.json");
+
+  std::vector<DnsResult> entries = cache.get_entries("not.in.the.file", ns_t_a);
+
+  EXPECT_EQ(entries.size(), 0);
+}
