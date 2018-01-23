@@ -9,6 +9,11 @@
  * Metaswitch Networks in a separate written agreement.
  */
 
+#include <sys/types.h>
+#include <dirent.h>
+#include <stdio.h>
+#include <unistd.h>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "test_interposer.hpp"
@@ -17,13 +22,35 @@
 
 using namespace std;
 
+std::string DNS_JSON_DIR = string(UT_DIR).append("/dns_json/");
+std::string DNS_JSON_TMP_DIR = string(UT_DIR).append("/dns_json/tmp/");
+
 class StaticDnsCacheTest  : public ::testing::Test
 {
+  void TearDown()
+  {
+    // If we've created temporary JSON files (for config reload tests), delete
+    // them here.
+    DIR* temp_dir = opendir(DNS_JSON_TMP_DIR.c_str());
+    struct dirent* entry = readdir(temp_dir);
+    while (entry)
+    {
+      std::string filename = DNS_JSON_TMP_DIR + entry->d_name;
+
+      // Check whether it ends with ".json", by checking whether the
+      // 5-character substring ".json" appears 5 characters from the end.
+      if (filename.rfind(".json") == filename.size() - 5)
+      {
+        unlink(filename.c_str());
+      }
+      entry = readdir(temp_dir);
+    }
+  }
 };
 
 TEST_F(StaticDnsCacheTest, Construction)
 {
-  StaticDnsCache cache("dns_json/a_records.json");
+  StaticDnsCache cache(DNS_JSON_DIR + "a_records.json");
 }
 
 
@@ -31,7 +58,7 @@ TEST_F(StaticDnsCacheTest, Construction)
 // should be untranslated.
 TEST_F(StaticDnsCacheTest, DefaultCNAMELookup)
 {
-  StaticDnsCache cache("dns_json/a_records.json");
+  StaticDnsCache cache(DNS_JSON_DIR + "a_records.json");
 
   std::string translated = cache.get_canonical_name("not.in.the.file");
 
@@ -43,7 +70,7 @@ TEST_F(StaticDnsCacheTest, DefaultCNAMELookup)
 // CNAME record, in the dns.json file, it should be untranslated.
 TEST_F(StaticDnsCacheTest, CNAMELookupOnARecord)
 {
-  StaticDnsCache cache("dns_json/a_records.json");
+  StaticDnsCache cache(DNS_JSON_DIR + "a_records.json");
 
   std::string translated = cache.get_canonical_name("a.records.domain");
 
@@ -55,7 +82,7 @@ TEST_F(StaticDnsCacheTest, CNAMELookupOnARecord)
 // dns.json file, it should be translated.
 TEST_F(StaticDnsCacheTest, CNAMELookup)
 {
-  StaticDnsCache cache("dns_json/a_records.json");
+  StaticDnsCache cache(DNS_JSON_DIR + "a_records.json");
 
   std::string translated = cache.get_canonical_name("one.extra.domain");
 
@@ -66,7 +93,7 @@ TEST_F(StaticDnsCacheTest, CNAMELookup)
 // return an empty result.
 TEST_F(StaticDnsCacheTest, ARecordLookupNoEntries)
 {
-  StaticDnsCache cache("dns_json/a_records.json");
+  StaticDnsCache cache(DNS_JSON_DIR + "a_records.json");
 
   std::vector<DnsResult> entries = cache.get_static_dns_records("not.in.the.file", ns_t_a);
 
@@ -78,7 +105,7 @@ TEST_F(StaticDnsCacheTest, ARecordLookupNoEntries)
 // return an accurate list of results.
 TEST_F(StaticDnsCacheTest, ARecordLookup)
 {
-  StaticDnsCache cache("dns_json/a_records.json");
+  StaticDnsCache cache(DNS_JSON_DIR + "a_records.json");
 
   std::vector<DnsResult> entries = cache.get_static_dns_records("a.records.domain", ns_t_a);
 
@@ -115,7 +142,7 @@ TEST_F(StaticDnsCacheTest, ARecordLookup)
 // The lack of a dns.json file shouldn't break things.
 TEST_F(StaticDnsCacheTest, CopesWithNoJSONFile)
 {
-  StaticDnsCache cache("dns_json/this_file_does_not_exist.json");
+  StaticDnsCache cache("this_file_does_not_exist.json");
 
   std::string translated = cache.get_canonical_name("not.in.the.file");
   EXPECT_EQ(translated, "not.in.the.file");
@@ -128,7 +155,7 @@ TEST_F(StaticDnsCacheTest, CopesWithNoJSONFile)
 // If we try and do an AAAA lookup, it should return an empty result.
 TEST_F(StaticDnsCacheTest, AAAARecordLookupNoEntries)
 {
-  StaticDnsCache cache("dns_json/a_records.json");
+  StaticDnsCache cache(DNS_JSON_DIR + "a_records.json");
 
   std::vector<DnsResult> entries = cache.get_static_dns_records("not.in.the.file", ns_t_aaaa);
   EXPECT_EQ(entries.size(), 0);
@@ -140,7 +167,7 @@ TEST_F(StaticDnsCacheTest, AAAARecordLookupNoEntries)
 // If we try and do an SRV lookup, it should return an empty result.
 TEST_F(StaticDnsCacheTest, SRVRecordLookupNoEntries)
 {
-  StaticDnsCache cache("dns_json/a_records.json");
+  StaticDnsCache cache(DNS_JSON_DIR + "a_records.json");
 
   std::vector<DnsResult> entries = cache.get_static_dns_records("not.in.the.file", ns_t_srv);
   EXPECT_EQ(entries.size(), 0);
@@ -153,7 +180,7 @@ TEST_F(StaticDnsCacheTest, SRVRecordLookupNoEntries)
 // If we try and do a NS lookup, it should return an empty result.
 TEST_F(StaticDnsCacheTest, NSRecordLookupNoEntries)
 {
-  StaticDnsCache cache("dns_json/a_records.json");
+  StaticDnsCache cache(DNS_JSON_DIR + "a_records.json");
 
   std::vector<DnsResult> entries = cache.get_static_dns_records("not.in.the.file", ns_t_ns);
   EXPECT_EQ(entries.size(), 0);
@@ -165,7 +192,7 @@ TEST_F(StaticDnsCacheTest, NSRecordLookupNoEntries)
 // If we try and do an SOA lookup, it should return an empty result.
 TEST_F(StaticDnsCacheTest, SOARecordLookupNoEntries)
 {
-  StaticDnsCache cache("dns_json/a_records.json");
+  StaticDnsCache cache(DNS_JSON_DIR + "a_records.json");
 
   std::vector<DnsResult> entries = cache.get_static_dns_records("not.in.the.file", ns_t_soa);
   EXPECT_EQ(entries.size(), 0);
@@ -177,7 +204,7 @@ TEST_F(StaticDnsCacheTest, SOARecordLookupNoEntries)
 // If we try and do a PTR lookup, it should return an empty result.
 TEST_F(StaticDnsCacheTest, PTRRecordLookupNoEntries)
 {
-  StaticDnsCache cache("dns_json/a_records.json");
+  StaticDnsCache cache(DNS_JSON_DIR + "a_records.json");
 
   std::vector<DnsResult> entries = cache.get_static_dns_records("not.in.the.file", ns_t_ptr);
   EXPECT_EQ(entries.size(), 0);
@@ -189,7 +216,7 @@ TEST_F(StaticDnsCacheTest, PTRRecordLookupNoEntries)
 // If we try and do a NAPTR lookup, it should return an empty result.
 TEST_F(StaticDnsCacheTest, NAPTRRecordLookupNoEntries)
 {
-  StaticDnsCache cache("dns_json/a_records.json");
+  StaticDnsCache cache(DNS_JSON_DIR + "a_records.json");
 
   std::vector<DnsResult> entries = cache.get_static_dns_records("not.in.the.file", ns_t_naptr);
   EXPECT_EQ(entries.size(), 0);
@@ -201,7 +228,7 @@ TEST_F(StaticDnsCacheTest, NAPTRRecordLookupNoEntries)
 // If we try and do a CNAME lookup, it should return an empty result.
 TEST_F(StaticDnsCacheTest, CNAMERecordLookupNoEntries)
 {
-  StaticDnsCache cache("dns_json/a_records.json");
+  StaticDnsCache cache(DNS_JSON_DIR + "a_records.json");
 
   std::vector<DnsResult> entries = cache.get_static_dns_records("not.in.the.file", ns_t_cname);
   EXPECT_EQ(entries.size(), 0);
@@ -214,7 +241,7 @@ TEST_F(StaticDnsCacheTest, CNAMERecordLookupNoEntries)
 // empty result.
 TEST_F(StaticDnsCacheTest, UnknownTypeRecordLookupNoEntries)
 {
-  StaticDnsCache cache("dns_json/a_records.json");
+  StaticDnsCache cache(DNS_JSON_DIR + "a_records.json");
 
   std::vector<DnsResult> entries = cache.get_static_dns_records("not.in.the.file", INT_MAX);
   EXPECT_EQ(entries.size(), 0);
