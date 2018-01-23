@@ -8,7 +8,7 @@ MODULE_DIR := ${ROOT}/modules
 INCLUDE_DIR := ${INSTALL_DIR}/include
 LIB_DIR := ${INSTALL_DIR}/lib
 
-SUBMODULES := libevhtp libmemcached thrift cassandra freeDiameter sas-client
+SUBMODULES := sas-client
 
 include $(patsubst %, ${MK_DIR}/%.mk, ${SUBMODULES})
 include ${MK_DIR}/cpp-common-test.mk
