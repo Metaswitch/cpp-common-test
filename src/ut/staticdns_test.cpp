@@ -264,3 +264,31 @@ TEST_F(StaticDnsCacheTest, ConfigReloadAppears)
   DnsResult res2 = cache.get_static_dns_records("a.records.domain", ns_t_a);
   ASSERT_EQ(res2.records().size(), 2);
 }
+
+TEST_F(StaticDnsCacheTest, InvalidJson)
+{
+  StaticDnsCache cache(DNS_JSON_DIR + "invalid_dns_config.json");
+
+  EXPECT_EQ(cache.size(), 0);
+}
+
+TEST_F(StaticDnsCacheTest, DuplicateJson)
+{
+  StaticDnsCache cache(DNS_JSON_DIR + "duplicate_dns_config.json");
+
+  // Only the first of the two duplicates should have been read in, and that
+  // should be used for the redirection
+  EXPECT_EQ(cache.size(), 1);
+  EXPECT_EQ(cache.get_canonical_name("one.duplicated.domain"), "one.made.up.domain");
+}
+
+
+TEST_F(StaticDnsCacheTest, JsonBadRrtype)
+{
+  StaticDnsCache cache(DNS_JSON_DIR + "bad_rrtype_dns_config.json");
+
+  // The first entry with a missing "rrtype" member and the A record should have
+  // been skipped, but the valid CNAME record should have been read in
+  EXPECT_EQ(cache.size(), 1);
+  EXPECT_EQ(cache.get_canonical_name("one.redirected.domain"), "one.made.up.domain");
+}

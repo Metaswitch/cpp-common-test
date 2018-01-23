@@ -47,11 +47,6 @@ class TestDnsCachedResolver : public  DnsCachedResolver
       add_record_to_cache(ce, record);
     }
   }
-
-  map<string, vector<DnsRRecord*>> static_records()
-  {
-    return _static_records;
-  }
 };
 
 class DnsCachedResolverTest : public ::testing::Test
@@ -93,27 +88,6 @@ TEST_F(DnsCachedResolverTest, NoRecordLookup)
   EXPECT_EQ(result.records().size(), 0);
 }
 
-TEST_F(DnsCachedResolverTest, MissingJson)
-{
-  TestDnsCachedResolver resolver(string(UT_DIR).append("/nonexistent_file.json"));
-
-  EXPECT_EQ(resolver.static_records().size(), 0);
-}
-
-TEST_F(DnsCachedResolverTest, ValidJson)
-{
-  TestDnsCachedResolver resolver(string(UT_DIR).append("/valid_dns_config.json"));
-
-  EXPECT_EQ(resolver.static_records().size(), 3);
-}
-
-TEST_F(DnsCachedResolverTest, InvalidJson)
-{
-  TestDnsCachedResolver resolver(string(UT_DIR).append("/invalid_dns_config.json"));
-
-  EXPECT_EQ(resolver.static_records().size(), 0);
-}
-
 TEST_F(DnsCachedResolverTest, ValidJsonRedirectedLookup)
 {
   TestDnsCachedResolver resolver(string(UT_DIR).append("/valid_dns_config.json"));
@@ -146,8 +120,6 @@ TEST_F(DnsCachedResolverTest, DuplicateJson)
 
   // Only the first of the two duplicates should have been read in, and that
   // should be used for the redirection
-  EXPECT_EQ(resolver.static_records().size(), 1);
-  EXPECT_EQ(resolver.static_records().at("one.duplicated.domain").size(), 1);
   EXPECT_EQ(result.domain(), "one.made.up.domain");
   EXPECT_EQ(result.records().size(), 1);
 }
@@ -160,8 +132,6 @@ TEST_F(DnsCachedResolverTest, JsonBadRrtype)
 
   // The first entry with a missing "rrtype" member and the A record should have
   // been skipped, but the valid CNAME record should have been read in
-  EXPECT_EQ(resolver.static_records().size(), 1);
-  EXPECT_EQ(resolver.static_records().at("one.redirected.domain").size(), 1);
   EXPECT_EQ(result.domain(), "one.made.up.domain");
   EXPECT_EQ(result.records().size(), 1);
 }
