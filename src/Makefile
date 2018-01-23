@@ -70,9 +70,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 mockdiameterstack.cpp \
                                 pthread_cond_var_helper.cpp \
                                 basetest.cpp \
-                                curl_interposer.cpp \
                                 test_main.cpp \
-                                test_interposer.cpp \
                                 alarm_test.cpp \
                                 astaire_resolver.cpp \
                                 baseresolver_test.cpp \
