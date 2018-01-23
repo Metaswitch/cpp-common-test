@@ -25,3 +25,27 @@ TEST_F(StaticDnsCacheTest, Construction)
 {
   StaticDnsCache cache("dns_json/a_records.json");
 }
+
+
+// If we try and do a CNAME lookup for a name not in the dns.json file, it
+// should be untranslated.
+TEST_F(StaticDnsCacheTest, DefaultCNAMELookup)
+{
+  StaticDnsCache cache("dns_json/a_records.json");
+
+  std::string translated = cache.get_canonical_name("not.in.the.file");
+
+  EXPECT_EQ(translated, "not.in.the.file");
+}
+
+
+// If we try and do a CNAME lookup for a name with only an A record, not a
+// CNAME record, in the dns.json file, it should be untranslated.
+TEST_F(StaticDnsCacheTest, CNAMELookupOnARecord)
+{
+  StaticDnsCache cache("dns_json/a_records.json");
+
+  std::string translated = cache.get_canonical_name("a.records.domain");
+
+  EXPECT_EQ(translated, "a.records.domain");
+}
