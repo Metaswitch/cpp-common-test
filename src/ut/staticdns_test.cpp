@@ -121,7 +121,8 @@ TEST_F(StaticDnsCacheTest, ARecordLookup)
   ASSERT_EQ(first_result->rrtype(), ns_t_a);
 
   DnsARecord* first_result_a = dynamic_cast<DnsARecord*>(first_result);
-  const char* address = inet_ntoa(first_result_a->address());
+  const char* addr = inet_ntoa(first_result_a->address());
+  std::string address(addr);
   EXPECT_EQ(address, "10.0.0.1");
 
   // Second target should be "10.0.0.2"
@@ -130,7 +131,8 @@ TEST_F(StaticDnsCacheTest, ARecordLookup)
   ASSERT_EQ(second_result->rrtype(), ns_t_a);
 
   DnsARecord* second_result_a = dynamic_cast<DnsARecord*>(second_result);
-  const char* address2 = inet_ntoa(second_result_a->address());
+  const char* addr2 = inet_ntoa(second_result_a->address());
+  std::string address2(addr2);
   EXPECT_EQ(address2, "10.0.0.2");
 }
 
