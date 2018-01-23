@@ -249,3 +249,22 @@ TEST_F(StaticDnsCacheTest, UnknownTypeRecordLookupNoEntries)
   entries = cache.get_static_dns_records("a.records.domain", INT_MAX);
   EXPECT_EQ(entries.size(), 0);
 }
+
+
+TEST_F(StaticDnsCacheTest, ConfigReloadAppears)
+{
+  std::string target_file = DNS_JSON_TMP_DIR + "reload.json";
+  StaticDnsCache cache(target_file.c_str());
+
+  std::vector<DnsResult> entries = cache.get_static_dns_records("a.records.domain", ns_t_a);
+  ASSERT_EQ(entries.size(), 0);
+
+  std::string new_file = DNS_JSON_DIR + "a_records.json";
+  std::string cp_command = "cp " + new_file + " " + target_file;
+  int rc = system(cp_command.c_str());
+  ASSERT_EQ(0, rc);
+  cache.reload_static_records();
+
+  entries = cache.get_static_dns_records("a.records.domain", ns_t_a);
+  ASSERT_EQ(entries.size(), 2);
+}
