@@ -16,6 +16,7 @@
 #include "dnscachedresolver.h"
 
 using namespace std;
+static std::string DNS_JSON_DIR = string(UT_DIR).append("/dns_json/");
 
 // We don't test the DnsCachedResolver directly as we want to be able to
 // manually add entries to the DnsCache
@@ -90,7 +91,7 @@ TEST_F(DnsCachedResolverTest, NoRecordLookup)
 
 TEST_F(DnsCachedResolverTest, ValidJsonRedirectedLookup)
 {
-  TestDnsCachedResolver resolver(string(UT_DIR).append("/valid_dns_config.json"));
+  TestDnsCachedResolver resolver(string(DNS_JSON_DIR).append("/valid_dns_config.json"));
 
   DnsResult result = resolver.dns_query("one.extra.domain", ns_t_a, 0);
 
@@ -102,7 +103,7 @@ TEST_F(DnsCachedResolverTest, ValidJsonRedirectedLookup)
 
 TEST_F(DnsCachedResolverTest, ValidJsonRedirectedLookupNoResult)
 {
-  TestDnsCachedResolver resolver(string(UT_DIR).append("/valid_dns_config.json"));
+  TestDnsCachedResolver resolver(string(DNS_JSON_DIR).append("/valid_dns_config.json"));
 
   DnsResult result = resolver.dns_query("three.extra.domain", ns_t_a, 0);
 
@@ -114,7 +115,7 @@ TEST_F(DnsCachedResolverTest, ValidJsonRedirectedLookupNoResult)
 
 TEST_F(DnsCachedResolverTest, DuplicateJson)
 {
-  TestDnsCachedResolver resolver(string(UT_DIR).append("/duplicate_dns_config.json"));
+  TestDnsCachedResolver resolver(string(DNS_JSON_DIR).append("/duplicate_dns_config.json"));
 
   DnsResult result = resolver.dns_query("one.duplicated.domain", ns_t_a, 0);
 
@@ -126,7 +127,7 @@ TEST_F(DnsCachedResolverTest, DuplicateJson)
 
 TEST_F(DnsCachedResolverTest, JsonBadRrtype)
 {
-  TestDnsCachedResolver resolver(string(UT_DIR).append("/bad_rrtype_dns_config.json"));
+  TestDnsCachedResolver resolver(string(DNS_JSON_DIR).append("/bad_rrtype_dns_config.json"));
 
   DnsResult result = resolver.dns_query("one.redirected.domain", ns_t_a, 0);
 

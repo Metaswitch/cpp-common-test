@@ -22,8 +22,8 @@
 
 using namespace std;
 
-std::string DNS_JSON_DIR = string(UT_DIR).append("/dns_json/");
-std::string DNS_JSON_TMP_DIR = string(UT_DIR).append("/dns_json/tmp/");
+static std::string DNS_JSON_DIR = string(UT_DIR).append("/dns_json/");
+static std::string DNS_JSON_TMP_DIR = string(UT_DIR).append("/dns_json/tmp/");
 
 class StaticDnsCacheTest  : public ::testing::Test
 {
