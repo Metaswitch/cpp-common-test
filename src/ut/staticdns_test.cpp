@@ -18,7 +18,7 @@
 #include "gtest/gtest.h"
 #include "test_interposer.hpp"
 #include "test_utils.hpp"
-#include "dnscachedresolver.h"
+#include "static_dns_cache.h"
 
 using namespace std;
 

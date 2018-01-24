@@ -7,6 +7,7 @@ cpp_common_test_test_SOURCES := \
                                 logger.cpp \
                                 saslogger.cpp \
                                 signalhandler.cpp \
+                                static_dns_cache.cpp \
                                 unique.cpp \
                                 utils.cpp \
                                 xml_utils.cpp \

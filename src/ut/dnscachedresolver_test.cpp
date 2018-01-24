@@ -14,6 +14,7 @@
 #include "test_interposer.hpp"
 #include "test_utils.hpp"
 #include "dnscachedresolver.h"
+#include "static_dns_cache.h"
 
 using namespace std;
 static std::string DNS_JSON_DIR = string(UT_DIR).append("/dns_json/");
