@@ -7,8 +7,8 @@
           "target": "one.made.up.domain"
         },
         {
-          "rrtype": "UNKNOWN",
-          "target": "10.10.10.10"
+          "rrtype": "A",
+          "targets": ["10.10.10.10"]
         },
         {
           "rrtype": "CNAME",

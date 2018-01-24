@@ -45,6 +45,14 @@ class StaticDnsCacheTest  : public ::testing::Test
       }
       entry = readdir(temp_dir);
     }
+    closedir(temp_dir);
+  }
+
+  std::string extract_a_record(DnsRRecord* result)
+  {
+    DnsARecord* result_a = dynamic_cast<DnsARecord*>(result);
+    const char* addr = inet_ntoa(result_a->address());
+    return addr;
   }
 };
 
@@ -120,20 +128,14 @@ TEST_F(StaticDnsCacheTest, ARecordLookup)
 
   ASSERT_EQ(first_result->rrtype(), ns_t_a);
 
-  DnsARecord* first_result_a = dynamic_cast<DnsARecord*>(first_result);
-  const char* addr = inet_ntoa(first_result_a->address());
-  std::string address(addr);
-  EXPECT_EQ(address, "10.0.0.1");
+  EXPECT_EQ(extract_a_record(first_result), "10.0.0.1");
 
   // Second target should be "10.0.0.2"
   DnsRRecord* second_result = res.records()[1];
 
   ASSERT_EQ(second_result->rrtype(), ns_t_a);
 
-  DnsARecord* second_result_a = dynamic_cast<DnsARecord*>(second_result);
-  const char* addr2 = inet_ntoa(second_result_a->address());
-  std::string address2(addr2);
-  EXPECT_EQ(address2, "10.0.0.2");
+  EXPECT_EQ(extract_a_record(second_result), "10.0.0.2");
 }
 
 
@@ -274,7 +276,7 @@ TEST_F(StaticDnsCacheTest, InvalidJson)
   EXPECT_EQ(cache.size(), 0);
 }
 
-TEST_F(StaticDnsCacheTest, DuplicateJson)
+TEST_F(StaticDnsCacheTest, DuplicateCNAME)
 {
   StaticDnsCache cache(DNS_JSON_DIR + "duplicate_dns_config.json");
 
@@ -284,13 +286,48 @@ TEST_F(StaticDnsCacheTest, DuplicateJson)
   EXPECT_EQ(cache.get_canonical_name("one.duplicated.domain"), "one.made.up.domain");
 }
 
+TEST_F(StaticDnsCacheTest, DuplicateARecord)
+{
+  StaticDnsCache cache(DNS_JSON_DIR + "duplicate_dns_config_a.json");
+
+  // Only the first of the two duplicates should have been read in, and that
+  // should be used for the lookup.
+  EXPECT_EQ(cache.size(), 1);
+  DnsResult res = cache.get_static_dns_records("a.records.domain", ns_t_a);
+
+  ASSERT_EQ(res.records().size(), 1);
+  // First target should be "10.0.0.1"
+  DnsRRecord* first_result = res.records()[0];
+  ASSERT_EQ(first_result->rrtype(), ns_t_a);
+  EXPECT_EQ(extract_a_record(first_result), "10.0.0.1");
+}
+
+
 
 TEST_F(StaticDnsCacheTest, JsonBadRrtype)
 {
   StaticDnsCache cache(DNS_JSON_DIR + "bad_rrtype_dns_config.json");
 
-  // The first entry with a missing "rrtype" member and the A record should have
-  // been skipped, but the valid CNAME record should have been read in
+  // The first entry with a missing "rrtype" member, and the second entry with
+  // type UNKNOWN should have been skipped, but the valid CNAME record should
+  // have been read in.
   EXPECT_EQ(cache.size(), 1);
   EXPECT_EQ(cache.get_canonical_name("one.redirected.domain"), "one.made.up.domain");
+}
+
+
+TEST_F(StaticDnsCacheTest, JsonMultipleEntries)
+{
+  StaticDnsCache cache(DNS_JSON_DIR + "multiple_rrtypes_for_name.json");
+
+  EXPECT_EQ(cache.get_canonical_name("one.redirected.domain"), "one.made.up.domain");
+  DnsResult res = cache.get_static_dns_records("one.redirected.domain", ns_t_a);
+  ASSERT_EQ(res.records().size(), 1);
+
+  // First target should be "10.0.0.1"
+  DnsRRecord* first_result = res.records()[0];
+
+  ASSERT_EQ(first_result->rrtype(), ns_t_a);
+
+  EXPECT_EQ(extract_a_record(first_result), "10.10.10.10");
 }
