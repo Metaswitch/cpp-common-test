@@ -90,6 +90,46 @@ TEST_F(DnsCachedResolverTest, NoRecordLookup)
   EXPECT_EQ(result.records().size(), 0);
 }
 
+// When querying multiple records, DnsCachedResolver should return the results
+// in the same order as the requested domains.
+TEST_F(DnsCachedResolverTest, MultipleDomainOrdering)
+{
+  TestDnsCachedResolver resolver("");
+
+  vector<string> domains = {"nonexistent.made.up.domain", "other.made.up.domain"};
+  vector<DnsResult> results;
+  resolver.dns_query(domains, ns_t_a, results, 0);
+
+  EXPECT_EQ(results[0].domain(), domains[0]);
+  EXPECT_EQ(results[0].records().size(), 0);
+
+  EXPECT_EQ(results[1].domain(), domains[1]);
+  EXPECT_EQ(results[1].records().size(), 0);
+}
+
+// When querying multiple records, DnsCachedResolver should return the results
+// in the same order as the requested domains. This should be true even if some
+// results come from the pre-provisioned dns.json file.
+TEST_F(DnsCachedResolverTest, MultipleDomainOrderingJson)
+{
+  TestDnsCachedResolver resolver(string(DNS_JSON_DIR).append("/a_records.json"));
+
+  vector<string> domains = {"nonexistent.made.up.domain", "a.records.domain", "other.made.up.domain"};
+  vector<DnsResult> results;
+  resolver.dns_query(domains, ns_t_a, results, 0);
+
+  EXPECT_EQ(results[0].domain(), domains[0]);
+  EXPECT_EQ(results[0].records().size(), 0);
+
+  EXPECT_EQ(results[1].domain(), domains[1]);
+  EXPECT_EQ(results[1].records().size(), 2);
+
+  EXPECT_EQ(results[2].domain(), domains[2]);
+  EXPECT_EQ(results[2].records().size(), 0);
+}
+
+
+
 TEST_F(DnsCachedResolverTest, ValidJsonRedirectedLookup)
 {
   TestDnsCachedResolver resolver(string(DNS_JSON_DIR).append("/valid_dns_config.json"));

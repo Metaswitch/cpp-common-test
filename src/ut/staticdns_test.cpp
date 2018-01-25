@@ -138,6 +138,34 @@ TEST_F(StaticDnsCacheTest, ARecordLookup)
   EXPECT_EQ(extract_a_record(second_result), "10.0.0.2");
 }
 
+TEST_F(StaticDnsCacheTest, DuplicateIPAddressesAllowed)
+{
+  StaticDnsCache cache(DNS_JSON_DIR + "a_records_duplicate.json");
+
+  DnsResult res = cache.get_static_dns_records("a.records.domain", ns_t_a);
+
+  // Expect two targets.
+  EXPECT_EQ(res.domain(), "a.records.domain");
+  EXPECT_EQ(res.dnstype(), ns_t_a);
+  EXPECT_EQ(res.ttl(), 0);
+  ASSERT_EQ(res.records().size(), 2);
+
+  // First target should be "10.0.0.1"
+  DnsRRecord* first_result = res.records()[0];
+
+  ASSERT_EQ(first_result->rrtype(), ns_t_a);
+
+  EXPECT_EQ(extract_a_record(first_result), "10.0.0.3");
+
+  // Second target should be "10.0.0.2"
+  DnsRRecord* second_result = res.records()[1];
+
+  ASSERT_EQ(second_result->rrtype(), ns_t_a);
+
+  EXPECT_EQ(extract_a_record(second_result), "10.0.0.3");
+}
+
+
 
 // The lack of a dns.json file shouldn't break things.
 TEST_F(StaticDnsCacheTest, CopesWithNoJSONFile)
@@ -251,7 +279,7 @@ TEST_F(StaticDnsCacheTest, UnknownTypeRecordLookupNoEntries)
 }
 
 
-TEST_F(StaticDnsCacheTest, ConfigReloadAppears)
+TEST_F(StaticDnsCacheTest, ConfigReloadAddsEntries)
 {
   std::string target_file = DNS_JSON_TMP_DIR + "reload.json";
   StaticDnsCache cache(target_file.c_str());
@@ -267,6 +295,113 @@ TEST_F(StaticDnsCacheTest, ConfigReloadAppears)
 
   DnsResult res2 = cache.get_static_dns_records("a.records.domain", ns_t_a);
   ASSERT_EQ(res2.records().size(), 2);
+}
+
+TEST_F(StaticDnsCacheTest, ConfigReloadRemovesEntries)
+{
+  std::string target_file = DNS_JSON_TMP_DIR + "reload.json";
+  StaticDnsCache cache(target_file.c_str());
+
+  // Put a file into place with "a.records.domain" defined.
+  {
+    std::string new_file = DNS_JSON_DIR + "a_records.json";
+    std::string cp_command = "cp " + new_file + " " + target_file;
+    int rc = system(cp_command.c_str());
+    ASSERT_EQ(0, rc);
+    cache.reload_static_records();
+  }
+
+  DnsResult res = cache.get_static_dns_records("a.records.domain", ns_t_a);
+  ASSERT_EQ(res.records().size(), 2);
+
+  // Now put a file into place with "a.records.domain" not defined.
+  {
+    std::string new_file = DNS_JSON_DIR + "bad_rrtype_dns_config.json";
+    std::string cp_command = "cp " + new_file + " " + target_file;
+    int rc = system(cp_command.c_str());
+    ASSERT_EQ(0, rc);
+    cache.reload_static_records();
+  }
+
+  DnsResult res2 = cache.get_static_dns_records("a.records.domain", ns_t_a);
+  ASSERT_EQ(res2.records().size(), 0);
+}
+
+TEST_F(StaticDnsCacheTest, ConfigReloadChangesEntries)
+{
+  std::string target_file = DNS_JSON_TMP_DIR + "reload.json";
+  StaticDnsCache cache(target_file.c_str());
+
+  // Put a file into place with "a.records.domain" defined.
+  {
+    std::string new_file = DNS_JSON_DIR + "a_records.json";
+    std::string cp_command = "cp " + new_file + " " + target_file;
+    int rc = system(cp_command.c_str());
+    ASSERT_EQ(0, rc);
+    cache.reload_static_records();
+  }
+
+  DnsResult res = cache.get_static_dns_records("a.records.domain", ns_t_a);
+  ASSERT_EQ(res.records().size(), 2);
+
+  // First target should be "10.0.0.1"
+  DnsRRecord* first_result = res.records()[0];
+  ASSERT_EQ(first_result->rrtype(), ns_t_a);
+  EXPECT_EQ(extract_a_record(first_result), "10.0.0.1");
+
+  // Now put a file into place with "a.records.domain" defined differently.
+  {
+    std::string new_file = DNS_JSON_DIR + "a_records2.json";
+    std::string cp_command = "cp " + new_file + " " + target_file;
+    int rc = system(cp_command.c_str());
+    ASSERT_EQ(0, rc);
+    cache.reload_static_records();
+  }
+
+  DnsResult res2 = cache.get_static_dns_records("a.records.domain", ns_t_a);
+  ASSERT_EQ(res2.records().size(), 3);
+
+  // First target should be "10.16.16.16"
+  first_result = res2.records()[0];
+  ASSERT_EQ(first_result->rrtype(), ns_t_a);
+  EXPECT_EQ(extract_a_record(first_result), "10.16.16.16");
+}
+
+// If we can't parse the file (e.g. it doesn't exist or is corrupt), the eold
+// entries should continue to exist.
+TEST_F(StaticDnsCacheTest, ConfigReloadSurvivesDeletion)
+{
+  std::string target_file = DNS_JSON_TMP_DIR + "reload.json";
+  StaticDnsCache cache(target_file.c_str());
+
+  // Put a file into place with "a.records.domain" defined.
+  {
+    std::string new_file = DNS_JSON_DIR + "a_records.json";
+    std::string cp_command = "cp " + new_file + " " + target_file;
+    int rc = system(cp_command.c_str());
+    ASSERT_EQ(0, rc);
+    cache.reload_static_records();
+  }
+
+  DnsResult res = cache.get_static_dns_records("a.records.domain", ns_t_a);
+  ASSERT_EQ(res.records().size(), 2);
+
+  // First target should be "10.0.0.1"
+  DnsRRecord* first_result = res.records()[0];
+  ASSERT_EQ(first_result->rrtype(), ns_t_a);
+  EXPECT_EQ(extract_a_record(first_result), "10.0.0.1");
+
+  // Delete that file and try and reload it.
+  unlink(target_file.c_str());
+  cache.reload_static_records();
+
+  // The cache should stay in the same state.
+  DnsResult res2 = cache.get_static_dns_records("a.records.domain", ns_t_a);
+  ASSERT_EQ(res2.records().size(), 2);
+
+  first_result = res2.records()[0];
+  ASSERT_EQ(first_result->rrtype(), ns_t_a);
+  EXPECT_EQ(extract_a_record(first_result), "10.0.0.1");
 }
 
 TEST_F(StaticDnsCacheTest, InvalidJson)
