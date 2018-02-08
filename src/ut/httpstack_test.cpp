@@ -382,7 +382,7 @@ TEST_F(HttpStackTest, SASCorrelationHeader)
   mock_sas_collect_messages(false);
 }
 
-// Check that the stack copes with receiving X-Span-Id
+// Check that the stack copes with receiving X-Span-ID
 TEST_F(HttpStackTest, SASCorrelationSpanId)
 {
   mock_sas_collect_messages(true);
@@ -394,7 +394,7 @@ TEST_F(HttpStackTest, SASCorrelationSpanId)
   int status;
   std::string response;
   std::list<std::string> hdrs;
-  hdrs.push_back("X-Span-Id: 12345678-1234-1234-1234-123456789ABC");
+  hdrs.push_back("X-Span-ID: 12345678-1234-1234-1234-123456789ABC");
 
   int rc = get("/BasicHandler", status, response, &hdrs);
   ASSERT_EQ(CURLE_OK, rc);
