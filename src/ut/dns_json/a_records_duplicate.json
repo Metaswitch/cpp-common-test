@@ -1,0 +1,14 @@
+{
+  "hostnames": [
+    {
+      "name": "a.records.domain",
+      "records": [
+        {
+          "rrtype": "A",
+          "targets": ["10.0.0.3", "10.0.0.3"]
+        }
+      ]
+    }
+  ]
+}
+
