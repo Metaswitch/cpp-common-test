@@ -150,7 +150,7 @@ TEST_F(StaticDnsCacheTest, DuplicateIPAddressesAllowed)
   EXPECT_EQ(res.ttl(), 0);
   ASSERT_EQ(res.records().size(), 2);
 
-  // First target should be "10.0.0.1"
+  // First target should be "10.0.0.3"
   DnsRRecord* first_result = res.records()[0];
 
   ASSERT_EQ(first_result->rrtype(), ns_t_a);
@@ -459,7 +459,7 @@ TEST_F(StaticDnsCacheTest, JsonMultipleEntries)
   DnsResult res = cache.get_static_dns_records("one.redirected.domain", ns_t_a);
   ASSERT_EQ(res.records().size(), 1);
 
-  // First target should be "10.0.0.1"
+  // First target should be "10.10.10.10"
   DnsRRecord* first_result = res.records()[0];
 
   ASSERT_EQ(first_result->rrtype(), ns_t_a);
