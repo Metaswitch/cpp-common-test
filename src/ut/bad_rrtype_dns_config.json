@@ -8,7 +8,7 @@
         },
         {
           "rrtype": "A",
-          "targets": ["10.10.10.10"]
+          "target": "10.10.10.10"
         },
         {
           "rrtype": "CNAME",
