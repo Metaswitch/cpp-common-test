@@ -27,6 +27,10 @@ using ::testing::SetArgPointee;
 class HttpRequestTest : public ::testing::Test
 {
 
+  std::string server = "server";
+  std::string scheme = "http";
+  std::string path = "/testpath";
+
   HttpRequestTest()
   {
     _client = new MockHttpClient();
@@ -43,17 +47,8 @@ class HttpRequestTest : public ::testing::Test
 // Build and send a basic http request, with the default parameters
 // The send method is passed through, so we shouldn't need individual tests to
 // cover all of POST, PUT, GET, DELETE.
-TEST_F(HttpRequestTest, SendBasicRequest)
-{
-  EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST, "http://server/testpath", _, _, _, _, _, _, _));
-
-  HttpRequest req = HttpRequest("server", "http", _client, HttpClient::RequestType::POST, "/testpath");
-  req.send();
-}
-
-
-// Check that the HttpRequest defaults non-mandatory arguments to empty/sensible values
-TEST_F(HttpRequestTest, TestDefaultParams)
+// Checks the HttpRequest defaults non-mandatory arguments to empty/sensible values
+TEST_F(HttpRequestTest, SendBasicRequestDefaultParams)
 {
   EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST,  // Method
                                      "http://server/testpath",       // Full req URL
@@ -65,7 +60,7 @@ TEST_F(HttpRequestTest, TestDefaultParams)
                                      Pointee(IsEmpty()),             // resp headers  empty map of string-string
                                      BaseResolver::ALL_LISTS));      // host state    default to All Lists
 
-  HttpRequest req = HttpRequest("server", "http", _client, HttpClient::RequestType::POST, "/testpath");
+  HttpRequest req = HttpRequest(server, scheme, _client, HttpClient::RequestType::POST, path);
   req.send();
 }
 
@@ -79,7 +74,7 @@ TEST_F(HttpRequestTest, SetBody)
   std::string request_body = "test body";
   EXPECT_CALL(*_client, send_request(_, _, request_body, _, _, _, _, _, _));
 
-  HttpRequest req = HttpRequest("server", "http", _client, HttpClient::RequestType::POST, "/testpath");
+  HttpRequest req = HttpRequest(server, scheme, _client, HttpClient::RequestType::POST, path);
   req.set_req_body(request_body);
   req.send();
 }
@@ -90,7 +85,7 @@ TEST_F(HttpRequestTest, SetUsername)
   std::string username = "test_user";
   EXPECT_CALL(*_client, send_request(_, _, _, _, username, _, _, _, _));
 
-  HttpRequest req = HttpRequest("server", "http", _client, HttpClient::RequestType::POST, "/testpath");
+  HttpRequest req = HttpRequest(server, scheme, _client, HttpClient::RequestType::POST, path);
   req.set_username(username);
   req.send();
 }
@@ -103,7 +98,7 @@ TEST_F(HttpRequestTest, SetSasTrail)
 
   EXPECT_CALL(*_client, send_request(_, _, _, _, _, test_trail_id, _, _, _));
 
-  HttpRequest req = HttpRequest("server", "http", _client, HttpClient::RequestType::POST, "/testpath");
+  HttpRequest req = HttpRequest(server, scheme, _client, HttpClient::RequestType::POST, path);
   req.set_sas_trail(test_trail_id);
   req.send();
 }
@@ -119,7 +114,7 @@ TEST_F(HttpRequestTest, SetHeader)
 
   EXPECT_CALL(*_client, send_request(_, _, _, _, _, _, expected_header_param, _, _));
 
-  HttpRequest req = HttpRequest("server", "http", _client, HttpClient::RequestType::POST, "/testpath");
+  HttpRequest req = HttpRequest(server, scheme, _client, HttpClient::RequestType::POST, path);
   req.add_req_header(request_header);
   req.send();
 }
@@ -137,7 +132,7 @@ TEST_F(HttpRequestTest, SetMultipleHeaders)
 
   EXPECT_CALL(*_client, send_request(_, _, _, _, _, _, expected_header_param, _, _));
 
-  HttpRequest req = HttpRequest("server", "http", _client, HttpClient::RequestType::POST, "/testpath");
+  HttpRequest req = HttpRequest(server, scheme, _client, HttpClient::RequestType::POST, path);
   req.add_req_header(request_header_1);
   req.add_req_header(request_header_2);
   req.send();
@@ -148,7 +143,7 @@ TEST_F(HttpRequestTest, SetAllowedHostState)
 {
   EXPECT_CALL(*_client, send_request(_, _, _, _, _, _, _, _, BaseResolver::WHITELISTED));
 
-  HttpRequest req = HttpRequest("server", "http", _client, HttpClient::RequestType::POST, "/testpath");
+  HttpRequest req = HttpRequest(server, scheme, _client, HttpClient::RequestType::POST, path);
   req.set_allowed_host_state(BaseResolver::WHITELISTED);
   req.send();
 }
@@ -162,9 +157,11 @@ TEST_F(HttpRequestTest, GetReturnCode)
 {
   HTTPCode rc = HTTP_OK;
 
-  EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST, "http://server/testpath", _, _, _, _, _, _, _)).WillOnce(Return(rc));
+  EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST,
+                                     "http://server/testpath",
+                                     _, _, _, _, _, _, _)).WillOnce(Return(rc));
 
-  HttpRequest req = HttpRequest("server", "http", _client, HttpClient::RequestType::POST, "/testpath");
+  HttpRequest req = HttpRequest(server, scheme, _client, HttpClient::RequestType::POST, path);
   HttpResponse resp = req.send();
 
   EXPECT_EQ(HTTP_OK, resp.get_return_code());
@@ -176,9 +173,13 @@ TEST_F(HttpRequestTest, GetRespBody)
   HTTPCode rc = HTTP_OK;
   std::string test_resp_body = "Test body";
 
-  EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST, "http://server/testpath", _, _, _, _, _, _, _)).WillOnce(DoAll(SetArgReferee<3>(test_resp_body), Return(rc)));
+  EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST,
+                                     "http://server/testpath",
+                                     _, _, _, _, _, _, _)).WillOnce(DoAll(
+                                            SetArgReferee<3>(test_resp_body),
+                                            Return(rc)));
 
-  HttpRequest req = HttpRequest("server", "http", _client, HttpClient::RequestType::POST, "/testpath");
+  HttpRequest req = HttpRequest(server, scheme, _client, HttpClient::RequestType::POST, path);
   HttpResponse resp = req.send();
 
   EXPECT_EQ("Test body", resp.get_resp_body());
@@ -192,9 +193,13 @@ TEST_F(HttpRequestTest, GetRespHeaders)
   test_resp_headers.insert(std::make_pair("Test-Header", "Test value"));
   
 
-  EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST, "http://server/testpath", _, _, _, _, _, _, _)).WillOnce(DoAll(SetArgPointee<7>(test_resp_headers), Return(rc)));
+  EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST,
+                                     "http://server/testpath",
+                                     _, _, _, _, _, _, _)).WillOnce(DoAll(
+                                            SetArgPointee<7>(test_resp_headers),
+                                            Return(rc)));
 
-  HttpRequest req = HttpRequest("server", "http", _client, HttpClient::RequestType::POST, "/testpath");
+  HttpRequest req = HttpRequest(server, scheme, _client, HttpClient::RequestType::POST, path);
   HttpResponse resp = req.send();
 
   EXPECT_EQ("Test value", resp.get_resp_headers()["Test-Header"]);
