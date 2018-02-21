@@ -43,7 +43,7 @@ class HttpRequestTest : public ::testing::Test
 // Build and send a basic http request, with the default parameters
 // The send method is passed through, so we shouldn't need individual tests to
 // cover all of POST, PUT, GET, DELETE.
-TEST_F(HttpRequestTest, send_basic_request)
+TEST_F(HttpRequestTest, SendBasicRequest)
 {
   EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST, "http://server/testpath", _, _, _, _, _, _, _));
 
@@ -53,7 +53,7 @@ TEST_F(HttpRequestTest, send_basic_request)
 
 
 // Check that the HttpRequest defaults non-mandatory arguments to empty/sensible values
-TEST_F(HttpRequestTest, test_default_params)
+TEST_F(HttpRequestTest, TestDefaultParams)
 {
   EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST,  // Method
                                      "http://server/testpath",       // Full req URL
@@ -74,7 +74,7 @@ TEST_F(HttpRequestTest, test_default_params)
 ///
 
 // Test that a string body set on the request is sent through to the http client
-TEST_F(HttpRequestTest, set_body)
+TEST_F(HttpRequestTest, SetBody)
 {
   std::string request_body = "test body";
   EXPECT_CALL(*_client, send_request(_, _, request_body, _, _, _, _, _, _));
@@ -85,7 +85,7 @@ TEST_F(HttpRequestTest, set_body)
 }
 
 // Test that the username can be set on a request
-TEST_F(HttpRequestTest, set_username)
+TEST_F(HttpRequestTest, SetUsername)
 {
   std::string username = "test_user";
   EXPECT_CALL(*_client, send_request(_, _, _, _, username, _, _, _, _));
@@ -96,7 +96,7 @@ TEST_F(HttpRequestTest, set_username)
 }
 
 // Test the SAS trail can be set on a requeset
-TEST_F(HttpRequestTest, set_sas_trail)
+TEST_F(HttpRequestTest, SetSasTrail)
 {
   // SAS Trail IDs are a typedefed uint64_t
   uint64_t test_trail_id = 12345;
@@ -109,7 +109,7 @@ TEST_F(HttpRequestTest, set_sas_trail)
 }
 
 // Test a header can be set on a request
-TEST_F(HttpRequestTest, set_header)
+TEST_F(HttpRequestTest, SetHeader)
 {
   std::string request_header = "X-Test-Header: Test";
 
@@ -125,7 +125,7 @@ TEST_F(HttpRequestTest, set_header)
 }
 
 // Test multiple headers can be set on a request
-TEST_F(HttpRequestTest, set_multiple_headers)
+TEST_F(HttpRequestTest, SetMultipleHeaders)
 {
   std::string request_header_1 = "X-Test-Header: Test";
   std::string request_header_2 = "X-Other-Test-Header: Test";
@@ -144,7 +144,7 @@ TEST_F(HttpRequestTest, set_multiple_headers)
 }
 
 // Test allowed_host_state can be changed on a request
-TEST_F(HttpRequestTest, set_allowed_host_state)
+TEST_F(HttpRequestTest, SetAllowedHostState)
 {
   EXPECT_CALL(*_client, send_request(_, _, _, _, _, _, _, _, BaseResolver::WHITELISTED));
 
@@ -158,7 +158,7 @@ TEST_F(HttpRequestTest, set_allowed_host_state)
 ///
 
 // Test HttpResponses have the return code stored properly
-TEST_F(HttpRequestTest, get_return_code)
+TEST_F(HttpRequestTest, GetReturnCode)
 {
   HTTPCode rc = HTTP_OK;
 
@@ -171,7 +171,7 @@ TEST_F(HttpRequestTest, get_return_code)
 }
 
 // Test HttpResponses have the returned body stored properly
-TEST_F(HttpRequestTest, get_resp_body)
+TEST_F(HttpRequestTest, GetRespBody)
 {
   HTTPCode rc = HTTP_OK;
   std::string test_resp_body = "Test body";
@@ -185,7 +185,7 @@ TEST_F(HttpRequestTest, get_resp_body)
 }
 
 // Test HttpResponses have the returned headers stored properly
-TEST_F(HttpRequestTest, get_resp_headers)
+TEST_F(HttpRequestTest, GetRespHeaders)
 {
   HTTPCode rc = HTTP_OK;
   std::map<std::string, std::string> test_resp_headers;
