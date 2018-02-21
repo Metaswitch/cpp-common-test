@@ -401,7 +401,7 @@ TEST_F(HttpStackTest, SASCorrelationSpanId)
   ASSERT_EQ(200, status);
   ASSERT_EQ("OK", response);
 
-  MockSASMessage* marker = mock_sas_find_marker(MARKED_ID_GENERIC_CORRELATOR);
+  MockSASMessage* marker = mock_sas_find_marker(MARKER_ID_GENERIC_CORRELATOR);
   EXPECT_TRUE(marker != NULL);
   EXPECT_EQ(marker->var_params.size(), 1u);
   EXPECT_EQ(marker->var_params[0], "12345678-1234-1234-1234-123456789ABC");
