@@ -17,11 +17,11 @@
 
 using namespace std;
 
+std::vector<std::string> dns_servers = {"0.0.0.0"};
 // We don't test the DnsCachedResolver directly as we want to be able to
 // manually add entries to the DnsCache
 class TestDnsCachedResolver : public  DnsCachedResolver
 {
-  std::vector<std::string> dns_servers = {"0.0.0.0"};
   TestDnsCachedResolver(string filename) :
     DnsCachedResolver(dns_servers, DnsCachedResolver::DEFAULT_TIMEOUT, filename)
   {
