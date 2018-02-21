@@ -21,8 +21,9 @@ using namespace std;
 // manually add entries to the DnsCache
 class TestDnsCachedResolver : public  DnsCachedResolver
 {
+  std::vector<std::string> dns_servers = {"0.0.0.0"};
   TestDnsCachedResolver(string filename) :
-    DnsCachedResolver({"0.0.0.0"}, DnsCachedResolver::DEFAULT_TIMEOUT, filename)
+    DnsCachedResolver(dns_servers, DnsCachedResolver::DEFAULT_TIMEOUT, filename)
   {
     reload_static_records();
     add_fake_entries_to_cache();
