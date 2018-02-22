@@ -75,7 +75,7 @@ TEST_F(HttpRequestTest, SetBody)
   EXPECT_CALL(*_client, send_request(_, _, request_body, _, _, _, _, _, _));
 
   HttpRequest req = HttpRequest(server, scheme, _client, HttpClient::RequestType::POST, path);
-  req.set_req_body(request_body);
+  req.set_body(request_body);
   req.send();
 }
 
@@ -115,7 +115,7 @@ TEST_F(HttpRequestTest, SetHeader)
   EXPECT_CALL(*_client, send_request(_, _, _, _, _, _, expected_header_param, _, _));
 
   HttpRequest req = HttpRequest(server, scheme, _client, HttpClient::RequestType::POST, path);
-  req.add_req_header(request_header);
+  req.add_header(request_header);
   req.send();
 }
 
@@ -133,8 +133,8 @@ TEST_F(HttpRequestTest, SetMultipleHeaders)
   EXPECT_CALL(*_client, send_request(_, _, _, _, _, _, expected_header_param, _, _));
 
   HttpRequest req = HttpRequest(server, scheme, _client, HttpClient::RequestType::POST, path);
-  req.add_req_header(request_header_1);
-  req.add_req_header(request_header_2);
+  req.add_header(request_header_1);
+  req.add_header(request_header_2);
   req.send();
 }
 
@@ -164,43 +164,43 @@ TEST_F(HttpRequestTest, GetReturnCode)
   HttpRequest req = HttpRequest(server, scheme, _client, HttpClient::RequestType::POST, path);
   HttpResponse resp = req.send();
 
-  EXPECT_EQ(HTTP_OK, resp.get_return_code());
+  EXPECT_EQ(HTTP_OK, resp.get_rc());
 }
 
 // Test HttpResponses have the returned body stored properly
 TEST_F(HttpRequestTest, GetRespBody)
 {
   HTTPCode rc = HTTP_OK;
-  std::string test_resp_body = "Test body";
+  std::string test_body = "Test body";
 
   EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST,
                                      "http://server/testpath",
                                      _, _, _, _, _, _, _)).WillOnce(DoAll(
-                                            SetArgReferee<3>(test_resp_body),
+                                            SetArgReferee<3>(test_body),
                                             Return(rc)));
 
   HttpRequest req = HttpRequest(server, scheme, _client, HttpClient::RequestType::POST, path);
   HttpResponse resp = req.send();
 
-  EXPECT_EQ("Test body", resp.get_resp_body());
+  EXPECT_EQ("Test body", resp.get_body());
 }
 
 // Test HttpResponses have the returned headers stored properly
 TEST_F(HttpRequestTest, GetRespHeaders)
 {
   HTTPCode rc = HTTP_OK;
-  std::map<std::string, std::string> test_resp_headers;
-  test_resp_headers.insert(std::make_pair("Test-Header", "Test value"));
+  std::map<std::string, std::string> test_headers;
+  test_headers.insert(std::make_pair("Test-Header", "Test value"));
   
 
   EXPECT_CALL(*_client, send_request(HttpClient::RequestType::POST,
                                      "http://server/testpath",
                                      _, _, _, _, _, _, _)).WillOnce(DoAll(
-                                            SetArgPointee<7>(test_resp_headers),
+                                            SetArgPointee<7>(test_headers),
                                             Return(rc)));
 
   HttpRequest req = HttpRequest(server, scheme, _client, HttpClient::RequestType::POST, path);
   HttpResponse resp = req.send();
 
-  EXPECT_EQ("Test value", resp.get_resp_headers()["Test-Header"]);
+  EXPECT_EQ("Test value", resp.get_headers()["Test-Header"]);
 }
