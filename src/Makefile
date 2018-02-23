@@ -12,6 +12,8 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 chronosconnection.cpp \
                                 communicationmonitor.cpp \
                                 counter.cpp \
+                                curl_interposer.cpp \
+                                test_interposer.cpp \
                                 diameterresolver.cpp \
                                 diameterstack.cpp \
                                 dnscachedresolver.cpp \
@@ -53,6 +55,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 snmp_scalar.cpp \
                                 snmp_single_count_by_node_type_table.cpp \
                                 snmp_success_fail_count_table.cpp \
+                                static_dns_cache.cpp \
                                 statistic.cpp \
                                 timer_counter.cpp \
                                 timer_heap.cpp \
@@ -71,9 +74,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 mockdiameterstack.cpp \
                                 pthread_cond_var_helper.cpp \
                                 basetest.cpp \
-                                curl_interposer.cpp \
                                 test_main.cpp \
-                                test_interposer.cpp \
                                 alarm_test.cpp \
                                 astaire_resolver.cpp \
                                 baseresolver_test.cpp \
@@ -81,6 +82,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 communicationmonitor_test.cpp \
                                 connection_pool_test.cpp \
                                 dnscachedresolver_test.cpp \
+                                staticdns_test.cpp \
                                 diameterresolver_test.cpp \
                                 diameterstack_test.cpp \
                                 httpclient_test.cpp \
