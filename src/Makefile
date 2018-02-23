@@ -12,6 +12,8 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 chronosconnection.cpp \
                                 communicationmonitor.cpp \
                                 counter.cpp \
+                                curl_interposer.cpp \
+                                test_interposer.cpp \
                                 diameterresolver.cpp \
                                 diameterstack.cpp \
                                 dnscachedresolver.cpp \
