@@ -37,17 +37,18 @@ class TestDnsCachedResolver : public  DnsCachedResolver
     vector<string> domains = {"one.made.up.domain", "two.made.up.domain"};
 
     time_t expiry = time(NULL) + 1;
+    SAS::TrailId no_trail = 0;
 
     for (vector<string>::const_iterator domain = domains.begin();
          domain != domains.end();
          ++domain)
     {
-      DnsCacheEntryPtr ce = create_cache_entry(*domain, ns_t_a);
+      DnsCacheEntryPtr ce = create_cache_entry(*domain, ns_t_a, no_trail);
       ce->expires = expiry;
 
       struct in_addr address;
       DnsARecord* record = new DnsARecord(*domain, 1000, address);
-      add_record_to_cache(ce, record);
+      add_record_to_cache(ce, record, no_trail);
     }
   }
 };
@@ -217,7 +218,8 @@ TEST_F(DnsCachedResolverTest, NXDomainTTL)
 
   // First, create a pending entry in the cache that will be filled in when we
   // parse the response
-  _resolver.create_cache_entry(domain, ns_t_a);
+  SAS::TrailId no_trail = 0;
+  _resolver.create_cache_entry(domain, ns_t_a, no_trail);
 
   // Verify that the expiry time is 0
   std::shared_ptr<DnsCachedResolver::DnsCacheEntry> ce = _resolver.get_cache_entry(domain, ns_t_a);
@@ -269,7 +271,8 @@ TEST_F(DnsCachedResolverTest, NXDomainTTLMoreThan300)
 
   // First, create a pending entry in the cache that will be filled in when we
   // parse the response
-  _resolver.create_cache_entry(domain, ns_t_a);
+  SAS::TrailId no_trail = 0;
+  _resolver.create_cache_entry(domain, ns_t_a, no_trail);
 
   // Verify that the expiry time is 0
   std::shared_ptr<DnsCachedResolver::DnsCacheEntry> ce = _resolver.get_cache_entry(domain, ns_t_a);
