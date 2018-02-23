@@ -19,12 +19,13 @@
 using namespace std;
 static std::string DNS_JSON_DIR = string(UT_DIR).append("/dns_json/");
 
+std::vector<std::string> dns_servers = {"0.0.0.0"};
 // We don't test the DnsCachedResolver directly as we want to be able to
 // manually add entries to the DnsCache
 class TestDnsCachedResolver : public  DnsCachedResolver
 {
   TestDnsCachedResolver(string filename) :
-    DnsCachedResolver({"0.0.0.0"}, DnsCachedResolver::DEFAULT_TIMEOUT, filename)
+    DnsCachedResolver(dns_servers, DnsCachedResolver::DEFAULT_TIMEOUT, filename)
   {
     reload_static_records();
     add_fake_entries_to_cache();

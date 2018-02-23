@@ -2,6 +2,7 @@ TEST_TARGETS := cpp_common_test_test
 
 cpp_common_test_test_SOURCES := \
                                 dnscachedresolver.cpp \
+                                static_dns_cache.cpp \
                                 dnsparser.cpp \
                                 log.cpp \
                                 logger.cpp \
