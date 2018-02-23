@@ -15,7 +15,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 diameterresolver.cpp \
                                 diameterstack.cpp \
                                 dnscachedresolver.cpp \
-				static_dns_cache.cpp \
+                                static_dns_cache.cpp \
                                 dnsparser.cpp \
                                 exception_handler.cpp \
                                 health_checker.cpp \
