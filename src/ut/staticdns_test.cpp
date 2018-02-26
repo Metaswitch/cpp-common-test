@@ -466,3 +466,10 @@ TEST_F(StaticDnsCacheTest, JsonMultipleEntries)
 
   EXPECT_EQ(extract_a_record(first_result), "10.10.10.10");
 }
+
+TEST_F(StaticDnsCacheTest, MissingHostnamesJson)
+{
+  StaticDnsCache cache(DNS_JSON_DIR + "missing_hostnames.json");
+
+  EXPECT_EQ(cache.size(), 0);
+}
