@@ -475,8 +475,7 @@ TEST_F(StaticDnsCacheTest, BadNameJson)
 {
   StaticDnsCache cache(DNS_JSON_DIR + "bad_name.json");
 
-  // The first entry with a missing "name" member, and the second entry with
-  // type UNKNOWN should have been skipped, but the valid CNAME record should
+  // The first entry with a missing "name" member, but the valid CNAME record should
   // have been read in.
   EXPECT_EQ(cache.size(), 1);
 
