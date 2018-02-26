@@ -437,8 +437,6 @@ TEST_F(StaticDnsCacheTest, DuplicateARecord)
   EXPECT_EQ(extract_a_record(first_result), "10.0.0.1");
 }
 
-
-
 TEST_F(StaticDnsCacheTest, JsonBadRrtype)
 {
   StaticDnsCache cache(DNS_JSON_DIR + "bad_rrtype_dns_config.json");
@@ -449,7 +447,6 @@ TEST_F(StaticDnsCacheTest, JsonBadRrtype)
   EXPECT_EQ(cache.size(), 1);
   EXPECT_EQ(cache.get_canonical_name("one.redirected.domain"), "one.made.up.domain");
 }
-
 
 TEST_F(StaticDnsCacheTest, JsonMultipleEntries)
 {
@@ -472,4 +469,16 @@ TEST_F(StaticDnsCacheTest, MissingHostnamesJson)
   StaticDnsCache cache(DNS_JSON_DIR + "missing_hostnames.json");
 
   EXPECT_EQ(cache.size(), 0);
+}
+
+TEST_F(StaticDnsCacheTest, BadNameJson)
+{
+  StaticDnsCache cache(DNS_JSON_DIR + "bad_name.json");
+
+  // The first entry with a missing "name" member, and the second entry with
+  // type UNKNOWN should have been skipped, but the valid CNAME record should
+  // have been read in.
+  EXPECT_EQ(cache.size(), 1);
+
+  EXPECT_EQ(cache.get_canonical_name("two.redirected.domain"), "two.made.up.domain");
 }
