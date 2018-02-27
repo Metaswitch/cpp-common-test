@@ -15,7 +15,6 @@
 #include "utils.h"
 #include "sas.h"
 #include "fakehttpresolver.hpp"
-//#include "httpconnection.h"
 #include "chronosconnection.h"
 #include "basetest.hpp"
 #include "curl_interposer.hpp"
