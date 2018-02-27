@@ -1,0 +1,32 @@
+{
+  "missinghostnames": [
+    {
+      "name": "one.extra.domain",
+      "records": [
+        {
+          "rrtype": "CNAME",
+          "target": "one.made.up.domain"
+        }
+      ]
+    },
+    {
+      "name": "two.extra.domain",
+      "records": [
+        {
+          "rrtype": "CNAME",
+          "target": "two.made.up.domain"
+        }
+      ]
+    },
+    {
+      "name": "a.records.domain",
+      "records": [
+        {
+          "rrtype": "A",
+          "targets": ["10.0.0.1", "10.0.0.2"]
+        }
+      ]
+    }
+  ]
+}
+
