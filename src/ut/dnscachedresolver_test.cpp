@@ -14,8 +14,10 @@
 #include "test_interposer.hpp"
 #include "test_utils.hpp"
 #include "dnscachedresolver.h"
+#include "static_dns_cache.h"
 
 using namespace std;
+static std::string DNS_JSON_DIR = string(UT_DIR).append("/dns_json/");
 
 std::vector<std::string> dns_servers = {"0.0.0.0"};
 // We don't test the DnsCachedResolver directly as we want to be able to
@@ -35,23 +37,19 @@ class TestDnsCachedResolver : public  DnsCachedResolver
     vector<string> domains = {"one.made.up.domain", "two.made.up.domain"};
 
     time_t expiry = time(NULL) + 1;
+    SAS::TrailId no_trail = 0;
 
     for (vector<string>::const_iterator domain = domains.begin();
          domain != domains.end();
          ++domain)
     {
-      DnsCacheEntryPtr ce = create_cache_entry(*domain, ns_t_a);
+      DnsCacheEntryPtr ce = create_cache_entry(*domain, ns_t_a, no_trail);
       ce->expires = expiry;
 
       struct in_addr address;
       DnsARecord* record = new DnsARecord(*domain, 1000, address);
-      add_record_to_cache(ce, record);
+      add_record_to_cache(ce, record, no_trail);
     }
-  }
-
-  map<string, vector<DnsRRecord*>> static_records()
-  {
-    return _static_records;
   }
 };
 
@@ -94,30 +92,49 @@ TEST_F(DnsCachedResolverTest, NoRecordLookup)
   EXPECT_EQ(result.records().size(), 0);
 }
 
-TEST_F(DnsCachedResolverTest, MissingJson)
+// When querying multiple records, DnsCachedResolver should return the results
+// in the same order as the requested domains.
+TEST_F(DnsCachedResolverTest, MultipleDomainOrdering)
 {
-  TestDnsCachedResolver resolver(string(UT_DIR).append("/nonexistent_file.json"));
+  TestDnsCachedResolver resolver("");
 
-  EXPECT_EQ(resolver.static_records().size(), 0);
+  vector<string> domains = {"nonexistent.made.up.domain", "other.made.up.domain"};
+  vector<DnsResult> results;
+  resolver.dns_query(domains, ns_t_a, results, 0);
+
+  EXPECT_EQ(results[0].domain(), domains[0]);
+  EXPECT_EQ(results[0].records().size(), 0);
+
+  EXPECT_EQ(results[1].domain(), domains[1]);
+  EXPECT_EQ(results[1].records().size(), 0);
 }
 
-TEST_F(DnsCachedResolverTest, ValidJson)
+// When querying multiple records, DnsCachedResolver should return the results
+// in the same order as the requested domains. This should be true even if some
+// results come from the pre-provisioned dns.json file.
+TEST_F(DnsCachedResolverTest, MultipleDomainOrderingJson)
 {
-  TestDnsCachedResolver resolver(string(UT_DIR).append("/valid_dns_config.json"));
+  TestDnsCachedResolver resolver(string(DNS_JSON_DIR).append("/a_records.json"));
 
-  EXPECT_EQ(resolver.static_records().size(), 3);
+  vector<string> domains = {"nonexistent.made.up.domain", "a.records.domain", "other.made.up.domain"};
+  vector<DnsResult> results;
+  resolver.dns_query(domains, ns_t_a, results, 0);
+
+  EXPECT_EQ(results[0].domain(), domains[0]);
+  EXPECT_EQ(results[0].records().size(), 0);
+
+  EXPECT_EQ(results[1].domain(), domains[1]);
+  EXPECT_EQ(results[1].records().size(), 2);
+
+  EXPECT_EQ(results[2].domain(), domains[2]);
+  EXPECT_EQ(results[2].records().size(), 0);
 }
 
-TEST_F(DnsCachedResolverTest, InvalidJson)
-{
-  TestDnsCachedResolver resolver(string(UT_DIR).append("/invalid_dns_config.json"));
 
-  EXPECT_EQ(resolver.static_records().size(), 0);
-}
 
 TEST_F(DnsCachedResolverTest, ValidJsonRedirectedLookup)
 {
-  TestDnsCachedResolver resolver(string(UT_DIR).append("/valid_dns_config.json"));
+  TestDnsCachedResolver resolver(string(DNS_JSON_DIR).append("/valid_dns_config.json"));
 
   DnsResult result = resolver.dns_query("one.extra.domain", ns_t_a, 0);
 
@@ -129,7 +146,7 @@ TEST_F(DnsCachedResolverTest, ValidJsonRedirectedLookup)
 
 TEST_F(DnsCachedResolverTest, ValidJsonRedirectedLookupNoResult)
 {
-  TestDnsCachedResolver resolver(string(UT_DIR).append("/valid_dns_config.json"));
+  TestDnsCachedResolver resolver(string(DNS_JSON_DIR).append("/valid_dns_config.json"));
 
   DnsResult result = resolver.dns_query("three.extra.domain", ns_t_a, 0);
 
@@ -141,28 +158,24 @@ TEST_F(DnsCachedResolverTest, ValidJsonRedirectedLookupNoResult)
 
 TEST_F(DnsCachedResolverTest, DuplicateJson)
 {
-  TestDnsCachedResolver resolver(string(UT_DIR).append("/duplicate_dns_config.json"));
+  TestDnsCachedResolver resolver(string(DNS_JSON_DIR).append("/duplicate_dns_config.json"));
 
   DnsResult result = resolver.dns_query("one.duplicated.domain", ns_t_a, 0);
 
   // Only the first of the two duplicates should have been read in, and that
   // should be used for the redirection
-  EXPECT_EQ(resolver.static_records().size(), 1);
-  EXPECT_EQ(resolver.static_records().at("one.duplicated.domain").size(), 1);
   EXPECT_EQ(result.domain(), "one.made.up.domain");
   EXPECT_EQ(result.records().size(), 1);
 }
 
 TEST_F(DnsCachedResolverTest, JsonBadRrtype)
 {
-  TestDnsCachedResolver resolver(string(UT_DIR).append("/bad_rrtype_dns_config.json"));
+  TestDnsCachedResolver resolver(string(DNS_JSON_DIR).append("/bad_rrtype_dns_config.json"));
 
   DnsResult result = resolver.dns_query("one.redirected.domain", ns_t_a, 0);
 
   // The first entry with a missing "rrtype" member and the A record should have
   // been skipped, but the valid CNAME record should have been read in
-  EXPECT_EQ(resolver.static_records().size(), 1);
-  EXPECT_EQ(resolver.static_records().at("one.redirected.domain").size(), 1);
   EXPECT_EQ(result.domain(), "one.made.up.domain");
   EXPECT_EQ(result.records().size(), 1);
 }
@@ -205,7 +218,8 @@ TEST_F(DnsCachedResolverTest, NXDomainTTL)
 
   // First, create a pending entry in the cache that will be filled in when we
   // parse the response
-  _resolver.create_cache_entry(domain, ns_t_a);
+  SAS::TrailId no_trail = 0;
+  _resolver.create_cache_entry(domain, ns_t_a, no_trail);
 
   // Verify that the expiry time is 0
   std::shared_ptr<DnsCachedResolver::DnsCacheEntry> ce = _resolver.get_cache_entry(domain, ns_t_a);
@@ -257,7 +271,8 @@ TEST_F(DnsCachedResolverTest, NXDomainTTLMoreThan300)
 
   // First, create a pending entry in the cache that will be filled in when we
   // parse the response
-  _resolver.create_cache_entry(domain, ns_t_a);
+  SAS::TrailId no_trail = 0;
+  _resolver.create_cache_entry(domain, ns_t_a, no_trail);
 
   // Verify that the expiry time is 0
   std::shared_ptr<DnsCachedResolver::DnsCacheEntry> ce = _resolver.get_cache_entry(domain, ns_t_a);

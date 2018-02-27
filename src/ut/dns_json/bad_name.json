@@ -1,0 +1,22 @@
+{
+  "hostnames": [
+    {
+      "records": [
+        {
+          "rrtype": "A",
+          "target": "one.made.up.domain"
+        }
+      ]
+    },
+    {
+      "name": "two.redirected.domain",
+      "records": [
+        {
+          "rrtype": "CNAME",
+          "target": "two.made.up.domain"
+        }
+      ]
+    }
+  ]
+}
+
