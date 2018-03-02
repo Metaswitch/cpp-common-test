@@ -23,7 +23,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 health_checker.cpp \
                                 http_connection_pool.cpp \
                                 httpclient.cpp \
-                                httpconnection.cpp \
+                                http_request.cpp \
                                 a_record_resolver.cpp \
                                 httpstack.cpp \
                                 httpstack_utils.cpp \
@@ -64,13 +64,13 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 xml_utils.cpp \
                                 zmq_lvc.cpp \
                                 fakecurl.cpp \
-                                fakehttpconnection.cpp \
                                 fakelogger.cpp \
                                 fakesnmp.cpp \
                                 fakezmq.cpp \
                                 mock_sas.cpp \
                                 mockfreediameter.cpp \
                                 mockhttpstack.cpp \
+                                mock_httpclient.cpp \
                                 mockdiameterstack.cpp \
                                 pthread_cond_var_helper.cpp \
                                 basetest.cpp \
@@ -87,6 +87,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 diameterstack_test.cpp \
                                 httpclient_test.cpp \
                                 httpconnection_test.cpp \
+                                http_request_test.cpp \
                                 httpresolver_test.cpp \
                                 httpstack_test.cpp \
                                 httpstack_utils_test.cpp \
