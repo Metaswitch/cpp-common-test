@@ -40,6 +40,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 realmmanager.cpp \
                                 resolver_test.cpp \
                                 saslogger.cpp \
+                                sasservice.cpp \
                                 signalhandler.cpp \
                                 sip_string_to_request_type.cpp \
                                 snmp_agent.cpp \
@@ -106,7 +107,8 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 wildcard_utils_test.cpp \
                                 xml_utils_test.cpp \
                                 test_interposer.cpp \
-                                curl_interposer.cpp
+                                curl_interposer.cpp \
+                                sasservice_test.cpp
 
 cpp_common_test_test_CPPFLAGS := -Wno-write-strings \
                                  -I../usr/include \
@@ -123,6 +125,7 @@ cpp_common_test_test_LDFLAGS := -L../usr/lib \
                                 -ldl \
                                 -lpthread \
                                 -lboost_regex \
+                                -lboost_system \
                                 -lzmq \
                                 -lcares \
                                 -levhtp \
