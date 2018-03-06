@@ -42,6 +42,7 @@ public:
   {
     delete _mock_stack; _mock_stack = NULL;
     delete _mock_resolver; _mock_resolver = NULL;
+    delete _mock_alarm; _mock_alarm = NULL;
     delete _alarm_manager; _alarm_manager = NULL;
   }
 
@@ -136,7 +137,10 @@ TEST_F(RealmmanagerTest, CreateFailedPeersString)
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
-                                                 _mock_resolver);
+                                                 _mock_resolver,
+                                                 NULL,
+                                                 NULL,
+                                                 NULL);
 
   realm_manager->_failed_peers.insert(std::pair<AddrInfo, const unsigned long>(peer1, 1));
   EXPECT_EQ("1.1.1.1", realm_manager->create_failed_peers_string());
@@ -159,7 +163,10 @@ TEST_F(RealmmanagerTest, CreateDestroy)
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
-                                                 _mock_resolver);
+                                                 _mock_resolver,
+                                                 NULL,
+                                                 NULL,
+                                                 NULL);
 
   targets.push_back(peer);
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
@@ -221,7 +228,10 @@ TEST_F(RealmmanagerTest, ManageConnections)
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
-                                                 _mock_resolver);
+                                                 _mock_resolver,
+                                                 NULL,
+                                                 NULL,
+                                                 NULL);
 
   // First run through. The diameter resolver returns two peers. We
   // expect to try and connect to them.
@@ -365,7 +375,10 @@ TEST_F(RealmmanagerTest, SRVPriority)
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
-                                                 _mock_resolver);
+                                                 _mock_resolver,
+                                                 NULL,
+                                                 NULL,
+                                                 NULL);
 
   // The diameter resolver returns two peers. We successfully connect to both of
   // them.
@@ -452,7 +465,10 @@ TEST_F(RealmmanagerTest, SRVPriorityNegative)
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
-                                                 _mock_resolver);
+                                                 _mock_resolver,
+                                                 NULL,
+                                                 NULL,
+                                                 NULL);
 
   // The diameter resolver returns two peers. We successfully connect to both of
   // them.
@@ -530,13 +546,19 @@ TEST_F(RealmmanagerTest, PeerConnectionAlarm)
   std::vector<AddrInfo> targets;
   int ttl;
 
+  // Create mock PDLog structures to pass to the realm manager
+  PDLog* mock_clear_log = new PDLog(1, LOG_INFO, "", "", "", "");
+  PDLog1<const char*>* mock_error_log = new PDLog1<const char*>(2, LOG_ERR, "", "", "", "");
+
   // Create a RealmManager with _max_peers set to 2.
   RealmManager* realm_manager = new RealmManager(_mock_stack,
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
                                                  _mock_resolver,
-                                                 _mock_alarm);
+                                                 _mock_alarm,
+                                                 mock_clear_log,
+                                                 mock_error_log);
 
   // First run through. The diameter resolver returns one peer.
   // We expect to try and connect to it.
@@ -686,4 +708,6 @@ TEST_F(RealmmanagerTest, PeerConnectionAlarm)
   EXPECT_EQ(0, realm_manager->_failed_peers.size());
 
   delete realm_manager;
+  delete mock_clear_log;
+  delete mock_error_log;
 }
