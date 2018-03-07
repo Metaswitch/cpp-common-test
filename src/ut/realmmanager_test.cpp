@@ -688,11 +688,15 @@ TEST_F(RealmmanagerTest, PeerConnectionAlarm)
   // Check that peer2 was removed from _failed_peers.
   EXPECT_EQ(1, realm_manager->_failed_peers.size());
 
-  // Finally, we set the _failed_peers_timeout_ms parameter to 0ms. We expect peer3
-  // to be removed from the list of failed peers when we call manage_connections
-  realm_manager->_failed_peers_timeout_ms = 0;
+  // Finally, we test remove_old_failed_peers. We set the value of now_ms such that
+  // peer3 is at least a day older trhan now_ms.
+  unsigned long now_ms = (realm_manager->_failed_peers).find(peer3)->second + realm_manager->FAILED_PEERS_TIMEOUT_MS;
+  realm_manager->remove_old_failed_peers(now_ms);
 
-  // We also tidy up by having the resolver return no peers so that the RealmManager
+  // We expect peer3 to be removed from _failed_peers
+  EXPECT_EQ(0, (realm_manager->_failed_peers).size());
+
+  // We tidy up by having the resolver return no peers so that the RealmManager
   // tears down it's connections.
   targets.clear();
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
