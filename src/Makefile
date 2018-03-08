@@ -46,7 +46,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 snmp_agent.cpp \
                                 snmp_continuous_accumulator_table.cpp \
                                 snmp_cx_counter_table.cpp \
-				event_statistic_accumulator.cpp \
+                                event_statistic_accumulator.cpp \
                                 snmp_event_accumulator_table.cpp \
                                 snmp_infinite_base_table.cpp \
                                 snmp_infinite_scalar_table.cpp \
@@ -125,7 +125,6 @@ cpp_common_test_test_LDFLAGS := -L../usr/lib \
                                 -ldl \
                                 -lpthread \
                                 -lboost_regex \
-                                -lboost_system \
                                 -lzmq \
                                 -lcares \
                                 -levhtp \
