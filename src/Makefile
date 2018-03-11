@@ -45,7 +45,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 snmp_agent.cpp \
                                 snmp_continuous_accumulator_table.cpp \
                                 snmp_cx_counter_table.cpp \
-				event_statistic_accumulator.cpp \
+                                event_statistic_accumulator.cpp \
                                 snmp_event_accumulator_table.cpp \
                                 snmp_infinite_base_table.cpp \
                                 snmp_infinite_scalar_table.cpp \
@@ -94,6 +94,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 json_alarms_test.cpp \
                                 load_monitor_test.cpp \
                                 logger_test.cpp \
+                                ramrecorder_test.cpp \
                                 memcached_config_test.cpp \
                                 memcachedstorereview_test.cpp \
                                 realmmanager_test.cpp \
