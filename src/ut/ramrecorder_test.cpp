@@ -65,6 +65,13 @@ public:
     EXPECT_STREQ(expected_line, linebuf);
   }
 
+  std::string get_thread_id()
+  {
+    std::stringstream stream;
+    stream << std::hex << pthread_self();
+    return stream.str();
+  }
+
   void expect_header()
   {
     expect_line("RAM BUFFER\n");
@@ -100,7 +107,7 @@ TEST_F(RamRecorderTest, ContextNoParams)
   RamRecorder::dump(_dir);
 
   std::stringstream stream;
-  stream << "01-01-1970 00:00:00.000 UTC [" << std::hex << pthread_self() << "] Info test.c:1:ctx: test\n";
+  stream << "01-01-1970 00:00:00.000 UTC [" << get_thread_id() << "] Info test.c:1:ctx: test\n";
   std::string line = stream.str();
   expect_file(line.c_str());
 }
@@ -111,7 +118,7 @@ TEST_F(RamRecorderTest, ContextNoLine)
   RamRecorder::dump(_dir);
 
   std::stringstream stream;
-  stream << "01-01-1970 00:00:00.000 UTC [" << std::hex << pthread_self() << "] Info test.c:ctx: test\n";
+  stream << "01-01-1970 00:00:00.000 UTC [" << get_thread_id() << "] Info test.c:ctx: test\n";
   std::string line = stream.str();
   expect_file(line.c_str());
 }
@@ -122,7 +129,7 @@ TEST_F(RamRecorderTest, NoModule)
   RamRecorder::dump(_dir);
 
   std::stringstream stream;
-  stream << "01-01-1970 00:00:00.000 UTC [" << std::hex << pthread_self() << "] Info test\n";
+  stream << "01-01-1970 00:00:00.000 UTC [" << get_thread_id() << "] Info test\n";
   std::string line = stream.str();
   expect_file(line.c_str());
 }
@@ -133,7 +140,7 @@ TEST_F(RamRecorderTest, NoContextNoParams)
   RamRecorder::dump(_dir);
 
   std::stringstream stream;
-  stream << "01-01-1970 00:00:00.000 UTC [" << std::hex << pthread_self() << "] Info test.c:1: test\n";
+  stream << "01-01-1970 00:00:00.000 UTC [" << get_thread_id() << "] Info test.c:1: test\n";
   std::string line = stream.str();
   expect_file(line.c_str());
 }
@@ -144,7 +151,7 @@ TEST_F(RamRecorderTest, NoLineNumber)
   RamRecorder::dump(_dir);
 
   std::stringstream stream;
-  stream << "01-01-1970 00:00:00.000 UTC [" << std::hex << pthread_self() << "] Info test.c: test\n";
+  stream << "01-01-1970 00:00:00.000 UTC [" << get_thread_id() << "] Info test.c: test\n";
   std::string line = stream.str();
   expect_file(line.c_str());
 }
@@ -158,7 +165,7 @@ TEST_F(RamRecorderTest, Params)
 
   std::stringstream stream;
   stream << "01-01-1970 00:00:00.000 UTC ["
-         << std::hex << pthread_self()
+         << get_thread_id()
          << "] Info test.c: test: hello 1 -1 a (nil)\n";
   std::string line = stream.str();
   expect_file(line.c_str());
@@ -173,7 +180,7 @@ TEST_F(RamRecorderTest, ErrorLevel)
 
   std::stringstream stream;
   stream << "01-01-1970 00:00:00.000 UTC ["
-         << std::hex << pthread_self()
+         << get_thread_id()
          << "] Error test.c: test\n";
   std::string line = stream.str();
   expect_file(line.c_str());
@@ -181,6 +188,8 @@ TEST_F(RamRecorderTest, ErrorLevel)
 
 TEST_F(RamRecorderTest, Truncation)
 {
+  int total = 20000;
+
   std::string truncation(20000, 'a');
 
   RamRecorder::record(Log::INFO_LEVEL,
@@ -190,18 +199,31 @@ TEST_F(RamRecorderTest, Truncation)
 
   load_file();
   expect_header();
-  std::stringstream stream;
-  stream << "01-01-1970 00:00:00.000 UTC ["
-         << std::hex << pthread_self()
-         << "] Info test.c: ";
+  std::string thrd_id = get_thread_id();
 
-  std::string truncated(8162, 'a');
+  int displayed = 8174 - thrd_id.length();
 
-  stream << truncated << '\n';
+  {
+    std::stringstream stream;
+    stream << "01-01-1970 00:00:00.000 UTC ["
+           << thrd_id
+           << "] Info test.c: ";
 
-  std::string line = stream.str();
-  expect_line(line.c_str());
-  expect_line("Earlier log was truncated by 11838 characters\n");
+    std::string truncated(displayed, 'a');
+
+    stream << truncated << '\n';
+
+    std::string line = stream.str();
+    expect_line(line.c_str());
+  }
+
+  {
+    std::stringstream stream;
+    stream << "Earlier log was truncated by " << (total - displayed) << " characters\n";
+    std::string line = stream.str();
+    expect_line(line.c_str());
+  }
+
   expect_footer();
 }
 
@@ -349,8 +371,8 @@ TEST_F(RamRecorderTest, AlwaysMacro)
 
   std::stringstream stream;
   stream << "01-01-1970 00:00:00.000 UTC ["
-         << std::hex << pthread_self()
-         << "] Info ramrecorder_test.cpp:" << std::dec << line_no << ": test\n";
+         << get_thread_id()
+         << "] Info ramrecorder_test.cpp:" << line_no << ": test\n";
   std::string line = stream.str();
   expect_file(line.c_str());
 }
@@ -363,8 +385,8 @@ TEST_F(RamRecorderTest, MaybeOnMacro)
 
   std::stringstream stream;
   stream << "01-01-1970 00:00:00.000 UTC ["
-         << std::hex << pthread_self()
-         << "] Info ramrecorder_test.cpp:" << std::dec << line_no << ": test\n";
+         << get_thread_id()
+         << "] Info ramrecorder_test.cpp:" << line_no << ": test\n";
   std::string line = stream.str();
   expect_file(line.c_str());
 }
