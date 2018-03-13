@@ -31,23 +31,23 @@ public:
   static PDLog1<const char*> _comm_error_log;
 
   static MockDiameterStack* _mock_stack;
+  static Diameter::Stack* _stack;
   static MockDiameterResolver* _mock_resolver;
   static AlarmManager* _alarm_manager;
-  static MockAlarm* _mock_alarm;
 
   static void SetUpTestCase()
   {
     _mock_stack = new MockDiameterStack();
+    _stack = new Diameter::Stack();
     _mock_resolver = new MockDiameterResolver();
     _alarm_manager = new AlarmManager();
-    _mock_alarm = new MockAlarm(_alarm_manager);
   }
 
   static void TearDownTestCase()
   {
     delete _mock_stack; _mock_stack = NULL;
+    delete _stack; _stack = NULL;
     delete _mock_resolver; _mock_resolver = NULL;
-    delete _mock_alarm; _mock_alarm = NULL;
     delete _alarm_manager; _alarm_manager = NULL;
   }
 
@@ -86,9 +86,9 @@ PDLog RealmmanagerTest::_comm_restored_log = PDLog(1, LOG_INFO, "", "", "", "");
 PDLog1<const char*> RealmmanagerTest::_comm_error_log = PDLog1<const char*>(2, LOG_ERR, "", "", "", "");
 
 MockDiameterStack* RealmmanagerTest::_mock_stack = NULL;
+Diameter::Stack* RealmmanagerTest::_stack = NULL;
 MockDiameterResolver* RealmmanagerTest::_mock_resolver = NULL;
 AlarmManager* RealmmanagerTest::_alarm_manager = NULL;
-MockAlarm* RealmmanagerTest::_mock_alarm = NULL;
 
 //
 // ip_addr_to_arpa Tests
@@ -142,12 +142,13 @@ TEST_F(RealmmanagerTest, CreateDestroy)
   inet_pton(AF_INET, "1.1.1.1", &peer.address.addr.ipv4);
   std::vector<AddrInfo> targets;
 
+  Alarm alarm = Alarm(_alarm_manager, "issuer", 0, AlarmDef::CRITICAL);
   RealmManager* realm_manager = new RealmManager(_mock_stack,
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
                                                  _mock_resolver,
-                                                 NULL,
+                                                 alarm,
                                                  _comm_restored_log,
                                                  _comm_error_log);
 
@@ -189,16 +190,17 @@ TEST_F(RealmmanagerTest, TestAlarmStartup)
   int ttl;
 
   // Create RealmManager with _max_peers set to 2.
+  MockAlarm mock_alarm = MockAlarm(_alarm_manager);
   RealmManager* realm_manager = new RealmManager(_mock_stack,
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
                                                  _mock_resolver,
-                                                 _mock_alarm,
+                                                 mock_alarm,
                                                  _comm_restored_log,
                                                  _comm_error_log);
 
-  // The diameter resolver returns one peer. We expect to try and connect to it.
+  // The diameter resolver returns one peer.
   targets.push_back(peer);
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
     .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
@@ -207,69 +209,27 @@ TEST_F(RealmmanagerTest, TestAlarmStartup)
     .WillRepeatedly(Return(true));
   EXPECT_CALL(*_mock_stack, peer_count(1, 0))
     .Times(1);
-
+    
   realm_manager->manage_connections(ttl);
 
   // We fail to connect to peer1. We expect the alarm to be raised since the
   // number of connected peers (1) is less than _max_peers.
-  EXPECT_CALL(*_mock_alarm, get_alarm_state())
+  EXPECT_CALL(mock_alarm, get_alarm_state())
     .Times(1)
     .WillOnce(Return(AlarmState::UNKNOWN));
-  EXPECT_CALL(*_mock_alarm, set()).Times(1);
-  EXPECT_CALL(*_mock_alarm, clear()).Times(0);
+  EXPECT_CALL(mock_alarm, set()).Times(1);
+  EXPECT_CALL(mock_alarm, clear()).Times(0);
 
   realm_manager->peer_connection_cb(false, "1.1.1.1", DIAMETER_REALM);
 
-  delete realm_manager;
-}
-
-// This tests alarm state change CLEARED->ALARMED as we connect to a peer
-// in unexpected realm resulting in the less than _max_peers connected peers.
-TEST_F(RealmmanagerTest, TestAlarmRaisedBadRealm)
-{
-  /// SETUP
-  // We get to the state of two connected peers with the alarm cleared.
-  Diameter::Peer* peer1 = new Diameter::Peer("1.1.1.1", DIAMETER_REALM);
-  Diameter::Peer* peer2 = new Diameter::Peer("2.2.2.2", DIAMETER_REALM);
-  std::vector<AddrInfo> targets;
-  int ttl;
-
-  // Create a RealmManager with _max_peers set to 2.
-  RealmManager* realm_manager = new RealmManager(_mock_stack,
-                                                 DIAMETER_REALM,
-                                                 DIAMETER_HOSTNAME,
-                                                 2,
-                                                 _mock_resolver,
-                                                 _mock_alarm,
-                                                 _comm_restored_log,
-                                                 _comm_error_log);
-
-  realm_manager->_peers.insert(std::pair<std::string, Diameter::Peer*>("1.1.1.1", peer1));
-  realm_manager->_peers.insert(std::pair<std::string, Diameter::Peer*>("2.2.2.2", peer2));
-
-  peer1->_connected = true;
-  peer2->_connected = true;
-  realm_manager->_peer_connection_alarm->switch_to_state(&realm_manager->_peer_connection_alarm->_clear_state);
-
-  /// TEST
-  // We fail to connect to peer1 by connecting to it in unexpected realm.
-  // We expect the alarm to be raised since the number of connected peers (1)
-  // is less than _max_peers. We remove peer1.
-  EXPECT_CALL(*_mock_alarm, get_alarm_state())
-    .Times(1)
-    .WillOnce(Return(AlarmState::CLEARED));
-  EXPECT_CALL(*_mock_stack, remove(_)).Times(1);
-  EXPECT_CALL(*_mock_alarm, set()).Times(1);
-  EXPECT_CALL(*_mock_alarm, clear()).Times(0);
-
-  realm_manager->peer_connection_cb(true, "1.1.1.1", "hss.badexample.com");
-
   // We tidy up by having the resolver return no peers so that the RealmManager
   // tears down it's connections.
+  targets.clear();
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
     .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
   EXPECT_CALL(*_mock_stack, remove(_))
-    .Times(1);
+    .Times(1)
+    .WillRepeatedly(Return(true));
   EXPECT_CALL(*_mock_stack, peer_count(0, 0))
     .Times(1);
 
@@ -278,6 +238,75 @@ TEST_F(RealmmanagerTest, TestAlarmRaisedBadRealm)
   delete realm_manager;
 }
 /*
+// This tests alarm state change CLEARED->ALARMED as we connect to a peer
+// in unexpected realm resulting in the less than _max_peers connected peers.
+TEST_F(RealmmanagerTest, TestAlarmRaisedBadRealm)
+{
+  /// SETUP
+  // We get to the state of two connected peers with the alarm cleared.
+//  Diameter::Peer peer1 = Diameter::Peer("1.1.1.1", DIAMETER_REALM);
+//  Diameter::Peer peer2 = Diameter::Peer("2.2.2.2", DIAMETER_REALM);
+  AddrInfo peer1 = create_peer("1.1.1.1");
+  AddrInfo peer2 = create_peer("2.2.2.2");
+  std::vector<AddrInfo> targets;
+  int ttl;
+
+  // Create a RealmManager with _max_peers set to 2.
+  MockAlarm mock_alarm = MockAlarm(_alarm_manager);
+  RealmManager* realm_manager = new RealmManager(_stack,
+                                                 DIAMETER_REALM,
+                                                 DIAMETER_HOSTNAME,
+                                                 2,
+                                                 _mock_resolver,
+                                                 mock_alarm,
+                                                 _comm_restored_log,
+                                                 _comm_error_log);
+
+//  realm_manager->_stack->add(&peer1);
+//  realm_manager->_stack->add(&peer2);
+//  realm_manager->_peers.insert(std::pair<std::string, Diameter::Peer*>("1.1.1.1", &peer1));
+//  realm_manager->_peers.insert(std::pair<std::string, Diameter::Peer*>("2.2.2.2", &peer2));
+
+//  peer1.set_connected();
+//  peer2.set_connected();
+//  realm_manager->_peer_connection_alarm.switch_to_state(&realm_manager->_peer_connection_alarm._clear_state);
+
+  // The diameter resolver returns two peers
+  EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
+    .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
+
+  realm_manager->manage_connections(ttl);
+
+  // We connect to both peers.
+  EXPECT_CALL(mock_alarm, get_alarm_state())
+    .Times(2)
+    .WillAlways(Return(AlarmState::UNKNOWN));
+  
+  realm_manager->peer_connection_cb(true, "1.1.1.1", DIAMETER_REALM);
+  realm_manager->peer_connection_cb(true, "2.2.2.2", DIAMETER_REALM);
+
+  /// TEST
+  // We fail to connect to peer1 by connecting to it in unexpected realm.
+  // We expect the alarm to be raised since the number of connected peers (1)
+  // is less than _max_peers.
+  EXPECT_CALL(mock_alarm, get_alarm_state())
+    .Times(1)
+    .WillOnce(Return(AlarmState::CLEARED));
+  EXPECT_CALL(mock_alarm, set()).Times(1);
+  EXPECT_CALL(mock_alarm, clear()).Times(0);
+
+  realm_manager->peer_connection_cb(true, "1.1.1.1", "hss.badexample.com");
+
+  // We tidy up by having the resolver return no peers so that the RealmManager
+  // tears down it's connections.
+  EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
+    .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
+
+  realm_manager->manage_connections(ttl);
+
+  delete realm_manager;
+}
+
 // This tests alarm state change CLEARED->ALARMED as we fail to connect
 // to a peer resulting in less than _max_peers connected peers.
 TEST_F(RealmmanagerTest, TestAlarmRaisedConnectionFailure)
@@ -290,30 +319,33 @@ TEST_F(RealmmanagerTest, TestAlarmRaisedConnectionFailure)
   int ttl;
 
   // Create a RealmManager with _max_peers set to 2.
-  RealmManager* realm_manager = new RealmManager(_mock_stack,
+  MockAlarm mock_alarm = MockAlarm(_alarm_manager);
+  RealmManager* realm_manager = new RealmManager(_stack,
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
                                                  _mock_resolver,
-                                                 _mock_alarm,
+                                                 mock_alarm,
                                                  _comm_restored_log,
                                                  _comm_error_log);
 
+  realm_manager->_stack->add(peer1);
+  realm_manager->_stack->add(peer2);
   realm_manager->_peers.insert(std::pair<std::string, Diameter::Peer*>("1.1.1.1", peer1));
   realm_manager->_peers.insert(std::pair<std::string, Diameter::Peer*>("2.2.2.2", peer2));
 
-  peer1->_connected = true;
-  peer2->_connected = true;
-  realm_manager->_peer_connection_alarm->switch_to_state(&realm_manager->_peer_connection_alarm->_clear_state);
+  peer1->set_connected();
+  peer2->set_connected();
+  realm_manager->_peer_connection_alarm.switch_to_state(&realm_manager->_peer_connection_alarm._clear_state);
 
   /// TEST
   // We fail to connect to peer1. We expect the alarm to be raised since
   // the number of connected peers (1) is less than _max_peers.
-  EXPECT_CALL(*_mock_alarm, get_alarm_state())
+  EXPECT_CALL(mock_alarm, get_alarm_state())
     .Times(1)
     .WillOnce(Return(AlarmState::CLEARED));
-  EXPECT_CALL(*_mock_alarm, set()).Times(1);
-  EXPECT_CALL(*_mock_alarm, clear()).Times(0);
+  EXPECT_CALL(mock_alarm, set()).Times(1);
+  EXPECT_CALL(mock_alarm, clear()).Times(0);
 
   realm_manager->peer_connection_cb(false, "1.1.1.1", DIAMETER_REALM);
 
@@ -321,17 +353,12 @@ TEST_F(RealmmanagerTest, TestAlarmRaisedConnectionFailure)
   // tears down it's connections
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
     .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
-  EXPECT_CALL(*_mock_stack, remove(_))
-    .Times(1);
-  EXPECT_CALL(*_mock_stack, peer_count(0, 0))
-    .Times(1);
 
   realm_manager->manage_connections(ttl);
 
   delete realm_manager;
-  delete peer2;
 }
-*/
+
 // This tests alarm state change ALARMED->CLEARED as we successfully connect
 // to a peer resulting in at least _max_peers connected peers.
 TEST_F(RealmmanagerTest, TestAlarmClearedAtLeastMaxPeers)
@@ -345,19 +372,21 @@ TEST_F(RealmmanagerTest, TestAlarmClearedAtLeastMaxPeers)
   int ttl;
 
   // Create a RealmManager with _max_peers set to 2.
-  RealmManager* realm_manager = new RealmManager(_mock_stack,
+  MockAlarm mock_alarm = MockAlarm(_alarm_manager);
+  RealmManager* realm_manager = new RealmManager(_stack,
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
                                                  _mock_resolver,
-                                                 _mock_alarm,
+                                                 mock_alarm,
                                                  _comm_restored_log,
                                                  _comm_error_log);
 
+  realm_manager->_stack->add(peer1);
   realm_manager->_peers.insert(std::pair<std::string, Diameter::Peer*>("1.1.1.1", peer1));
 
-  peer1->_connected = true;
-  realm_manager->_peer_connection_alarm->switch_to_state(&realm_manager->_peer_connection_alarm->_set_state);
+  peer1->set_connected();
+  realm_manager->_peer_connection_alarm.switch_to_state(&realm_manager->_peer_connection_alarm._set_state);
 
   /// TEST
   // The diameter resolver returns both peers. We expect to try to connect to peer2.
@@ -365,21 +394,16 @@ TEST_F(RealmmanagerTest, TestAlarmClearedAtLeastMaxPeers)
   targets.push_back(addr_info2);
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
     .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
-  EXPECT_CALL(*_mock_stack, add(_))
-    .Times(1)
-    .WillRepeatedly(Return(true));
-  EXPECT_CALL(*_mock_stack, peer_count(2, 1))
-    .Times(1);
   
   realm_manager->manage_connections(ttl);
 
   // We successfully connect to peer2. We expect the alarm to be cleared since
   // the number of connected peers (2) is at least _max_peers.
-  EXPECT_CALL(*_mock_alarm, get_alarm_state())
+  EXPECT_CALL(mock_alarm, get_alarm_state())
     .Times(1)
     .WillOnce(Return(AlarmState::ALARMED));
-  EXPECT_CALL(*_mock_alarm, set()).Times(0);
-  EXPECT_CALL(*_mock_alarm, clear()).Times(1);
+  EXPECT_CALL(mock_alarm, set()).Times(0);
+  EXPECT_CALL(mock_alarm, clear()).Times(1);
 
   realm_manager->peer_connection_cb(true, "2.2.2.2", DIAMETER_REALM);
 
@@ -388,15 +412,10 @@ TEST_F(RealmmanagerTest, TestAlarmClearedAtLeastMaxPeers)
   targets.clear();
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
     .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
-  EXPECT_CALL(*_mock_stack, remove(_))
-    .Times(2);
-  EXPECT_CALL(*_mock_stack, peer_count(0, 0))
-    .Times(1);
 
   realm_manager->manage_connections(ttl);
 
   delete realm_manager;
-  delete peer1;
 }
 
 // This tests alarm state change ALARMED->CLEARED as we successfully connect
@@ -413,20 +432,22 @@ TEST_F(RealmmanagerTest, TestAlarmClearedNoFailedPeers)
   int ttl;
 
   // Create a RealmManager with _max_peers set to 3.
-  RealmManager* realm_manager = new RealmManager(_mock_stack,
+  MockAlarm mock_alarm = MockAlarm(_alarm_manager);
+  RealmManager* realm_manager = new RealmManager(_stack,
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  3,
                                                  _mock_resolver,
-                                                 _mock_alarm,
+                                                 mock_alarm,
                                                  _comm_restored_log,
                                                  _comm_error_log);
 
+  realm_manager->_stack->add(peer1);
   realm_manager->_peers.insert(std::pair<std::string, Diameter::Peer*>("1.1.1.1", peer1));
   realm_manager->_failed_peers.insert(std::pair<AddrInfo, unsigned long>(addr_info2, Utils::current_time_ms()));
 
-  peer1->_connected = true;
-  realm_manager->_peer_connection_alarm->switch_to_state(&realm_manager->_peer_connection_alarm->_set_state);
+  peer1->set_connected();
+  realm_manager->_peer_connection_alarm.switch_to_state(&realm_manager->_peer_connection_alarm._set_state);
 
   /// TEST
   // The diameter resolver returns both peers. We expect to try to connect to peer2.
@@ -434,22 +455,17 @@ TEST_F(RealmmanagerTest, TestAlarmClearedNoFailedPeers)
   targets.push_back(addr_info2);
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 3, _, _))
     .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
-  EXPECT_CALL(*_mock_stack, add(_))
-    .Times(1)
-    .WillRepeatedly(Return(true));
-  EXPECT_CALL(*_mock_stack, peer_count(2, 1))
-    .Times(1);
   
   realm_manager->manage_connections(ttl);
 
   // We now successfully connect to peer2. Although the number of connected peers (2)
   // is less than _max_peers, we expect the alarm to be cleared since there are no
   // failed peers.
-  EXPECT_CALL(*_mock_alarm, get_alarm_state())
+  EXPECT_CALL(mock_alarm, get_alarm_state())
     .Times(1)
     .WillOnce(Return(AlarmState::ALARMED));
-  EXPECT_CALL(*_mock_alarm, set()).Times(0);
-  EXPECT_CALL(*_mock_alarm, clear()).Times(1);
+  EXPECT_CALL(mock_alarm, set()).Times(0);
+  EXPECT_CALL(mock_alarm, clear()).Times(1);
 
   realm_manager->peer_connection_cb(true, "2.2.2.2", DIAMETER_REALM);
 
@@ -458,15 +474,10 @@ TEST_F(RealmmanagerTest, TestAlarmClearedNoFailedPeers)
   targets.clear();
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 3, _, _))
     .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
-  EXPECT_CALL(*_mock_stack, remove(_))
-    .Times(2);
-  EXPECT_CALL(*_mock_stack, peer_count(0, 0))
-    .Times(1);
 
   realm_manager->manage_connections(ttl);
 
   delete realm_manager;
-  delete peer1;
 }
 
 // This tests that the alarm stays raised as we fail to connect to a peer.
@@ -480,47 +491,51 @@ TEST_F(RealmmanagerTest, TestAlarmStayRaisedConnectionFailure)
   int ttl;
 
   // Create a RealmManager with _max_peers set to 2.
-  RealmManager* realm_manager = new RealmManager(_mock_stack,
+  MockAlarm mock_alarm = MockAlarm(_alarm_manager);
+  RealmManager* realm_manager = new RealmManager(_stack,
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
                                                  _mock_resolver,
-                                                 _mock_alarm,
+                                                 mock_alarm,
                                                  _comm_restored_log,
                                                  _comm_error_log);
 
   realm_manager->_failed_peers.insert(std::pair<AddrInfo, unsigned long>(addr_info1, 0));
 
-  realm_manager->_peer_connection_alarm->switch_to_state(&realm_manager->_peer_connection_alarm->_set_state);
+  realm_manager->_peer_connection_alarm.switch_to_state(&realm_manager->_peer_connection_alarm._set_state);
 
   /// TEST
   // The diameter resolver returns peer2. We expect to try to connect to it.
   targets.push_back(addr_info2);
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
     .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
-  EXPECT_CALL(*_mock_stack, add(_))
-    .Times(1)
-    .WillRepeatedly(Return(true));
-  EXPECT_CALL(*_mock_stack, peer_count(1, 0))
-    .Times(1);
   
   realm_manager->manage_connections(ttl);
 
   // We now fail connect to peer2. We expect the alarm to stay raised since the 
   // number of connected peers (0) is less than _max_peers.
-  EXPECT_CALL(*_mock_alarm, get_alarm_state())
+  EXPECT_CALL(mock_alarm, get_alarm_state())
     .Times(1)
     .WillOnce(Return(AlarmState::ALARMED));
-  EXPECT_CALL(*_mock_alarm, set()).Times(0);
-  EXPECT_CALL(*_mock_alarm, clear()).Times(0);
+  EXPECT_CALL(mock_alarm, set()).Times(0);
+  EXPECT_CALL(mock_alarm, clear()).Times(0);
 
   realm_manager->peer_connection_cb(false, "2.2.2.2", DIAMETER_REALM);
 
   // We expect the alarm to be in the alarmed state.
-  EXPECT_CALL(*_mock_alarm, get_alarm_state())
+  EXPECT_CALL(mock_alarm, get_alarm_state())
     .Times(1)
     .WillOnce(Return(AlarmState::ALARMED));
-  EXPECT_EQ(AlarmState::ALARMED, realm_manager->_peer_connection_alarm->get_alarm_state());
+  EXPECT_EQ(AlarmState::ALARMED, realm_manager->_peer_connection_alarm.get_alarm_state());
+
+  // We tidy up by having the resolver return no peers so that the RealmManager
+  // tears down it's connections.
+  targets.clear();
+  EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
+    .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
+
+  realm_manager->manage_connections(ttl);
 
   delete realm_manager;
 }
@@ -537,57 +552,49 @@ TEST_F(RealmmanagerTest, TestAlarmStayRaisedConnectionSuccess)
   int ttl;
 
   // Create a RealmManager with _max_peers set to 2.
-  RealmManager* realm_manager = new RealmManager(_mock_stack,
+  MockAlarm mock_alarm = MockAlarm(_alarm_manager);
+  RealmManager* realm_manager = new RealmManager(_stack,
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
                                                  _mock_resolver,
-                                                 _mock_alarm,
+                                                 mock_alarm,
                                                  _comm_restored_log,
                                                  _comm_error_log);
 
   realm_manager->_failed_peers.insert(std::pair<AddrInfo, unsigned long>(addr_info1, Utils::current_time_ms()));
 
-  realm_manager->_peer_connection_alarm->switch_to_state(&realm_manager->_peer_connection_alarm->_set_state);
+  realm_manager->_peer_connection_alarm.switch_to_state(&realm_manager->_peer_connection_alarm._set_state);
 
   /// TEST
   // The diameter resolver returns peer2. We expect to try to connect to it.
   targets.push_back(addr_info2);
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
     .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
-  EXPECT_CALL(*_mock_stack, add(_))
-    .Times(1)
-    .WillRepeatedly(Return(true));
-  EXPECT_CALL(*_mock_stack, peer_count(1, 0))
-    .Times(1);
   
   realm_manager->manage_connections(ttl);
 
   // We now successfully connect to peer2. We expect the alarm to stay raised since the 
   // number of connected peers (1) is less than _max_peers.
-  EXPECT_CALL(*_mock_alarm, get_alarm_state())
+  EXPECT_CALL(mock_alarm, get_alarm_state())
     .Times(1)
     .WillOnce(Return(AlarmState::ALARMED));
-  EXPECT_CALL(*_mock_alarm, set()).Times(0);
-  EXPECT_CALL(*_mock_alarm, clear()).Times(0);
+  EXPECT_CALL(mock_alarm, set()).Times(0);
+  EXPECT_CALL(mock_alarm, clear()).Times(0);
 
   realm_manager->peer_connection_cb(true, "2.2.2.2", DIAMETER_REALM);
 
   // We expect the alarm to be in the alarmed state.
-  EXPECT_CALL(*_mock_alarm, get_alarm_state())
+  EXPECT_CALL(mock_alarm, get_alarm_state())
     .Times(1)
     .WillOnce(Return(AlarmState::ALARMED));
-  EXPECT_EQ(AlarmState::ALARMED, realm_manager->_peer_connection_alarm->get_alarm_state());
+  EXPECT_EQ(AlarmState::ALARMED, realm_manager->_peer_connection_alarm.get_alarm_state());
 
   // We tidy up by having the resolver return no peers so that the RealmManager
   // tears down it's connections.
   targets.clear();
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
     .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
-  EXPECT_CALL(*_mock_stack, remove(_))
-    .Times(1);
-  EXPECT_CALL(*_mock_stack, peer_count(0, 0))
-    .Times(1);
 
   realm_manager->manage_connections(ttl);
 
@@ -606,63 +613,55 @@ TEST_F(RealmmanagerTest, TestAlarmStayClearedConnectionSuccess)
   int ttl;
 
   // Create a RealmManager with _max_peers set to 1.
-  RealmManager* realm_manager = new RealmManager(_mock_stack,
+  MockAlarm mock_alarm = MockAlarm(_alarm_manager);
+  RealmManager* realm_manager = new RealmManager(_stack,
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  1,
                                                  _mock_resolver,
-                                                 _mock_alarm,
+                                                 mock_alarm,
                                                  _comm_restored_log,
                                                  _comm_error_log);
 
+  realm_manager->_stack->add(peer1);
   realm_manager->_peers.insert(std::pair<std::string, Diameter::Peer*>("1.1.1.1", peer1));
 
-  peer1->_connected = true;
-  realm_manager->_peer_connection_alarm->switch_to_state(&realm_manager->_peer_connection_alarm->_clear_state);
+  peer1->set_connected();
+  realm_manager->_peer_connection_alarm.switch_to_state(&realm_manager->_peer_connection_alarm._clear_state);
 
   /// TEST
   // The diameter resolver returns peer2. We expect to try to connect to it.
   targets.push_back(addr_info2);
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 1, _, _))
     .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
-  EXPECT_CALL(*_mock_stack, add(_))
-    .Times(1)
-    .WillRepeatedly(Return(true));
-  EXPECT_CALL(*_mock_stack, peer_count(2, 1))
-    .Times(1);
   
   realm_manager->manage_connections(ttl);
 
   // We now successfully connect to peer2. We expect the alarm to stay cleared since the 
   // number of connected peers (2) is at least _max_peers.
-  EXPECT_CALL(*_mock_alarm, get_alarm_state())
+  EXPECT_CALL(mock_alarm, get_alarm_state())
     .Times(1)
     .WillOnce(Return(AlarmState::CLEARED));
-  EXPECT_CALL(*_mock_alarm, set()).Times(0);
-  EXPECT_CALL(*_mock_alarm, clear()).Times(0);
+  EXPECT_CALL(mock_alarm, set()).Times(0);
+  EXPECT_CALL(mock_alarm, clear()).Times(0);
 
   realm_manager->peer_connection_cb(true, "2.2.2.2", DIAMETER_REALM);
 
   // We expect the alarm to be in the cleared state.
-  EXPECT_CALL(*_mock_alarm, get_alarm_state())
+  EXPECT_CALL(mock_alarm, get_alarm_state())
     .Times(1)
     .WillOnce(Return(AlarmState::CLEARED));
-  EXPECT_EQ(AlarmState::CLEARED, realm_manager->_peer_connection_alarm->get_alarm_state());
+  EXPECT_EQ(AlarmState::CLEARED, realm_manager->_peer_connection_alarm.get_alarm_state());
 
   // We tidy up by having the resolver return no peers so that the RealmManager
   // tears down it's connections.
   targets.clear();
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 1, _, _))
     .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
-  EXPECT_CALL(*_mock_stack, remove(_))
-    .Times(2);
-  EXPECT_CALL(*_mock_stack, peer_count(0, 0))
-    .Times(1);
 
   realm_manager->manage_connections(ttl);
 
   delete realm_manager;
-  delete peer1; 
 }
 
 // This test that the alarm stays cleared as we fail to connect to a peer
@@ -677,54 +676,51 @@ TEST_F(RealmmanagerTest, TestAlarmStayClearedConnectionFailure)
   int ttl;
 
   // Create a RealmManager with _max_peers set to 1.
+  MockAlarm mock_alarm = MockAlarm(_alarm_manager);
   RealmManager* realm_manager = new RealmManager(_mock_stack,
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  1,
                                                  _mock_resolver,
-                                                 _mock_alarm,
+                                                 mock_alarm,
                                                  _comm_restored_log,
                                                  _comm_error_log);
 
+  realm_manager->_stack->add(peer1);
+  realm_manager->_stack->add(peer2);
   realm_manager->_peers.insert(std::pair<std::string, Diameter::Peer*>("1.1.1.1", peer1));
   realm_manager->_peers.insert(std::pair<std::string, Diameter::Peer*>("2.2.2.2", peer2));
 
-  peer1->_connected = true;
-  peer2->_connected = true;
-  realm_manager->_peer_connection_alarm->switch_to_state(&realm_manager->_peer_connection_alarm->_clear_state);
+  peer1->set_connected();
+  peer2->set_connected();
+  realm_manager->_peer_connection_alarm.switch_to_state(&realm_manager->_peer_connection_alarm._clear_state);
 
   /// TEST
   // We now fail to connect to peer2. We expect the alarm to stay cleared since the
   // number of connected peers (1) is at least _max_peers.
-  EXPECT_CALL(*_mock_alarm, get_alarm_state())
+  EXPECT_CALL(mock_alarm, get_alarm_state())
     .Times(1)
     .WillOnce(Return(AlarmState::CLEARED));
-  EXPECT_CALL(*_mock_alarm, set()).Times(0);
-  EXPECT_CALL(*_mock_alarm, clear()).Times(0);
+  EXPECT_CALL(mock_alarm, set()).Times(0);
+  EXPECT_CALL(mock_alarm, clear()).Times(0);
 
   realm_manager->peer_connection_cb(false, "2.2.2.2", DIAMETER_REALM);
 
   // We expect the alarm to be in the cleared state.
-  EXPECT_CALL(*_mock_alarm, get_alarm_state())
+  EXPECT_CALL(mock_alarm, get_alarm_state())
     .Times(1)
     .WillOnce(Return(AlarmState::CLEARED));
-  EXPECT_EQ(AlarmState::CLEARED, realm_manager->_peer_connection_alarm->get_alarm_state());
+  EXPECT_EQ(AlarmState::CLEARED, realm_manager->_peer_connection_alarm.get_alarm_state());
 
   // We tidy up by having the resolver return no peers so that the RealmManager
   // tears down it's connections.
   targets.clear();
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 1, _, _))
     .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
-  EXPECT_CALL(*_mock_stack, remove(_))
-    .Times(1);
-  EXPECT_CALL(*_mock_stack, peer_count(0, 0))
-    .Times(1);
 
   realm_manager->manage_connections(ttl);
 
   delete realm_manager;
-  delete peer1;
-  delete peer2; 
 }
 
 // This tests the behaviour of the _failed_peers map as we attempt to connect
@@ -745,81 +741,45 @@ TEST_F(RealmmanagerTest, TestFailedPeersMap)
   targets.push_back(peer4);
 
   // Create RealmManager.
-  RealmManager* realm_manager = new RealmManager(_mock_stack,
+  Alarm alarm = Alarm(_alarm_manager, "issuer", 0, AlarmDef::CRITICAL);
+  RealmManager* realm_manager = new RealmManager(_stack,
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
                                                  _mock_resolver,
-                                                 NULL,
+                                                 alarm,
                                                  _comm_restored_log,
                                                  _comm_error_log);
 
-  // The diameter resolver returns the targets. 
-  // We expect to try and connect to all of them.
+  // We start with peer1 and peer4 in failed peers.
+  realm_manager->_failed_peers.insert(std::pair<AddrInfo, unsigned long>(peer1, Utils::current_time_ms()));
+  realm_manager->_failed_peers.insert(std::pair<AddrInfo, unsigned long>(peer4, Utils::current_time_ms()));
+
+  // The diameter resolver returns the targets.
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
     .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
-  EXPECT_CALL(*_mock_stack, add(_))
-    .Times(4)
-    .WillRepeatedly(Return(true));
-  EXPECT_CALL(*_mock_stack, peer_count(4, 0))
-    .Times(1);
-  
+
   realm_manager->manage_connections(ttl);
 
-  EXPECT_EQ(0, realm_manager->_failed_peers.size());
-
-  // We fail to connect to peer1 and peer4 and successufully connect
-  // to the other two peers.
-  realm_manager->peer_connection_cb(false, "1.1.1.1", DIAMETER_REALM);
-  realm_manager->peer_connection_cb(false, "4.4.4.4", DIAMETER_REALM);
+  // We fail to connect to peer1 and peer3 and successfully connect to peer2 and peer4.
+  realm_manager->peer_connection_cb(true, "1.1.1.1", "hss.badexample.com");
   realm_manager->peer_connection_cb(true, "2.2.2.2", DIAMETER_REALM);
-  realm_manager->peer_connection_cb(true, "3.3.3.3", DIAMETER_REALM);
- 
-  // We expect only peer1 and peer4 to be added to _failed_peers
-  EXPECT_NE(realm_manager->_failed_peers.end(), realm_manager->_failed_peers.find(peer1));
-  EXPECT_NE(realm_manager->_failed_peers.end(), realm_manager->_failed_peers.find(peer4));
-  EXPECT_EQ(realm_manager->_failed_peers.end(), realm_manager->_failed_peers.find(peer2));
-  EXPECT_EQ(realm_manager->_failed_peers.end(), realm_manager->_failed_peers.find(peer3));
-  
-  EXPECT_EQ(2, realm_manager->_failed_peers.size());
-
-  // The diameter resolver returns the targets again. We expect to try and connect to peer1
-  // and peer4.
-  EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
-    .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
-  EXPECT_CALL(*_mock_stack, add(_))
-    .Times(2)
-    .WillRepeatedly(Return(true));
-  EXPECT_CALL(*_mock_stack, peer_count(4, 2))
-    .Times(1);
-
-  realm_manager->manage_connections(ttl);
-
-  // We now fail to connect to peer1, peer2 and peer3 and successfully
-  // connect to peer4.
-  realm_manager->peer_connection_cb(false, "1.1.1.1", DIAMETER_REALM);
   realm_manager->peer_connection_cb(false, "3.3.3.3", DIAMETER_REALM);
-  realm_manager->peer_connection_cb(false, "2.2.2.2", DIAMETER_REALM);
   realm_manager->peer_connection_cb(true, "4.4.4.4", DIAMETER_REALM);
 
-  // We expect peer1 to stay failed, peer2 and peer3 to be added to _failed_peers
-  // and peer4 to be removed from _failed_peers.
+  // We expect peer1 to stay in failed peers, peer3 to be added, and peer4 to be removed.
   EXPECT_NE(realm_manager->_failed_peers.end(), realm_manager->_failed_peers.find(peer1));
-  EXPECT_NE(realm_manager->_failed_peers.end(), realm_manager->_failed_peers.find(peer2));
+  EXPECT_EQ(realm_manager->_failed_peers.end(), realm_manager->_failed_peers.find(peer2));
   EXPECT_NE(realm_manager->_failed_peers.end(), realm_manager->_failed_peers.find(peer3));
   EXPECT_EQ(realm_manager->_failed_peers.end(), realm_manager->_failed_peers.find(peer4));
 
-  EXPECT_EQ(3, realm_manager->_failed_peers.size());
+  EXPECT_EQ(2, realm_manager->_failed_peers.size());
 
   // We tidy up by having the resolver return no peers so that the RealmManager
   // tears down it's connections.
   targets.clear();
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
     .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
-  EXPECT_CALL(*_mock_stack, remove(_))
-    .Times(1);
-  EXPECT_CALL(*_mock_stack, peer_count(0, 0))
-    .Times(1);
 
   realm_manager->manage_connections(ttl);
 
@@ -838,12 +798,13 @@ TEST_F(RealmmanagerTest, TestRemoveOldFailedPeers)
   int ttl;
 
   // Create RealmManager.
-  RealmManager* realm_manager = new RealmManager(_mock_stack,
+  Alarm alarm = Alarm(_alarm_manager, "issuer", 0, AlarmDef::CRITICAL);
+  RealmManager* realm_manager = new RealmManager(_stack,
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
                                                  _mock_resolver,
-                                                 NULL,
+                                                 alarm,
                                                  _comm_restored_log,
                                                  _comm_error_log);
 
@@ -863,10 +824,6 @@ TEST_F(RealmmanagerTest, TestRemoveOldFailedPeers)
   // as they were added more than FAILED_PEERS_TIMEOUT_MS ago.
   EXPECT_CALL(*_mock_resolver, resolve(DIAMETER_REALM, DIAMETER_HOSTNAME, 2, _, _))
     .WillOnce(DoAll(SetArgReferee<3>(targets), SetArgReferee<4>(15)));
-  EXPECT_CALL(*_mock_stack, remove(_))
-    .Times(0);
-  EXPECT_CALL(*_mock_stack, peer_count(0, 0))
-    .Times(1);
 
   realm_manager->manage_connections(ttl);
 
@@ -886,12 +843,13 @@ TEST_F(RealmmanagerTest, CreateFailedPeersString)
   AddrInfo peer2 = create_peer("2.2.2.2");
 
   // Create a RealmManager.
-  RealmManager* realm_manager = new RealmManager(_mock_stack,
+  Alarm alarm = Alarm(_alarm_manager, "issuer", 0, AlarmDef::CRITICAL);
+  RealmManager* realm_manager = new RealmManager(_stack,
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
                                                  _mock_resolver,
-                                                 NULL,
+                                                 alarm,
                                                  _comm_restored_log,
                                                  _comm_error_log);
 
@@ -903,7 +861,7 @@ TEST_F(RealmmanagerTest, CreateFailedPeersString)
 
   delete realm_manager;
 }
-
+*/
 // This tests that the RealmManager's manage_connections function
 // behaves correctly when the DiameterResolver returns various
 // combinations of peers.
@@ -931,12 +889,13 @@ TEST_F(RealmmanagerTest, ManageConnections)
   int ttl;
 
   // Create a RealmManager.
+  Alarm alarm = Alarm(_alarm_manager, "issuer", 0, AlarmDef::CRITICAL);
   RealmManager* realm_manager = new RealmManager(_mock_stack,
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
                                                  _mock_resolver,
-                                                 NULL,
+                                                 alarm,
                                                  _comm_restored_log,
                                                  _comm_error_log);
 
@@ -1078,12 +1037,13 @@ TEST_F(RealmmanagerTest, SRVPriority)
   int ttl;
 
   // Create a RealmManager.
+  Alarm alarm = Alarm(_alarm_manager, "issuer", 0, AlarmDef::CRITICAL);
   RealmManager* realm_manager = new RealmManager(_mock_stack,
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
                                                  _mock_resolver,
-                                                 NULL,
+                                                 alarm,
                                                  _comm_restored_log,
                                                  _comm_error_log);
 
@@ -1168,12 +1128,13 @@ TEST_F(RealmmanagerTest, SRVPriorityNegative)
   int ttl;
 
   // Create a RealmManager.
+  Alarm alarm = Alarm(_alarm_manager, "issuer", 0, AlarmDef::CRITICAL);
   RealmManager* realm_manager = new RealmManager(_mock_stack,
                                                  DIAMETER_REALM,
                                                  DIAMETER_HOSTNAME,
                                                  2,
                                                  _mock_resolver,
-                                                 NULL,
+                                                 alarm,
                                                  _comm_restored_log,
                                                  _comm_error_log);
 
