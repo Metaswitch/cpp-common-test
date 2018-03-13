@@ -23,98 +23,71 @@ using namespace std;
 static std::string SAS_JSON_DIR = string(UT_DIR).append("/sas_json/");
 
 
-class SasServiceTest : public ::testing::Test
+TEST(SasServiceTest, ValidSasJsonFile)
 {
-  SasServiceTest()
-  {
-  }
+  SasService test_service("test", "test", true, string(SAS_JSON_DIR).append("valid_sas.json"));
 
-  virtual ~SasServiceTest()
-  {
-  }
-};
-
-TEST_F(SasServiceTest, ValidSasJsonFile)
-{
-  SasService SasService(string(SAS_JSON_DIR).append("valid_sas.json"));
-
-  EXPECT_EQ(SasService.get_single_sas_server(), "1.1.1.1");
-  EXPECT_EQ(SasService.get_sas_servers(), "[{\"ip\":\"1.1.1.1\"}]");
+  EXPECT_EQ(test_service.get_single_sas_server(), "1.1.1.1");
+  EXPECT_EQ(test_service.get_sas_servers(), "[{\"ip\":\"1.1.1.1\"}]");
 }
 
-
-// In the following tests we have various invalid/unexpected sas.json
-// files.
-// These tests check that the correct logs are made in each case; this isn't
-// ideal as it means the tests are quite fragile, but it's the best we can do.
-
-TEST_F(SasServiceTest, MissingFile)
+TEST(SasServiceTest, MissingFile)
 {
-  CapturingTestLogger _log;
   std::string config = string(SAS_JSON_DIR).append("missing_sas.json");
-  SasService SasService(config);
-  EXPECT_TRUE(_log.contains("No SAS configuration (file"));
+  SasService test_service("test", "test", true, config);
 
   // Ensure we don't crash if we attempt to extract the sas_servers after
   // loading an invald JSON
-  EXPECT_EQ(SasService.get_single_sas_server(), "0.0.0.0");
-  EXPECT_EQ(SasService.get_sas_servers(), "[]");
+  EXPECT_EQ(test_service.get_single_sas_server(), "0.0.0.0");
+  EXPECT_EQ(test_service.get_sas_servers(), "[]");
 }
 
-TEST_F(SasServiceTest, EmptyFile)
+TEST(SasServiceTest, EmptyFile)
 {
-  CapturingTestLogger _log;
-  SasService SasService(string(SAS_JSON_DIR).append("empty_sas.json"));
-  EXPECT_TRUE(_log.contains("Failed to read SAS configuration data from"));
+  SasService test_service("test", "test", true, string(SAS_JSON_DIR).append("empty_sas.json"));
 
   // Ensure we don't crash if we attempt to extract the sas_servers after
   // loading an invald JSON
-  EXPECT_EQ(SasService.get_single_sas_server(), "0.0.0.0");
-  EXPECT_EQ(SasService.get_sas_servers(), "[]");
+  EXPECT_EQ(test_service.get_single_sas_server(), "0.0.0.0");
+  EXPECT_EQ(test_service.get_sas_servers(), "[]");
 }
 
-TEST_F(SasServiceTest, InvalidJson)
+TEST(SasServiceTest, InvalidJson)
 {
-  CapturingTestLogger _log;
-  SasService SasService(string(UT_DIR).append("/invalid_json.json"));
-  EXPECT_TRUE(_log.contains("Failed to read SAS configuration data: "));
+  SasService test_service("test", "test", true, string(UT_DIR).append("/invalid_json.json"));
 
   // Ensure we don't crash if we attempt to extract the sas_servers after
   // loading an invald JSON
-  EXPECT_EQ(SasService.get_single_sas_server(), "0.0.0.0");
-  EXPECT_EQ(SasService.get_sas_servers(), "[]");
+  EXPECT_EQ(test_service.get_single_sas_server(), "0.0.0.0");
+  EXPECT_EQ(test_service.get_sas_servers(), "[]");
 }
 
-TEST_F(SasServiceTest, WrongJsonFormat)
+TEST(SasServiceTest, WrongJsonFormat)
 {
-  CapturingTestLogger _log;
-  SasService SasService(string(SAS_JSON_DIR).append("bad_format_sas.json"));
-  EXPECT_TRUE(_log.contains("Badly formed SAS configuration file"));
+  SasService test_service("test", "test", true, string(SAS_JSON_DIR).append("bad_format_sas.json"));
 
   // Ensure we don't crash if we attempt to extract the sas_servers after
   // loading an invald JSON
-  EXPECT_EQ(SasService.get_single_sas_server(), "0.0.0.0");
-  EXPECT_EQ(SasService.get_sas_servers(), "[]");
+  EXPECT_EQ(test_service.get_single_sas_server(), "0.0.0.0");
+  EXPECT_EQ(test_service.get_sas_servers(), "[]");
 }
 
-TEST_F(SasServiceTest, MistypedKey)
+TEST(SasServiceTest, MistypedKey)
 {
-  CapturingTestLogger _log;
-  SasService SasService(string(SAS_JSON_DIR).append("mistyped_sas.json"));
-  EXPECT_TRUE(_log.contains("Badly formed SAS configuration file"));
+  SasService test_service("test", "test", true, string(SAS_JSON_DIR).append("mistyped_sas.json"));
 
   // Ensure we don't crash if we attempt to extract the sas_servers after
   // loading an invald JSON
-  EXPECT_EQ(SasService.get_single_sas_server(), "0.0.0.0");
-  EXPECT_EQ(SasService.get_sas_servers(), "[]");
+  EXPECT_EQ(test_service.get_single_sas_server(), "0.0.0.0");
+  EXPECT_EQ(test_service.get_sas_servers(), "[]");
 }
 
 // Test that we cope with the case that the file is valid but empty.
 // (Use case - customer wishes to 'turn off' SAS.)
-TEST_F(SasServiceTest, EmptyValidFile)
+TEST(SasServiceTest, EmptyValidFile)
 {
-  CapturingTestLogger _log;
-  SasService SasService(string(SAS_JSON_DIR).append("valid_empty_sas.json"));
-  EXPECT_EQ(SasService.get_single_sas_server(), "0.0.0.0");
-  EXPECT_EQ(SasService.get_sas_servers(), "[]");
+  SasService test_service("test", "test", true, string(SAS_JSON_DIR).append("valid_empty_sas.json"));
+
+  EXPECT_EQ(test_service.get_single_sas_server(), "0.0.0.0");
+  EXPECT_EQ(test_service.get_sas_servers(), "[]");
 }
