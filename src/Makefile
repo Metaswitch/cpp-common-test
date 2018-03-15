@@ -95,6 +95,7 @@ cpp_common_test_test_SOURCES := accesslogger.cpp \
                                 json_alarms_test.cpp \
                                 load_monitor_test.cpp \
                                 logger_test.cpp \
+                                ramrecorder_test.cpp \
                                 memcached_config_test.cpp \
                                 memcachedstorereview_test.cpp \
                                 realmmanager_test.cpp \
