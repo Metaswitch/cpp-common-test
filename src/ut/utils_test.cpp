@@ -280,10 +280,10 @@ TEST_F(UtilsTest, Quote)
 {
   string actual = Utils::quote_string("");
   EXPECT_EQ("\"\"", actual);
-  
+
   actual = Utils::quote_string("The quick brown fox \";'$?&=%\n\\\377");
   EXPECT_EQ("\"The quick brown fox \\\";'$?&=%\n\\\\\377\"", actual);
-  
+
   actual = Utils::quote_string("\"\\");
   EXPECT_EQ("\"\\\"\\\\\"", actual);
 }
@@ -657,6 +657,33 @@ TEST_F(UtilsTest, IOHooksArePerThread)
 
   terminate.store(true);
   t1.join();
+}
+
+TEST_F(UtilsTest, IOMonitorCovertIOAllowed)
+{
+  EXPECT_TRUE(IOMonitor::thread_allows_covert_io());
+  CW_IO_CALLS_REQUIRED();
+  EXPECT_FALSE(IOMonitor::thread_allows_covert_io());
+
+  // Reset whether covert IO is allowed.
+  IOMonitor::set_thread_allows_covert_io(true);
+}
+
+TEST_F(UtilsTest, IOMonitorDoingOvertIO)
+{
+  EXPECT_FALSE(IOMonitor::thread_doing_overt_io());
+  CW_IO_STARTS("IO 1")
+  {
+    EXPECT_TRUE(IOMonitor::thread_doing_overt_io());
+    CW_IO_STARTS("IO 2")
+    {
+      EXPECT_TRUE(IOMonitor::thread_doing_overt_io());
+    }
+    CW_IO_COMPLETES();
+    EXPECT_TRUE(IOMonitor::thread_doing_overt_io());
+  }
+  CW_IO_COMPLETES();
+  EXPECT_FALSE(IOMonitor::thread_doing_overt_io());
 }
 
 class StopWatchTest : public ::testing::Test
