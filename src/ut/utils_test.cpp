@@ -72,12 +72,21 @@ TEST_F(UtilsTest, RemoveVisualSeparators)
 
 TEST_F(UtilsTest, IsUserNumericTrue)
 {
+  EXPECT_TRUE(is_user_numeric("3"));
+  EXPECT_TRUE(is_user_numeric("+442083623893"));
+  EXPECT_TRUE(is_user_numeric("02083623893"));
   EXPECT_TRUE(is_user_numeric("+44(208)3.6.2.[3893]"));
 }
 
 TEST_F(UtilsTest, IsUserNumericFalse)
 {
+  EXPECT_FALSE(is_user_numeric(""));
+  EXPECT_FALSE(is_user_numeric("..."));
+  EXPECT_FALSE(is_user_numeric(".+[]()"));
   EXPECT_FALSE(is_user_numeric("alice"));
+  EXPECT_FALSE(is_user_numeric("alice319"));
+  EXPECT_FALSE(is_user_numeric("+1233456789o"));
+  EXPECT_FALSE(is_user_numeric("+1233456789o0"));
 }
 
 TEST_F(UtilsTest, ValidIPv4Address)
