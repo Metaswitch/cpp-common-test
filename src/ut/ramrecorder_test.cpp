@@ -101,87 +101,158 @@ public:
   }
 };
 
-TEST_F(RamRecorderTest, ContextNoParams)
+// The RamRecorder has two interfaces:
+//
+// -  A C++ interface that deals smoothly with C++ strings.
+// -  A Plain-Old-Data (POD) type interface that can only deal with native C
+//    types, but can be called by C code.
+//
+// These interfaces generally behave the same way so we use Typed Tests to run
+// the same set of tests over them.
+
+// Define a new test fixture that can be parameterized over the interface we
+// want to test.
+template<class T>
+class RamRecorderInterfaceTest : public RamRecorderTest
+{};
+
+// Classes that allow tests to use either the C++ or POD interface.
+//
+// Each class has two functions: `record` and `record_with_context`. These
+// mirror the functions on the RamRecorder and simply call through to the
+// underlying C++ or POD version of each.
+
+class CppInterface
 {
-  RamRecorder::record_with_context(Log::INFO_LEVEL, "test.c", 1, "ctx", "test");
-  RamRecorder::dump(_dir);
+public:
+  template<typename ...Types>
+  static void record(Types... args) { RamRecorder::record(args...); }
+
+  template<typename ...Types>
+  static void record_with_context(Types... args) { RamRecorder::record_with_context(args...); }
+};
+
+class PodInterface
+{
+public:
+  template<typename ...Types>
+  static void record(Types... args) { RamRecorder::record_pod(args...); }
+
+  template<typename ...Types>
+  static void record_with_context(Types... args) { RamRecorder::record_with_context_pod(args...); }
+};
+
+// Run the interface tests over both types of interface.
+typedef ::testing::Types<CppInterface, PodInterface> RamRecorderInterfaces;
+
+TYPED_TEST_CASE(RamRecorderInterfaceTest, RamRecorderInterfaces);
+
+//
+// The tests themselves.
+//
+
+TYPED_TEST(RamRecorderInterfaceTest, ContextNoParams)
+{
+  TypeParam::record_with_context(Log::INFO_LEVEL, "test.c", 1, "ctx", "test");
+  RamRecorder::dump(this->_dir);
 
   std::stringstream stream;
-  stream << "01-01-1970 00:00:00.000 UTC [" << get_thread_id() << "] Info test.c:1:ctx: test\n";
+  stream << "01-01-1970 00:00:00.000 UTC [" << this->get_thread_id() << "] Info test.c:1:ctx: test\n";
   std::string line = stream.str();
-  expect_file(line.c_str());
+  this->expect_file(line.c_str());
 }
 
-TEST_F(RamRecorderTest, ContextNoLine)
+TYPED_TEST(RamRecorderInterfaceTest, ContextNoLine)
 {
   RamRecorder::record_with_context(Log::INFO_LEVEL, "test.c", 0, "ctx", "test");
-  RamRecorder::dump(_dir);
+  RamRecorder::dump(this->_dir);
 
   std::stringstream stream;
-  stream << "01-01-1970 00:00:00.000 UTC [" << get_thread_id() << "] Info test.c:ctx: test\n";
+  stream << "01-01-1970 00:00:00.000 UTC [" << this->get_thread_id() << "] Info test.c:ctx: test\n";
   std::string line = stream.str();
-  expect_file(line.c_str());
+  this->expect_file(line.c_str());
 }
 
-TEST_F(RamRecorderTest, NoModule)
+TYPED_TEST(RamRecorderInterfaceTest, NoModule)
 {
   RamRecorder::record(Log::INFO_LEVEL, nullptr, 0, "test");
-  RamRecorder::dump(_dir);
+  RamRecorder::dump(this->_dir);
 
   std::stringstream stream;
-  stream << "01-01-1970 00:00:00.000 UTC [" << get_thread_id() << "] Info test\n";
+  stream << "01-01-1970 00:00:00.000 UTC [" << this->get_thread_id() << "] Info test\n";
   std::string line = stream.str();
-  expect_file(line.c_str());
+  this->expect_file(line.c_str());
 }
 
-TEST_F(RamRecorderTest, NoContextNoParams)
+TYPED_TEST(RamRecorderInterfaceTest, NoContextNoParams)
 {
   RamRecorder::record(Log::INFO_LEVEL, "test.c", 1, "test");
-  RamRecorder::dump(_dir);
+  RamRecorder::dump(this->_dir);
 
   std::stringstream stream;
-  stream << "01-01-1970 00:00:00.000 UTC [" << get_thread_id() << "] Info test.c:1: test\n";
+  stream << "01-01-1970 00:00:00.000 UTC [" << this->get_thread_id() << "] Info test.c:1: test\n";
   std::string line = stream.str();
-  expect_file(line.c_str());
+  this->expect_file(line.c_str());
 }
 
-TEST_F(RamRecorderTest, NoLineNumber)
+TYPED_TEST(RamRecorderInterfaceTest, NoLineNumber)
 {
   RamRecorder::record(Log::INFO_LEVEL, "test.c", 0, "test");
-  RamRecorder::dump(_dir);
+  RamRecorder::dump(this->_dir);
 
   std::stringstream stream;
-  stream << "01-01-1970 00:00:00.000 UTC [" << get_thread_id() << "] Info test.c: test\n";
+  stream << "01-01-1970 00:00:00.000 UTC [" << this->get_thread_id() << "] Info test.c: test\n";
   std::string line = stream.str();
-  expect_file(line.c_str());
+  this->expect_file(line.c_str());
 }
 
-TEST_F(RamRecorderTest, Params)
+TYPED_TEST(RamRecorderInterfaceTest, Params)
 {
   RamRecorder::record(Log::INFO_LEVEL,
                       "test.c", 0,
                       "test: %s %u %d %x %p", "hello", 1, -1, 0xA, NULL);
-  RamRecorder::dump(_dir);
+  RamRecorder::dump(this->_dir);
 
   std::stringstream stream;
   stream << "01-01-1970 00:00:00.000 UTC ["
-         << get_thread_id()
+         << this->get_thread_id()
          << "] Info test.c: test: hello 1 -1 a (nil)\n";
   std::string line = stream.str();
-  expect_file(line.c_str());
+  this->expect_file(line.c_str());
 }
 
-TEST_F(RamRecorderTest, ErrorLevel)
+TYPED_TEST(RamRecorderInterfaceTest, ErrorLevel)
 {
   RamRecorder::record(Log::ERROR_LEVEL,
                       "test.c", 0,
                       "test");
+  RamRecorder::dump(this->_dir);
+
+  std::stringstream stream;
+  stream << "01-01-1970 00:00:00.000 UTC ["
+         << this->get_thread_id()
+         << "] Error test.c: test\n";
+  std::string line = stream.str();
+  this->expect_file(line.c_str());
+}
+
+// Test that the C++ interface correctly deals with various strings that are
+// passed as an lvalue, an rvalue by explicit move, and an implicit rvalue.
+static std::string get_name() { return "Kermit"; }
+
+TEST_F(RamRecorderTest, CppStringParams)
+{
+  std::string s1 = "Gonzo";
+  std::string s2 = "Fozzy";
+  RamRecorder::record(Log::ERROR_LEVEL,
+                      "test.c", 0,
+                      "test %s %s %s", s1, std::move(s2), get_name());
   RamRecorder::dump(_dir);
 
   std::stringstream stream;
   stream << "01-01-1970 00:00:00.000 UTC ["
-         << get_thread_id()
-         << "] Error test.c: test\n";
+         << this->get_thread_id()
+         << "] Error test.c: test Gonzo Fozzy Kermit\n";
   std::string line = stream.str();
   expect_file(line.c_str());
 }
@@ -399,3 +470,4 @@ TEST_F(RamRecorderTest, MaybeMacro)
   // Expect an empty file
   expect_file("No recorded logs\n");
 }
+

@@ -23,6 +23,7 @@
 #include "test_interposer.hpp"
 
 using namespace std;
+using ::testing::HasSubstr;
 
 /// Fixture for LoggerTest.
 class LoggerTest : public ::testing::Test
@@ -264,4 +265,44 @@ TEST_F(LoggerTest, LongLine)
 
   int rc2 = system("grep 'should not see this' /tmp/logtest_*.txt >/dev/null");
   EXPECT_EQ(1, WEXITSTATUS(rc2));
+}
+
+// Test that the logging interface correctly deals with various C++ strings that
+// are passed as an lvalue, an rvalue by explicit move, and an implicit rvalue.
+static std::string get_name() { return "Kermit"; }
+
+TEST_F(LoggerTest, CppStrings)
+{
+  Logger2 log("/tmp", "logtest");
+  time_t midnight = 1356048000u; // 2012-12-21T00:00:00 UTC
+  log.settime(midnight, 0l);
+
+  // Install the new logger.
+  Logger* old_logger = Log::setLogger(&log);
+
+  std::string name = "Kermit";
+  TRC_STATUS("Hello %s", name);
+  TRC_STATUS("Hello again %s", std::move(name));
+  TRC_STATUS("Goodbye %s", get_name());
+
+  log.flush();
+
+  FILE* f;
+  char linebuf[1024];
+  char* line;
+
+  f = fopen("/tmp/logtest_20121221T000000Z.txt", "r");
+  ASSERT_TRUE(f != NULL);
+  line = fgets(linebuf, sizeof(linebuf), f);
+  EXPECT_THAT(line, HasSubstr("Hello Kermit"));
+  line = fgets(linebuf, sizeof(linebuf), f);
+  EXPECT_THAT(line, HasSubstr("Hello again Kermit"));
+  line = fgets(linebuf, sizeof(linebuf), f);
+  EXPECT_THAT(line, HasSubstr("Goodbye Kermit"));
+  line = fgets(linebuf, sizeof(linebuf), f);
+  EXPECT_TRUE(line == NULL);
+  fclose(f);
+
+  // Restore the old logger.
+  Log::setLogger(old_logger);
 }
